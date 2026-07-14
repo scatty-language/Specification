@@ -4,7 +4,7 @@ Methods in Coggy are strictly categorized by the presence of the receiver parame
 
 ```EBNF
 MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" ["throws"] ["->" ReturnType] Body
-Receiver        ::= ["mut"] "@" ["&"] [StateIdentifier] ["->" StateIdentifier] [","]
+Receiver        ::= ["mut"] "@" ["&"] [","]
 ParameterList   ::= Parameter ("," Parameter)*
 Parameter       ::= ["mut"] Identifier ":" Type ["=" Expression]
 ReturnType      ::= Type | "@" TypeModifier*
