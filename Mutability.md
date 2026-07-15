@@ -5,7 +5,7 @@ In Coggy, all variables, parameters, and method receivers are strictly **immutab
 ## Variable Declarations
 
 ```EBNF
-VarDecl ::= ["mut"] Identifier [":" Type] ":=" Expression ";"
+VarDecl ::= ["mut"] Identifier [":" Type "="] | ":=" Expression ";"
 ```
 
 * **Immutable Binding**: A variable declared without `mut` is permanently bound to its initial value or instance. Any attempt to reassign the variable or mutate its fields is a compilation error.
@@ -13,7 +13,7 @@ VarDecl ::= ["mut"] Identifier [":" Type] ":=" Expression ";"
 * **Transitive Immutability**: Immutability is deep. If an instance is bound immutably, all its fields are strictly treated as immutable, regardless of how they are defined in the `Data` declaration.
 
 ```C#
-x := 10;
+x: int = 10;
 x = 20;      // Error: 'x' is immutable
 
 mut y := 10;
