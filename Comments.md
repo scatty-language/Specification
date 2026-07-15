@@ -4,50 +4,50 @@ Comments are non-executing text ignored by the compiler. They are stripped durin
 
 ```EBNF
 Comment        ::= LineComment | BlockComment
-LineComment    ::= "//" [^NewLine]*
+LineComment    ::= "//" (SourceChar - NewLine)*
 BlockComment   ::= "/*" BlockChar* "*/"
-BlockChar      ::= [^"*"] | "*" [^"/"]
+BlockChar      ::= (SourceChar - "*") | ("*" (SourceChar - "/"))
+SourceChar     ::= /* Any valid UTF-8 character */
 ```
 
 ## Line Comments
 
 A line comment begins with `//` and extends to the end of the physical line.
 
-* **Termination**: The comment terminates at the next LineFeed (`\n`). The line terminator itself is not consumed as part of the comment.
-* **Nesting**: `//` comments do not nest. Any `//` after the opening delimiter is treated as comment text.
+* **Termination**: The comment strictly terminates at the next `NewLine`. The line terminator itself is NOT consumed as part of the comment.
+* **Nesting**: `//` comments do not nest. Any `//` sequence encountered after the opening delimiter is treated as standard comment text.
 
 ```C#
-// This is a line comment
-x := 1; // Valid: trailing comment
+// Line comment
+x := 1;
 ```
 
 ## Block Comments
 
-A block comment begins with `/*` and ends with the first subsequent `*/`.
+A block comment begins with `/*` and ends with the first subsequent sequence `*/`.
 
-* **Non-Nesting**: Block comments do NOT nest. The first `*/` encountered closes the comment, regardless of how many `/*` precede it.
+* **Non-Nesting**: Block comments do NOT nest. The first `*/` encountered closes the comment, regardless of how many `/*` sequences precede it.
 * **Multi-Line**: A block comment MAY span multiple physical lines. Line terminators inside the comment are consumed and do not affect token positions outside the comment.
-* **Unterminated Comment**: A block comment that reaches end-of-file without a closing `*/` is a compilation error.
+* **Unterminated Comment**: A block comment that reaches end-of-file without a closing `*/` is a strict compilation error.
 
 ```C#
-/* Valid: single-line block comment */
+/* Single-line block comment */
 x := 2;
 
-/* Valid:
-   multi-line
+/* Multi-line
    block comment */
 y := 3;
 
 /* Invalid: nested comment
-   /* inner */          // <- This closes the outer comment
-   remaining text */    // <- Error: unexpected '*/'
+   /* inner */          // Closes the outer comment
+   remaining text */    // ERROR: unexpected '*/'
 ```
 
 ## Interaction with String Literals
 
-Comment delimiters inside a string or character literal are literal text and do NOT start a comment.
+Comment delimiters appearing inside a valid string or character literal are treated as literal text and do NOT initiate a comment.
 
 ```C#
-s := "/* not a comment */";   // Valid: entire string is literal text
-t := "// also not a comment"; // Valid
+s := "/* not a comment */";
+t := "// also not a comment";
 ```
