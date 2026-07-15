@@ -13,6 +13,14 @@
   - [Numeric Escapes](./EscapeSequences.md/#numeric-escapes)
   - [Invalid Escapes](./EscapeSequences.md/#invalid-escapes)
 
+- [Identifiers](./Identifiers.md/#identifiers)
+  - [Identifier Categories](./Identifiers.md/#identifier-categories)
+    - [Public Identifiers](./Identifiers.md/#public-identifiers)
+    - [Internal Identifiers](./Identifiers.md/#internal-identifiers)
+    - [Private Identifiers](./Identifiers.md/#private-identifiers)
+    - [Local Identifiers](./Identifiers.md/#local-identifiers)
+    - [Keywords Restriction](./Identifiers.md/#keywords-restriction)
+
 - [Primitive Types](./PrimitiveTypes.md/#primitive-data)
   - [Numeric Types](./PrimitiveTypes.md/#numeric-types)
   - [Logical and Character Types](./PrimitiveTypes.md/#logical-and-character-types)
