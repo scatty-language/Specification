@@ -1,6 +1,6 @@
 # Escape Sequences
 
-Escape sequences allow the representation of non-printable and special characters inside string and character literals. An escape sequence begins with a backslash (``) and is interpreted by the lexer.
+Escape sequences allow the representation of non-printable and special characters inside string and character literals. An escape sequence strictly begins with a backslash (`\`) and is interpreted by the lexer.
 
 ```EBNF
 EscapeSequence ::= "\" (SimpleEscape | NumericEscape)
@@ -19,7 +19,7 @@ HexDigit       ::= [0-9A-Fa-f]
 | **`\n`** | U+000A | Line feed |
 | **`\r`** | U+000D | Carriage return |
 | **`\t`** | U+0009 | Horizontal tab |
-| **`\`** | U+005C | Backslash |
+| **`\\`** | U+005C | Backslash |
 | **`\"`** | U+0022 | Double quotation mark |
 | **`\'`** | U+0027 | Single quotation mark |
 | **`\0`** | U+0000 | Null character |
@@ -32,19 +32,23 @@ HexDigit       ::= [0-9A-Fa-f]
 | **`\uHHHH`** | 4 hex digits | Unicode code point (U+0000–U+FFFF) |
 | **`\UHHHHHHHH`** | 8 hex digits | Unicode code point (U+0000–U+10FFFF) |
 
-* **Validation**: A `\U` escape MUST represent a valid Unicode scalar value (U+0000–U+10FFFF, excluding surrogates U+D800–U+DFFF). An out-of-range or surrogate value is a compilation error.
-* **Case Insensitivity**: Hex digits in numeric escapes are case-insensitive.
+* **Unicode Validation**: A `\u` or `\U` escape MUST represent a valid Unicode scalar value. The maximum valid value is `U+10FFFF`. Surrogate code points (`U+D800` to `U+DFFF`) are strictly FORBIDDEN and result in a compilation error.
+* **UTF-8 Strictness**: String literals in Coggy MUST remain valid UTF-8 sequences. If `\xHH` is used to inject raw bytes that result in a malformed UTF-8 string literal, the compiler MUST reject it.
+* **Case Insensitivity**: Hex digits (`A-F`) in numeric escapes are case-insensitive.
 
 ## Invalid Escapes
 
-* **Unknown Sequence**: A backslash followed by a character not listed above is a compilation error.
+* **Unknown Sequence**: A backslash followed by a character not listed above is a strict compilation error.
 * **Truncated Escape**: A numeric escape with fewer than the required hex digits is a compilation error.
 
 ```C#
-s := "Line1\nLine2";        // Valid: line feed
-c := '\t';                  // Valid: tab
-u := "\u0041";              // Valid: "A"
-bad := "\q";                // Error: unknown escape sequence
-trunc := "\u41";            // Error: \u requires exactly 4 hex digits
-surrogate := "\UD800DC00";  // Error: surrogate code point
+s := "Line1\nLine2";
+c := '\t';
+u := "\u0041";
+
+bad := "\q";                // ERROR: unknown escape sequence
+trunc := "\u41";            // ERROR: '\u' requires exactly 4 hex digits
+outOfRange := "\U00110000"; // ERROR: exceeds maximum Unicode scalar U+10FFFF
+surrogate := "\uD800";      // ERROR: surrogate code point is invalid
+badUtf8 := "\xFF";          // ERROR: '\xFF' alone is not a valid UTF-8 sequence
 ```
