@@ -1,9 +1,7 @@
 # Content Table
 
 - [Source Files](./SourceFiles.md/#source-files)
-  - [Encoding](./SourceFiles.md/)
   - [Whitespace](./SourceFiles.md/#whitespace)
-  - [Line Terminators](./SourceFiles.md/#line-terminators)
 
 - [Comments](./Comments.md/#comments)
   - [Line Comments](./Comments.md/#line-comments)
