@@ -24,6 +24,12 @@
 - [Primitive Types](./PrimitiveTypes.md/#primitive-data)
   - [Numeric Types](./PrimitiveTypes.md/#numeric-types)
   - [Logical and Character Types](./PrimitiveTypes.md/#logical-and-character-types)
+  - [Literals](./PrimitiveTypes.md/#literals)
+    - [Integer Literals](./PrimitiveTypes.md/#integer-literals)
+    - [Floating-Point Literals](./PrimitiveTypes.md/#floating-point-literals)
+    - [Logical Literals](./PrimitiveTypes.md/#logical-literals)
+    - [Character and Rune Literals](./PrimitiveTypes.md/#character-and-rune-literals)
+    - [String Literals](./PrimitiveTypes.md/#string-literals)
 
 - [Data](./Data.md/#data)
   - [Type Modifiers Position](./Data.md/#type-modifiers-position)
