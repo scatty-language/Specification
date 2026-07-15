@@ -30,6 +30,7 @@
     - [Logical Literals](./PrimitiveTypes.md/#logical-literals)
     - [Character and Rune Literals](./PrimitiveTypes.md/#character-and-rune-literals)
     - [String Literals](./PrimitiveTypes.md/#string-literals)
+    - [Raw String Literals](./PrimitiveTypes.md/#raw-string-literals)
 
 - [Data](./Data.md/#data)
   - [Type Modifiers Position](./Data.md/#type-modifiers-position)

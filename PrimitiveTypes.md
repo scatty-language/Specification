@@ -124,3 +124,33 @@ StringLiteral ::= '"' (SourceChar | EscapeSequence)* '"'
 ```C#
 text := "Hello, Coggy!";
 ```
+
+### Raw String Literals
+
+Raw string literals are enclosed in at least three double quotes (`"""`).
+
+```EBNF
+RawStringLiteral ::= '"""' RawChar* '"""'
+RawChar          ::= SourceChar | NewLine
+```
+
+* **No Escape Sequences**: Backslashes (`\`) have absolutely no special meaning inside a raw string. Escape sequences are STRICTLY IGNORED and interpreted as literal text.
+* **Embedded Quotes**: Single (`'`) and double (`"`) quotes can be used freely inside a raw string without escaping.
+* **Multi-line and Indentation**: Raw strings MAY span multiple physical lines. If the literal is multi-line, the compiler MUST use the column position of the closing `"""` to determine the base indentation. Any whitespace before this base column on each line is stripped during compilation.
+* **Type**: Evaluates to the `string` type.
+
+```C#
+regex := """\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""";
+
+json := """
+    {
+        "name": "Coggy",
+        "version": 1.0,
+        "features": ["NLL", "Typestates"]
+    }
+    """;
+
+badString := """
+        Text
+    """; // ERROR: The closing quotes cannot be less indented than the text content
+```
