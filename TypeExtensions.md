@@ -14,7 +14,6 @@ ExtensionDecl ::= "+" Type "{" Member* "}"
 * **Prohibitions**:
   * Extensions MUST NOT declare new fields.
   * Extensions MUST NOT declare virtual, abstract, or overriding methods.
-  * Extensions MUST NOT declare state transitions.
   * Extensions MUST NOT declare new variants.
   * Extensions MUST NOT declare members that shadows members in declaration or other Extension.
 

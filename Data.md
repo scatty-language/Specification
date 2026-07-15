@@ -66,7 +66,6 @@ PayloadField    ::= Identifier ":" Type ["=" Expression]
 * **Memory Layout**: The memory footprint of an enum instance is strictly the sum of: `Size(Shared Fields) + Size(Tag) + Max(Size(Variant Payloads))`.
 * **Shared Members**: Enums MAY declare standard fields, properties, and methods. Shared fields are stored independently of the variant and are accessible unconditionally.
 * **Inheritance Binding**: If an enum inherits from a base Data type (e.g., `int`), variants MAY implicitly provide an initialization expression (`= Expression`) conforming to that base type.
-* **Typestate Prohibition**: Enums MUST NOT declare or utilize State-Types (`:: State1, State2`).
 * **Virtual Behaviors**: If declared as abstract (`%~`), the enum MAY define `~Virtual` or `~Abstract` methods. Variants CANNOT override methods individually; overrides MUST be implemented by inheriting Data types.
 
 ```C#
@@ -96,13 +95,6 @@ PayloadField    ::= Identifier ":" Type ["=" Expression]
     Circle(Radius: float = 10.0),
     Rectangle(Width: int, Height: int),
     Point,
-}
-
-// ERROR: Enums cannot have Typestates
-%StatefulEnum :: Opened, Closed 
-{
-    VariantOne,
-    VariantTwo
 }
 ```
 
