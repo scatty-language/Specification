@@ -36,18 +36,22 @@
   - [Type Modifiers Position](./Data.md/#type-modifiers-position)
   - [Data Declarations & Left-Side Modifiers](./Data.md/#data-declarations--left-side-modifiers)
     - [Standard Data](./Data.md/#standard-data)  
-    - [Abstract Data](./Data.md/#abstract-data)  
     - [Stack-Only Data](./Data.md/#stack-only-data)
     - [Heap-Only Data](./Data.md/#heap-only-data)
-    - [Enumeration Data](./Data.md/#enumeration-data)
-      - [Variant Instantiation](./Data.md/#variant-instantiation)
-      - [Variant Refining and Casting](./Data.md/#variant-refining-and-casting)
-  - [Inheritance and Virtual Functions](./Data.md/#inheritance-and-virtual-functions)
-  - [Nested Data Access](//Data.md/#nested-data-access)
+  - [Nested Data Access](./Data.md/#nested-data-access)
+
+- [Properties](./Properties.md/#properties)
+
+- [Variant Fields](./VariantFields.md/#variant-fields)
+  - [Instantiation](./VariantFields.md/#instantiation)
+  - [Access](./VariantFields.md/#access)
+    - [Base Type Access](./VariantFields.md/#base-type-access)
+    - [`is` Operator](./VariantFields.md/#is-operator)
+  - [Casting Operators](./VariantFields.md/#casting-operators)
 
 - [Mutability](./Mutability.md/#mutability)
   - [Variable Declarations](./Mutability.md/#variable-declarations)
-  - [Function Parameters](./Mutability.md/#function-parameters)
+  - [Method Parameters](./Mutability.md/#method-parameters)
   - [Method Receivers](./Mutability.md/#method-receivers)
   - [Immutable Contexts and Mutability Escalation](./Mutability.md/#immutable-contexts-and-mutability-escalation)
 
@@ -73,9 +77,9 @@
   - [Pattern Matching](./ControlFlow.md/#pattern-matching)
 
 - [Error Handling](./ErrorHandling.md/#error-handling)
-  - [`throws` Function Modifier](./ErrorHandling.md/#throws-function-modifier)
-    - [Non-Throwing Functions](./ErrorHandling.md/#non-throwing-functions)
-    - [Throwing Functions](./ErrorHandling.md/#throwing-functions)
+  - [`throws` Method Modifier](./ErrorHandling.md/#throws-method-modifier)
+    - [Non-Throwing Methods](./ErrorHandling.md/#non-throwing-methods)
+    - [Throwing Methods](./ErrorHandling.md/#throwing-methods)
   - [Throwing and Catching](./ErrorHandling.md/#throwing-and-catching)
     - [`try?` Operator](./ErrorHandling.md/#try-operator)
 
@@ -86,6 +90,18 @@
     - [Internal Members](./PackagesAndVisibility.md/#internal-members)
     - [Private Members](./PackagesAndVisibility.md/#private-members)
   - [Scope and Visibility Constraints](./PackagesAndVisibility.md/#scope-and-visibility-constraints)
+
+- [Abstract Data](./AbstractData.md/#abstract-data)
+  - [Abstraction Model](./AbstractData.md/#abstraction-model)
+    - [Stateless Abstract Data](./AbstractData.md/#stateless-abstract-data)
+    - [Stateful Abstract Data](./AbstractData.md/#stateful-abstract-data)
+  - [Inheritance and Virtual Methods](./AbstractData.md/#inheritance-and-virtual-methods)
+  - [Polymorphic Dispatch](./AbstractData.md/#polymorphic-dispatch)
+
+- [Generics](./Generics.md/#generics)
+  - [Type Parameters and Constraints](./Generics.md/#type-parameters-and-constraints)
+  - [Static Dispatch](./Generics.md/#static-dispatch)
+  - [Generic Methods](./Generics.md/#generic-methods)
 
 - [Concurrency](./Concurrency.md/#concurrency)
   - [Concurrent Scopes and Spawn](./Concurrency.md/#concurrent-scopes-and-spawn)
@@ -101,8 +117,6 @@
   - [Validation and Casting](./RefinementTypes.md/#validation-and-casting)
     - [Operators](./RefinementTypes.md/#operators)
   - [Mutability and Operations](./RefinementTypes.md/#mutability-and-operations)
-
-- [Properties](./Properties.md/#properties)
 
 - [Type Extensions](./TypeExtensions.md/#type-extensions)
   - [Encapsulation and Visibility](./TypeExtensions.md/#encapsulation-and-visibility)
