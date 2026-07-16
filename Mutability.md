@@ -26,10 +26,10 @@ mut mutPoint := Point.New(0, 0);
 mutPoint.X = 5; // Valid
 ```
 
-## Function Parameters
+## Method Parameters
 
-* **Call-by-Value Immutability**: Function parameters act as local bindings. If the `mut` keyword is omitted, the parameter MUST NOT be reassigned or mutated within the function body.
-* **Caller Independence**: The `mut` modifier on a parameter affects ONLY the local scope of the function. It DOES NOT affect the mutability of the original variable passed by the caller (unless passed as a mutable view pointer).
+* **Call-by-Value Immutability**: Method parameters act as local bindings. If the `mut` keyword is omitted, the parameter MUST NOT be reassigned or mutated within the method body.
+* **Caller Independence**: The `mut` modifier on a parameter affects ONLY the local scope of the method. It DOES NOT affect the mutability of the original variable passed by the caller (unless passed as a mutable view pointer).
 
 ```C#
 Process(val: int, mut counter: int) 
@@ -69,7 +69,7 @@ Data
 
 ## Immutable Contexts and Mutability Escalation
 
-* **Escalation Prohibition**: An immutable variable or receiver MUST NOT be passed to a function or method that requires a mutable parameter or a mutable receiver.
+* **Escalation Prohibition**: An immutable variable or receiver MUST NOT be passed to a method or method that requires a mutable parameter or a mutable receiver.
 
 ```C#
 MutateData(mut data: Data) { }

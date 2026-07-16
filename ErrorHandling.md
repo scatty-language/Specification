@@ -4,30 +4,30 @@ Coggy uses exceptions as the primary mechanism for error handling.
 
 Exceptions MUST strictly be Heap-Only Data (`#Data`). To guarantee predictable control flow and systems-level reliability, all methods are strictly non-throwing by default.
 
-## `throws` Function Modifier
+## `throws` Method Modifier
 
-By default, functions are infallible, they guarantee no exceptions will escape their scope. To allow a function to propagate exceptions to its caller, it MUST explicitly declare the `throws` modifier.
+By default, methods are infallible, they guarantee no exceptions will escape their scope. To allow a method to propagate exceptions to its caller, it MUST explicitly declare the `throws` modifier.
 
-### Non-Throwing Functions
+### Non-Throwing Methods
 
-* **Direct Throw Prohibition**: Using the `throw` keyword directly inside a non-`throws` function is a STRICT compile-time error.
-* **Implicit Abort**: A non-`throws` function MAY call a `throws` function without wrapping it in a `try/catch` block. However, if the called function throws an exception, the runtime MUST immediately abort the process.
+* **Direct Throw Prohibition**: Using the `throw` keyword directly inside a non-`throws` method is a STRICT compile-time error.
+* **Implicit Abort**: A non-`throws` method MAY call a `throws` method without wrapping it in a `try/catch` block. However, if the called method throws an exception, the runtime MUST immediately abort the process.
 
-### Throwing Functions
+### Throwing Methods
 
-* **Propagation**: A function marked with `throws` MAY use the `throw` keyword and MAY let exceptions from nested calls bubble up to the caller.
+* **Propagation**: A method marked with `throws` MAY use the `throw` keyword and MAY let exceptions from nested calls bubble up to the caller.
 
 ```C#
-// Function allows exception propagation
+// Method allows exception propagation
 TryCalculate(value: int) throws 
 {
     if value < 0 => throw #Exception.New("Less than zero!");
 }
 
-// Function is non-throwing by default
+// Method is non-throwing by default
 Calculate() 
 {
-    throw #Exception.New("Oops!"); // ERROR: Cannot throw directly in a non-throws function
+    throw #Exception.New("Oops!"); // ERROR: Cannot throw directly in a non-throws method
 
     // Valid: Handled locally
     try 
@@ -43,7 +43,7 @@ Calculate()
     TryCalculate(5); 
 }
 
-// Function propagates exceptions from inner calls
+// Method propagates exceptions from inner calls
 Some() throws 
 {
     TryCalculate(-1); // Exception bubbles up to the caller of 'Some()'

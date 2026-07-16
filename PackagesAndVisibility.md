@@ -58,7 +58,7 @@ Members starting with an uppercase letter and strictly ending with a single unde
 
 Members starting with an underscore `_` followed by a lowercase letter are **Private**.
 
-* **Access**: Available ONLY within their immediate enclosing lexical scope. 
+* **Access**: Available ONLY within their immediate enclosing lexical scope.
   * If declared at the file level, they are strictly private to that file.
   * If declared inside a `Data` type or extension, they are strictly private to that block.
 

@@ -41,7 +41,7 @@ The compiler STRICTLY enforces where each category of identifier can be used bas
 ### Local Identifiers
 
 * **Format**: Starts with a lowercase letter, followed by letters or digits.
-* **Usage**: Used STRICTLY for local variables, function parameters, and pattern-matching bindings. Local variables MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats.
+* **Usage**: Used STRICTLY for local variables, method parameters, and pattern-matching bindings. Local variables MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats.
 
 ```C#
 // Valid:

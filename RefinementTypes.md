@@ -103,7 +103,7 @@ match rawValue as? int^Positive
 
 ## Mutability and Operations
 
-* **Operator Downgrade**: Standard operators (`+`, `-`) are functions of the base type. Performing an operation on a refined type implicitly downgrades it. The result is strictly the base type.
+* **Operator Downgrade**: Standard operators (`+`, `-`) are methods of the base type. Performing an operation on a refined type implicitly downgrades it. The result is strictly the base type.
 * **Reassignment Restriction**: You CANNOT implicitly assign the result of an operation back to a mutable refined variable. It MUST be explicitly re-validated.
 
 ```C#

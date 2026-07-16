@@ -137,7 +137,7 @@ Raw pointers (`*`) and manual lifecycle control override the compiler's safety g
 
 * **Context Requirement**: Any operation involving raw pointers or manual memory pinning MUST occur within an `unsafe` block or an `unsafe` method.
 * **Raw Pointers (`*`)**: Unsafe, nullable, non-owning pointers. Creating a raw pointer from a `#` pointer does NOT defer the `#` pointer's destruction.
-* **Method Pointers**: Function pointers (`methodPointer`) are inherently unsafe and MUST be invoked in an `unsafe` scope.
+* **Method Pointers**: Method pointers (`methodPointer`) are inherently unsafe and MUST be invoked in an `unsafe` scope.
 
 ### Pin and Unpin
 

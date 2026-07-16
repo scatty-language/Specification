@@ -15,7 +15,7 @@ DataModifier    ::= "~" | "&" | "#"
 DataDecl        ::= DataIdentifier [":" ParentList] "{" Member* "}"
 ParentList      ::= Identifier ("," Identifier)*
 
-Member          ::= DataDecl | FieldDecl | VariantFieldDecl | FunctionDecl | RefinementDecl
+Member          ::= DataDecl | FieldDecl | VariantFieldDecl | MethodDecl | RefinementDecl
 FieldDecl       ::= Identifier ":" Type ["=" Expression] ";"
 
 Type            ::= DataIdentifier TypeModifier*
