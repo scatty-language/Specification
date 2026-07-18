@@ -27,8 +27,10 @@ TypeModifier    ::= "[]" | "#" | "&" | "*" | "?"
 Can be instantiated on the stack or heap.
 
 * **Inheritance**: Supports inheritance exclusively from Abstract Data (`~Data`). It MUST NOT inherit from other Standard, Stack-Only, or Heap-Only Data.
-* **Memory Layout**: Fields MUST be laid out sequentially in memory. The compiler MAY apply padding to satisfy architecture alignment.
 * **Initialization Order**: Default values MUST evaluate strictly before the initializer executes.
+* **Memory Layout**:
+  * Fields MUST be laid out sequentially in memory. The compiler MAY apply padding to satisfy architecture alignment.
+  * Any instantiable Data type (Standard, Stack-Only, or Heap-Only) declared without fields MUST occupy a minimum of 1 byte.
 
 ### Stack-Only Data
 
