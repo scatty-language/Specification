@@ -1,66 +1,66 @@
 # Methods
 
-Methods in Coggy are strictly categorized by the presence of the receiver parameter (`@`). They support expression-bodied syntax, explicit static dispatch, and fluent chaining.
+Methods in Coggy are strictly categorized by the presence of the receiver parameter.
 
 ```EBNF
-MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" ["throws"] ["->" ReturnType] Body
-Receiver        ::= ["mut"] "@" ["&"] [","]
+MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" MethodDeclModifiers* ["->" ReturnType] Body
+Receiver        ::= ["ref"] "@" [","]
 ParameterList   ::= Parameter ("," Parameter)*
-Parameter       ::= ["mut"] Identifier ":" Type ["=" Expression]
-ReturnType      ::= Type | "@" TypeModifier*
+Parameter       ::= ["ref"] LocalId ":" Type ["=" Expression]
+ReturnType      ::= Type | "@"
 Body            ::= Block | "=>" Expression ";"
+MethodModifiers ::= "throws" | "unsafe"
 ```
 
-* **Implicit Void**: Explicitly declaring a void return type (e.g., `-> void`) is strictly FORBIDDEN. If a method does not return a value, the `-> ReturnType` clause MUST be completely omitted.
+* **Implicit Void**: Explicitly declaring a void return type (e.g., `-> void`) is FORBIDDEN. If a method does not return a value, the `-> ReturnType` clause MUST be omitted.
 * **Expression Body**: Methods composed of a single expression MAY use the `=>` syntax instead of a block `{}`.
 * **Default Parameters**: Methods MAY declare parameters with default values using the `=` syntax. Parameters with default values MUST appear after all parameters without default values.
 
 ## Instance Methods
 
-An instance method operates on a specific instance of Data. It MUST declare `@` as its first parameter.
+An instance method operates on a specific instance of Data.
 
-The receiver strictly dictates the ownership and mutability semantics of the instance.
-
-* **By-Value (`@`)**: The method takes ownership of the instance. The instance is moved into the method and acts as an immutable local binding. It CANNOT be reassigned.
-* **Mutable By-Value (`mut @`)**: The method takes ownership of the instance. The local binding is mutable, allowing field mutations and full reassignment of the `@` binding to a new instance of the same type.
-* **Immutable View (`@&`)**: The method borrows the instance immutably. Ownership is not transferred. Fields CANNOT be mutated.
-* **Mutable View (`mut @&`)**: The method borrows the instance mutably. Fields MAY be mutated, and the `@&` pointer itself MAY be reassigned locally to point to another instance.
+* **Receiver Position**: It MUST be declared as first parameter once.
+* **By-Value (`@`)**: The method receives a logically independent copy of the instance. The method MAY mutate `@` locally, but these mutations are isolated and DO NOT affect the caller's original instance.
+* **In-Place Mutation (`ref @`)**: The method receives a direct reference to the caller's instance. Any mutations applied to `@` strictly modify the original instance.
+* **No Reassignment**: Reassigning the `@` itself (e.g., `@ = Data.New();`) is FORBIDDEN.
 
 ```C#
-Vector 
+Vector
 {
     X: int;
     Y: int;
 
-    New(x: int, y: int) -> @
+    New(x: int, y: int) -> @ => Vector { X: x, Y: y };
+
+    // @ is passed by value
+    // 'other' is passed by value
+    // The original instance remains unchanged
+    Sum(@, other: Vector) -> Vector 
     {
-        return Vector { x, y };
+        return Vector.New(@.X + other.X, @.Y + other.Y);
     }
 
-    // @& borrows self immutably. 'other' is moved
-    Sum(@&, other: Vector) -> Vector 
-    {
-        return New(@.X + other.X, @.Y + other.Y);
-    }
+    // Expression body, reads the local value
+    Print(@) => Console.WriteLine($"{@.X}, {@.Y}");
 
-    // Expression body borrowing self
-    Print(@&) => Console.WriteLine($"{@.X, @.Y}");
-
-    // Consumes self, allows replacement
-    ConsumeAndReplace(mut @, other: Vector) 
+    // Mutates the caller's original instance in-place
+    Translate(ref @, dx: int, dy: int) 
     {
-        @ = other; // Valid: @ is mutable by-value
+        @.X += dx;
+        @.Y += dy;
     }
 }
 ```
 
 ### Fluent Methods
 
-A fluent method is an instance method that explicitly declares its return type as the exact same signature as its receiver (e.g., `-> @` or `-> @&`).
+A fluent method is an instance method that explicitly declares its return type as `@`.
 
-* **Implicit Return**: The compiler MUST AUTOMATICALLY injects the return of the instance (or pointer) at the end of the execution path.
-* **Explicit Return Prohibition**: Manually writing `return @;` in a fluent method is redundant and explicitly FORBIDDEN.
-* **Substitution**: If the receiver is mutable (`mut @` or `mut @&`), the developer MAY reassign `@` to a new instance (or pointer) within the method body. The fluent return will implicitly return the newly assigned instance.
+* **Implicit Return**: The compiler MUST inject the return of the instance at the end of the execution path.
+* **Explicit Return Prohibition**: Manually writing `return @;` in a fluent method is FORBIDDEN.
+* **Builder Pattern**: If the receiver is `@`, the method mutates its local copy and implicitly returns it.
+* **Chaining Mutations**: If the receiver is `ref @`, the method mutates the original instance and implicitly returns a copy of the mutated state.
 
 ```C#
 Vector 
@@ -68,35 +68,32 @@ Vector
     X: int;
     Y: int;
         
-    New(x: int, y: int) -> @
+    New(x: int, y: int) -> @ => Vector { X: x, Y: y };
+
+    // Builder pattern: operates on a value copy and returns the new copy
+    WithX(@, x: int) -> @ 
     {
-        return Vector { x, y };
+        @.X = x;
+        // implicitly returns '@'
     }
 
-    // Fluent method with mutable view borrowing
-    Add(mut @&, other: Vector) -> @& 
+    // Fluent in-place mutation
+    Add(ref @, other: Vector) -> @ 
     {
         @.X += other.X;
         @.Y += other.Y;
-        
-        // implicitly returns @&
-    }
-
-    // Fluent method with by-value ownership and substitution
-    Replace(mut @, other: Vector) -> @
-    {
-        @ = other; // Substitutes the local instance entirely
-        
-        // implicitly returns the new @
+        // implicitly returns '@'
     }
 }
 
-// Fluent chaining at call site
-mut zero := Vector.New(0, 0);
+// Builder chaining, original 'zero' is untouched
+zero := Vector.New(0, 0);
+unit := zero.WithX(1).WithY(1); 
 
-zero
-    .Add(Vector.New(1, 1))
-    .Add(Vector.New(1, 1));
+// In-place fluent chaining
+pos := Vector.New(10, 10);
+pos.Add(Vector.New(5, 0)).Add(Vector.New(0, 5)); 
+// 'pos' is now { X: 15, Y: 15 }
 ```
 
 ## Static Methods
@@ -106,29 +103,29 @@ Methods declared WITHOUT the `@` receiver parameter are static.
 * **No Instance State**: They CANNOT access instance fields.
 * **Invocation**: They MUST be invoked using the type name as a namespace (`DataName.MethodName()`).
 * **Unqualified Call Inside Type**: When calling a static method from within the lexical scope of the same type, the type name MAY be omitted. An unqualified call resolves to the static method on the containing type.
-* **Return Shorthand**: Static methods MAY declare their return type as `-> @`. In this context `@` is a shorthand for the current type in which the method is declared (the containing data type).
+* **Return Shorthand**: Static methods MAY declare their return type as `-> @`. In this context, `@` is a syntactic shorthand for the current Data type in which the method is declared.
 
 ```C#
 Vector 
 {
-    // Static method
-    New(x: int, y: int) -> Vector 
+    // Static method returning the explicitly named type
+    CreateEmpty() -> Vector 
     {
-        return Vector { x, y };
+        return Vector { X: 0, Y: 0 };
     }
 
-    // Static method with shorthand for the current type
-    NewAnother(x: int, y: int) -> @
+    // Static method using the '@' shorthand for the return type
+    New(x: int, y: int) -> @
     {
-        return Vector { x, y };
+        return Vector { X: x, Y: y };
     }
 
-    // Static method with unqualified static method call
+    // Unqualified static method call
     CreateZero() -> @
     {
         return New(0, 0);
     }
 }
 
-zero := Vector.New(0, 0);
+zero := Vector.CreateZero();
 ```
