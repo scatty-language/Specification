@@ -146,7 +146,7 @@ json := """
     {
         "name": "Coggy",
         "version": 1.0,
-        "features": ["NLL", "Typestates"]
+        "features": ["ARC", "Generics"]
     }
     """;
 
