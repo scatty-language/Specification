@@ -33,27 +33,29 @@ concurrent
 
 ## Capture and Memory Safety Rules
 
-When a variable from an outer scope is accessed inside a `spawn` block, strict capture rules apply to prevent data races:
+When a variable from an outer scope is accessed inside a `spawn` block, strict capture rules apply to prevent data races and ensure memory safety:
 
-1. **Moves**: Variables passed by value or via Sharp Pointers are moved into the task. The task assumes full ownership.
-2. **Immutable View Pointers**: Tasks MAY capture immutable view pointers. This is strictly safe because the `concurrent` barrier guarantees the task will terminate before the Last Use Place (LUP) of the data. Multiple spawned tasks MAY capture the same `&` pointer concurrently.
-3. **Mutable View Pointers**: STRICTLY FORBIDDEN. A `spawn` block MUST NOT capture a mutable view pointer from an outer scope. This statically eliminates data races without requiring a complex runtime borrow checker.
+1. **Implicit Copy**: Standard variables are captured by value. The spawned task receives an independent copy. Standard copy-on-write (CoW) applies to ARC-backed types.
+2. **No Capture by Reference**: Capturing outer variables by reference (`ref`) is FORBIDDEN. A `spawn` block MUST NOT reference variables that are passed as `ref` in the outer scope.
+3. **Shared Mutable State**: To share mutable state between concurrent tasks, variables MUST be explicitly wrapped in thread-safe containers provided by the Standard Library (such as `AtomicShared<T>` or `Mutex<T>`). Standard `Shared<T>` is FORBIDDEN inside a `spawn` block.
 
 ```C#
-Calculate(view: int&) { }
+Calculate(value: int) { }
 
-mut counter := 0;
-dataPtr: int# = 10#;
-sharedView: int& = &dataPtr;
+counter := 0;
 
 concurrent 
 {
-    // Valid: Immutable view pointer is shared across tasks safely.
-    spawn => Calculate(sharedView);
-    spawn => Calculate(sharedView);
+    // Valid: 'counter' is captured by value
+    spawn => Calculate(counter);
+    spawn => Calculate(counter);
     
-    // Error: Cannot capture mutable variable in a concurrent task
-    spawn => counter++;
+    // Valid: Mutating the local copy of the captured variable is safe and isolated
+    spawn 
+    {
+        localCounter := counter;
+        localCounter = localCounter + 1;
+    }
 }
 ```
 
@@ -82,7 +84,7 @@ Structured Concurrency inherently encapsulates error states. If an unhandled exc
 * **Cooperative Cancellation (`concurrent throws`)**: If the block is marked with `throws`:
   1. If ANY task throws, the `concurrent` block transitions to a `Cancelled` state.
   2. Other tasks MUST cooperatively observe cancellation.
-  3. The `concurrent` block waits for all tasks to acknowledge cancellation, then strictly rethrows an `#AggregateException`.
+  3. The `concurrent` block waits for all tasks to acknowledge cancellation, then strictly rethrows an `AggregateException`.
 
 ### The Rollback Sub-Block
 
@@ -93,8 +95,8 @@ SpawnStmt ::= "spawn" (Block | "=>" Statement) ["rollback" (Block | "=>" Stateme
 ```
 
 * **Execution Condition**: The `rollback` block strictly executes ONLY IF its associated `spawn` task has strictly and successfully completed, AND the enclosing `concurrent` scope subsequently enters a `Cancelled` state (due to an exception in another task).
-* **Variable Capture Rules**: Variable access inside a `rollback` block follows standard affine capture rules.
-* **Implicit Non-Throwing**: The `rollback` block is MUST non-throwing. If an exception is thrown inside a `rollback` block, the program MUST immediately abort.
+* **Variable Capture Rules**: Variable access inside a `rollback` block follows the standard implicit copy rules.
+* **Implicit Non-Throwing**: The `rollback` block MUST be non-throwing. If an exception is thrown inside a `rollback` block, the program MUST immediately abort.
 
 ```C#
 concurrent throws 
@@ -107,14 +109,14 @@ concurrent throws
     rollback 
     {
         // Executes if Task 1 succeeds, but Task 2 fails
-        // ABORTS if Delete throws (rollback is strictly non-throwing)
+        // ABORTS if Delete throws
         Storage.Delete(fileId);
     }
 
     // Task 2: Fails and triggers cancellation
     spawn 
     {
-        throw #Exception.New("Database disconnected");
+        throw Exception.New("Database disconnected");
     }
 }
 ```
