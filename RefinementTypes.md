@@ -11,7 +11,7 @@ TypeParams     ::= TypeParameter ("," TypeParameter)*
 ```
 
 * **The Universal Base Type (`@`)**: In the declaration, using `@` as the `TargetType` signifies that the refinement is generic and can be applied to ANY type that satisfies the `where` expression.
-* **The Instance Receiver (`@`)**: Inside the `where` expression, `@` acts as an immutable view (`@&`) to the evaluated instance.
+* **The Instance Receiver (`@`)**: Inside the `where` expression, `@` represents the evaluated instance itself.
 * **Explicit Generics**: Developers MAY use explicit generic constraints (`T: Number`) instead of the universal `@` if strict trait bounds are required.
 
 ```C#
@@ -107,12 +107,12 @@ match rawValue as? int^Positive
 * **Reassignment Restriction**: You CANNOT implicitly assign the result of an operation back to a mutable refined variable. It MUST be explicitly re-validated.
 
 ```C#
-MutateAge(mut age: int^Positive&) 
+MutateAge(ref age: int^Positive) 
 {
     value := age - 1;       // Downgrades to 'int'
-    age = value;            // ERROR: Cannot implicitly assign 'int' to 'int^Positive&'
+    age = value;            // ERROR: Cannot implicitly assign 'int' to 'ref int^Positive'
     
     // Explicit re-validation required:
-    age = (age - 1) as! int^Positive; 
+    age = (age - 1) as int^Positive; 
 }
 ```
