@@ -1,84 +1,87 @@
 # Mutability
 
-In Coggy, all variables, parameters, and method receivers are strictly **immutable by default**. The `mut` keyword MUST be explicitly provided to allow reassignment or field mutation.
-
-## Variable Declarations
+In Coggy all variables, parameters, and method receivers are mutable by default.
 
 ```EBNF
-VarDecl ::= ["mut"] Identifier [":" Type "="] | ":=" Expression ";"
+VarDecl ::= LocalId [":" Type] ("=" | ":=") Expression ";"
 ```
 
-* **Immutable Binding**: A variable declared without `mut` is permanently bound to its initial value or instance. Any attempt to reassign the variable or mutate its fields is a compilation error.
-* **Mutable Binding**: The `mut` keyword permits both reassignment of the variable to a new value and the mutation of its internal fields.
-* **Transitive Immutability**: Immutability is deep. If an instance is bound immutably, all its fields are strictly treated as immutable, regardless of how they are defined in the `Data` declaration.
+* **Default Mutability**: Any variable declared via `:=` or `=` is fully mutable. You MAY reassign the variable to a new value or mutate its fields freely.
+* **Logical Isolation**: Mutating a variable NEVER affects any other variable, even if one was assigned from the other. The compiler implicitly handles Copy-on-Write (CoW) for heap-backed data.
 
 ```C#
-x: int = 10;
-x = 20;      // Error: 'x' is immutable
+x := 10;
+x = 20;
 
-mut y := 10;
-y = 20;      // Valid: 'y' is mutable
+pointA := Point.New(0, 0);
+pointB := pointA;
 
-point := Point.New(0, 0);
-point.X = 5; // Error: 'point' is immutable
-
-mut mutPoint := Point.New(0, 0);
-mutPoint.X = 5; // Valid
+pointB.X = 5; // Mutates 'pointB'
+// 'pointA.X' is still strictly 0
 ```
 
 ## Method Parameters
 
-* **Call-by-Value Immutability**: Method parameters act as local bindings. If the `mut` keyword is omitted, the parameter MUST NOT be reassigned or mutated within the method body.
-* **Caller Independence**: The `mut` modifier on a parameter affects ONLY the local scope of the method. It DOES NOT affect the mutability of the original variable passed by the caller (unless passed as a mutable view pointer).
+Function and method parameters act as fully mutable local variables.
+
+* **Call-by-Value Mutability**: When a variable is passed to a method without the `ref` keyword, the method receives a logically independent copy. The method MAY mutate this parameter internally.
+* **Caller Independence**: Mutations applied to a standard parameter affect ONLY the local scope of the method. The original variable passed by the caller remains absolutely unchanged.
 
 ```C#
-Process(val: int, mut counter: int) 
+Process(val: int, counter: int) 
 {
-    val = 5;     // Error: 'val' is immutable
-    counter = 5; // Valid: 'counter' is mutable
+    val = 5;     // Mutates the local copy
+    counter = 5; // Mutates the local copy
 }
+
+myVal := 10;
+myCounter := 0;
+
+Process(myVal, myCounter);
+// 'myVal' is still 10, 'myCounter' is still 0
 ```
 
 ## Method Receivers
 
-Methods operating on an instance strictly dictate whether the instance can be mutated via the receiver parameter `@`.
+Methods operating on an instance dictate whether they mutate a local copy or the caller's original instance.
 
-* **Read-Only Receiver**: If a method is declared with `@`, the instance is borrowed immutably. The method MUST NOT mutate any fields of the instance.
-* **Mutable Receiver**: If a method is declared with `mut @`, the instance is borrowed mutably. The method MAY mutate the fields of the instance.
-* **No Receiver Reassignment**: Even within a `mut @` method, reassigning the `@` pointer itself (e.g., `@ = other;`) remains STRICTLY FORBIDDEN.
+* **Local Receiver (`@`)**: The method receives a local, logically independent copy of the instance. The method MAY mutate fields on `@`, but these mutations will strictly disappear when the method returns, unless returned via a fluent interface (`-> @`).
+* **In-Place Receiver (`ref @`)**: The method borrows the original instance from the caller. Any mutations applied to `@` strictly modify the original instance directly.
 
 ```C#
 Data 
 {
     X: int;
     
-    // Read-only method
-    MakeSome(@) 
+    // Mutates a local copy
+    WithX(@, x: int) -> @
     {
-        @.X = 20; // Error: @ is immutable, field mutation forbidden
+        @.X = x;
     }
     
-    // Mutating method
-    MakeGoodSome(mut @) 
+    // Mutates the original caller's instance
+    SetX(ref @, x: int) 
     {
-        @.X = 100; // Valid: field mutation allowed
-        @ = Data.New(); // Error: Reassigning the receiver pointer itself is forbidden
+        @.X = x;
+        
+        @ = Data.New(); // ERROR: Reassigning the receiver itself is forbidden
     }
 }
 ```
 
-## Immutable Contexts and Mutability Escalation
+## Constants
 
-* **Escalation Prohibition**: An immutable variable or receiver MUST NOT be passed to a method or method that requires a mutable parameter or a mutable receiver.
+If absolute immutability is required, the `#` sigil MUST be used.
+
+```EBNF
+ConstDecl ::= "#" Identifier [":" Type] "=" Expression ";"
+```
+
+* **Compile-Time Evaluation**: A constant variable MUST be evaluable at compile time.
+* **Strict Immutability**: A constant binding can NEVER be reassigned, and its fields MUST NOT be mutated. It CANNOT be passed to a `ref` parameter.
 
 ```C#
-MutateData(mut data: Data) { }
+#Pi: float = 3.14159f;
 
-immutableData := Data.New();
-
-// Error: Cannot call mutating method on an immutable instance
-immutableData.MakeGoodSome(); 
-
-// Error: Cannot pass immutable instance to a method expecting a mutable binding 
-MutateData(immutableData); 
+#Pi = 3.14f; // ERROR: Constants are immutable
 ```
