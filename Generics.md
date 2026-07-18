@@ -17,9 +17,9 @@ ConstraintList ::= TypeIdentifier ("," TypeIdentifier)*
 
 ```C#
 // Generic data with an unconstrained type
-Box<T> 
+Cell<T> 
 {
-    Value: T#;
+    Value: T;
 }
 
 // Generic data constrained to types that implement '~IPrintable'
@@ -27,20 +27,20 @@ PrinterData<T: ~IPrintable>
 {
     Item: T;
 
-    PrintItem(@&) => @.Item.Print();
+    PrintItem(@) => @.Item.Print();
 }
 ```
 
 ## Static Dispatch
 
-When a method or Data uses a generic parameter `<T: ~Contract>`, the compiler strictly make a monomorphization of the code for each specific type used.
+When a method or Data uses a generic parameter `<T: ~Contract>`, the compiler strictly makes a monomorphization of the code for each specific type used.
 
 * **Devirtualization**: Any call to a virtual method (e.g., `item.Print()`) on a generic parameter `T` is strictly resolved at compile time as a direct, static method call.
 
 ```C#
 // Monomorphized method
 // If called with 'Player', a specific Player version is generated
-ProcessItem<T: ~Entity, ~IPrintable>(mut item: T) 
+ProcessItem<T: ~Entity, ~IPrintable>(item: T) 
 {
     item.Update(); // Direct static call
     item.Print();  // Direct static call
@@ -55,7 +55,7 @@ Methods within standard Data or modules MAY declare their own generic parameters
 Processor 
 {
     // Generic method on a non-generic Data type
-    Process<T: ~IPrintable>(item: T&) 
+    Process<T: ~IPrintable>(item: T) 
     {
         item.Print();
     }
