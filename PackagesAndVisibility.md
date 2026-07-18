@@ -34,29 +34,17 @@ Engine
 
 ## Visibility Rules
 
-Access rights for any member are intrinsically tied to its identifier's casing and format.
-
-```EBNF
-PublicId   ::= [A-Z] [a-zA-Z0-9]* (but not ending with "_")
-InternalId ::= [A-Z] [a-zA-Z0-9]* "_"
-PrivateId  ::= "_" [a-z] [a-zA-Z0-9]*
-```
+Access rights for any member are intrinsically tied to its identifier's lexical format, as defined in the Identifiers section.
 
 ### Public Members
-
-Members starting with an uppercase letter are **Public**.
 
 * **Access**: Available globally. Accessible from any file in any package that imports the declaring package.
 
 ### Internal Members
 
-Members starting with an uppercase letter and strictly ending with a single underscore `_` are **Internal**.
-
 * **Access**: Available ONLY to files within the same compiled Package. Attempting to access an internal member from an external package is a strict compilation error.
 
 ### Private Members
-
-Members starting with an underscore `_` followed by a lowercase letter are **Private**.
 
 * **Access**: Available ONLY within their immediate enclosing lexical scope.
   * If declared at the file level, they are strictly private to that file.
@@ -64,8 +52,8 @@ Members starting with an underscore `_` followed by a lowercase letter are **Pri
 
 ## Scope and Visibility Constraints
 
-* **Exposure Restriction**: A public member MUST NOT expose a restricted (private or internal) type in its public signature.
-* **Enum Variants**: Variants within a public `enum` MUST strictly be public.
+* **Exposure Restriction**: A public member MUST NOT expose a restricted (private or internal) type in its public signature (e.g., fields, return types, or parameters).
+* **Variant Fields**: Variants defined within a variant field MUST strictly use public identifiers, ensuring they are accessible wherever the field itself is accessible.
 
 ```C#
 // PACKAGE: Geometry
@@ -77,7 +65,7 @@ Circle
 
     New(radius: float) -> @
     {
-        return Circle { radius, radius };
+        return Circle { Radius: radius, _cache: 0.0 };
     }
 }
 
