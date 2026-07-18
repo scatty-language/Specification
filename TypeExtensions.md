@@ -26,7 +26,7 @@ ExtensionDecl ::= "+" Type "{" Member* "}"
 MyData 
 {
     _count: int;
-    Increment(mut @&) => _count++;
+    Increment(ref @) => @._count = @._count + 1;
 }
 
 // Extension block for 'MyData'
@@ -38,8 +38,8 @@ MyData
     // Refinement type scoped to the extension
     ^ValidData = MyData where @.Count > 0;
 
-    // Instance method extension borrowing immutably
-    PrintCount(@&) => Console.WriteLine(@.Count);
+    // Instance method extension
+    PrintCount(@) => Console.WriteLine(@.Count);
 }
 
 // Extension block for primitive type
@@ -51,7 +51,7 @@ MyData
 }
 
 data := MyData {1};
-validData := data as MyData::^ValidData;
+validData := data as MyData^ValidData;
 
-email := "test@example.com" as string::^Email;
+email := "test@example.com" as string^Email;
 ```
