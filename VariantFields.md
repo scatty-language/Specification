@@ -5,7 +5,7 @@ Coggy does not have module-level enumerations. Instead, Algebraic Data Types are
 A variant field encapsulates a hidden integer tag, an optional base value, and an optional variant-specific memory payload.
 
 ```EBNF
-VariantFieldDecl ::= "%" Identifier [":" Type] ["=" Expression] "{" Variant+ "}"
+VariantFieldDecl ::= "%" Identifier [":" Type ["=" Expression]] "{" Variant+ "}"
 Variant          ::= PublicId ["(" PayloadList ")"] ["=" Expression] ","?
 PayloadList      ::= PayloadField ("," PayloadField)*
 PayloadField     ::= LocalId ":" Type ["=" Expression]
@@ -14,6 +14,7 @@ PayloadField     ::= LocalId ":" Type ["=" Expression]
 * **Optional Base Type**:
   * If the `: Type` is **omitted**, the field acts purely as a state flag. The compiler implicitly assigns it an `int` base type to represent the variant tag.
   * If the `: Type` is **provided**, the compiler allocates an `int` tag PLUS memory for the specified base type, PLUS memory for the largest payload.
+  * **Abstract Data Restriction**: The base `: Type` MUST NOT be an Abstract Data type (`~Data`).
 * **Variant Resolution**:
   * If the field has a base type, every variant MUST resolve to a value of that type.
   * If a variant explicitly declares `= Expression`, that value is used.
