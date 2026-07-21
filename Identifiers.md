@@ -3,7 +3,7 @@
 Identifiers are names used to denote types, variables, fields, methods, properties, data, and packages.
 
 * **Only ASCII**: Identifiers MUST strictly consist of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
-* **No Unicode**: Unicode characters are STRICTLY FORBIDDEN in identifiers.
+* **No Unicode**: Unicode characters are FORBIDDEN in identifiers.
 
 ```EBNF
 Identifier     ::= PublicId | InternalId | PrivateId | LocalId
