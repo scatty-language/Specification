@@ -82,7 +82,7 @@ Because refinements do not alter the memory layout, casting between a base type 
 4. **`as?` (Option Cast)**: Validates and returns `Option<BaseType^Refinement>`.
 
 ```C#
-mut rawValue: int = -10;
+rawValue: int = -10;
 
 // Boolean check
 if rawValue is int^Positive 
