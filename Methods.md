@@ -1,9 +1,9 @@
 # Methods
 
-Methods in Coggy are strictly categorized by the presence of the receiver parameter.
+Methods in Coggy are categorized by the presence of the receiver parameter.
 
 ```EBNF
-MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" MethodDeclModifiers* ["->" ReturnType] Body
+MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" MethodModifiers* ["->" ReturnType] (Body | ";")
 Receiver        ::= ["ref"] "@" [","]
 ParameterList   ::= Parameter ("," Parameter)*
 Parameter       ::= ["ref"] LocalId ":" Type ["=" Expression]
@@ -20,18 +20,18 @@ MethodModifiers ::= "throws" | "unsafe"
 
 An instance method operates on a specific instance of Data.
 
-* **Receiver Position**: It MUST be declared as first parameter once.
+* **Receiver Position**: It MUST be declared as the first parameter once.
 * **By-Value (`@`)**: The method receives a logically independent copy of the instance. The method MAY mutate `@` locally, but these mutations are isolated and DO NOT affect the caller's original instance.
-* **In-Place Mutation (`ref @`)**: The method receives a direct reference to the caller's instance. Any mutations applied to `@` strictly modify the original instance.
+* **In-Place Mutation (`ref @`)**: The method receives a direct reference to the caller's instance. Any mutations applied to `@` modify the original instance.
 * **No Reassignment**: Reassigning the `@` itself (e.g., `@ = Data.New();`) is FORBIDDEN.
 
 ```C#
 Vector
 {
-    X: int;
-    Y: int;
+    X: Int;
+    Y: Int;
 
-    New(x: int, y: int) -> @ => Vector { X: x, Y: y };
+    New(x: Int, y: Int) -> @ => Vector { X: x, Y: y };
 
     // @ is passed by value
     // 'other' is passed by value
@@ -45,7 +45,7 @@ Vector
     Print(@) => Console.WriteLine($"{@.X}, {@.Y}");
 
     // Mutates the caller's original instance in-place
-    Translate(ref @, dx: int, dy: int) 
+    Translate(ref @, dx: Int, dy: Int) 
     {
         @.X += dx;
         @.Y += dy;
@@ -65,13 +65,13 @@ A fluent method is an instance method that explicitly declares its return type a
 ```C#
 Vector 
 {
-    X: int;
-    Y: int;
+    X: Int;
+    Y: Int;
         
-    New(x: int, y: int) -> @ => Vector { X: x, Y: y };
+    New(x: Int, y: Int) -> @ => Vector { X: x, Y: y };
 
     // Builder pattern: operates on a value copy and returns the new copy
-    WithX(@, x: int) -> @ 
+    WithX(@, x: Int) -> @ 
     {
         @.X = x;
         // implicitly returns '@'
@@ -115,7 +115,7 @@ Vector
     }
 
     // Static method using the '@' shorthand for the return type
-    New(x: int, y: int) -> @
+    New(x: Int, y: Int) -> @
     {
         return Vector { X: x, Y: y };
     }
