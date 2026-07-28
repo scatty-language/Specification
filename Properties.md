@@ -9,20 +9,20 @@ PropertyDecl ::= Identifier ":" Type ( "=>" Expression ";" | Block )
 * **No Setters**: To maintain strict predictability Value Semantics, setters are FORBIDDEN.
 * **Execution**: A property does not occupy memory in the Data layout. Its body MUST be executed every time it is accessed.
 * **Implicit Receiver**: Inside an instance property, the `@` identifier is implicitly available, representing the current instance. The property body MUST NOT mutate `@`.
-* **Static Properties**: If a property is declared without utilizing the `@` receiver, it strictly acts as a static property and is accessible via the Data type's namespace.
+* **Static Properties**: If a property is declared without utilizing the `@` receiver, it acts as a static property and is accessible via the Data type's namespace.
 
 ```C#
 Vector 
 {
-    _x: int;
-    _y: int;
+    _x: Int;
+    _y: Int;
 
     // Expression-bodied property
-    X: int => @._x;
-    Y: int => @._y;
+    X: Int => @._x;
+    Y: Int => @._y;
 
     // Block-bodied property
-    LengthSquared: int 
+    LengthSquared: Int 
     {
         return (@._x * @._x) + (@._y * @._y);
     }
@@ -34,5 +34,5 @@ Vector
 vector := Vector.Zero; // Static property access
 x := vector.X;         // Instance property access
 
-vector.X = 10;         // ERROR: Properties are strictly read-only
+vector.X = 10;         // ERROR: Properties are read-only
 ```
