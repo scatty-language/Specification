@@ -14,7 +14,7 @@ SourceChar     ::= /* Any valid UTF-8 character */
 
 A line comment begins with `//` and extends to the end of the physical line.
 
-* **Termination**: The comment strictly terminates at the next `NewLine`. The line terminator itself is NOT consumed as part of the comment.
+* **Termination**: The comment terminates at the next `NewLine`. The line terminator itself is NOT consumed as part of the comment.
 * **Nesting**: `//` comments do not nest. Any `//` sequence encountered after the opening delimiter is treated as standard comment text.
 
 ```C#
@@ -46,7 +46,7 @@ y := 3;
 
 ## Interaction with String Literals
 
-Comment delimiters appearing inside a valid string or character literal are treated as literal text and DO NOT initiate a comment.
+Comment delimiters appearing inside a valid `String`/`Char`/`Rune` literal are treated as literal text and DO NOT initiate a comment.
 
 ```C#
 s := "/* not a comment */";
