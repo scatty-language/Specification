@@ -13,8 +13,6 @@ ExtensionDecl ::= "+" Type "{" Member* "}"
   * Refinement Types.
 * **Prohibitions**:
   * Extensions MUST NOT declare new fields.
-  * Extensions MUST NOT declare virtual, abstract, or overriding methods.
-  * Extensions MUST NOT declare new variants.
   * Extensions MUST NOT declare members that shadows members in declaration or other Extension.
 
 ## Encapsulation and Visibility
@@ -25,7 +23,7 @@ ExtensionDecl ::= "+" Type "{" Member* "}"
 ```C#
 MyData 
 {
-    _count: int;
+    _count: Int;
     Increment(ref @) => @._count = @._count + 1;
 }
 
@@ -33,7 +31,7 @@ MyData
 +MyData 
 {
     // Property extension accessing a private field (valid if in the same module)
-    Count: int => @._count;
+    Count: Int => @._count;
 
     // Refinement type scoped to the extension
     ^ValidData = MyData where @.Count > 0;
@@ -43,15 +41,15 @@ MyData
 }
 
 // Extension block for primitive type
-+string 
++String 
 {
-    ^Email = string where @.Contains("@");
+    ^Email = String where @.Contains("@");
 
-    Empty() -> string => "";
+    Empty() -> String => "";
 }
 
 data := MyData {1};
 validData := data as MyData^ValidData;
 
-email := "test@example.com" as string^Email;
+email := "test@example.com" as String^Email;
 ```
