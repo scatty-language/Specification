@@ -17,7 +17,7 @@ pointA := Point.New(0, 0);
 pointB := pointA;
 
 pointB.X = 5; // Mutates 'pointB'
-// 'pointA.X' is still strictly 0
+// 'pointA.X' is still 0
 ```
 
 ## Method Parameters
@@ -28,7 +28,7 @@ Function and method parameters act as fully mutable local variables.
 * **Caller Independence**: Mutations applied to a standard parameter affect ONLY the local scope of the method. The original variable passed by the caller remains absolutely unchanged.
 
 ```C#
-Process(val: int, counter: int) 
+Process(val: Int, counter: Int) 
 {
     val = 5;     // Mutates the local copy
     counter = 5; // Mutates the local copy
@@ -45,22 +45,22 @@ Process(myVal, myCounter);
 
 Methods operating on an instance dictate whether they mutate a local copy or the caller's original instance.
 
-* **Local Receiver (`@`)**: The method receives a local, logically independent copy of the instance. The method MAY mutate fields on `@`, but these mutations will strictly disappear when the method returns, unless returned via a fluent interface (`-> @`).
-* **In-Place Receiver (`ref @`)**: The method borrows the original instance from the caller. Any mutations applied to `@` strictly modify the original instance directly.
+* **Local Receiver (`@`)**: The method receives a local, logically independent copy of the instance. The method MAY mutate fields on `@`, but these mutations will disappear when the method returns, unless returned via a fluent interface (`-> @`).
+* **In-Place Receiver (`ref @`)**: The method borrows the original instance from the caller. Any mutations applied to `@` modify the original instance directly.
 
 ```C#
 Data 
 {
-    X: int;
+    X: Int;
     
     // Mutates a local copy
-    WithX(@, x: int) -> @
+    WithX(@, x: Int) -> @
     {
         @.X = x;
     }
     
     // Mutates the original caller's instance
-    SetX(ref @, x: int) 
+    SetX(ref @, x: Int) 
     {
         @.X = x;
         
@@ -71,17 +71,28 @@ Data
 
 ## Constants
 
-If absolute immutability is required, the `#` sigil MUST be used.
+If absolute immutability and compile-time evaluation are required, the Double-colon `::` binding operator MUST be used instead of standard assignment.
 
 ```EBNF
-ConstDecl ::= "#" Identifier [":" Type] "=" Expression ";"
+ConstDecl ::= Identifier [":" Type] "::" Expression ";"
 ```
 
-* **Compile-Time Evaluation**: A constant variable MUST be evaluable at compile time.
-* **Strict Immutability**: A constant binding can NEVER be reassigned, and its fields MUST NOT be mutated. It CANNOT be passed to a `ref` parameter.
+* **Compile-Time Binding**: The RHS `Expression` MUST be evaluable at compile time.
+* **Strict Immutability**: A constant binding is permanent. It CANNOT be reassigned, its fields MUST NOT be mutated, and it CANNOT be passed to a `ref` parameter.
+* **Type Inference**: The type annotation `: Type` MAY be omitted if the compiler can infer it from the expression.
 
 ```C#
-#Pi: float = 3.14159f;
+// Explicitly typed constant
+Pi: Float :: 3.14159f;
 
-#Pi = 3.14f; // ERROR: Constants are immutable
+// Implicitly typed constant
+MaxUsers :: 100;
+
+DoubleMax :: MaxUsers * 2;
+
+// ERROR: Reassignment is forbidden
+Pi = 3.14f;
+
+// ERROR: Function call is not a compile-time expression
+RandomValue :: Math.Random();
 ```
