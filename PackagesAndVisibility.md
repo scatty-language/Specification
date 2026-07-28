@@ -2,30 +2,34 @@
 
 Coggy organizes code into Packages. Files within the same package share a unified namespace and DO NOT require import directives to reference each other.
 
-## Packages and Imports
-
-The compilation unit is the Package. Source code files strictly act as physical containers contributing to the Package's global namespace.
+## Packages and Compilation Boundaries
 
 ```EBNF
 UseDirective ::= "use" PackagePath ";"
 PackagePath  ::= Identifier ("::" Identifier)*
 ```
 
-* **Unified Namespace**: All files compiled within the same package automatically resolve each other's public and internal members.
-* **External Importing**: The `use` keyword strictly brings the public members of an external package into the current file's namespace.
-* **Ordering**: All `use` directives MUST appear at the top of the file, strictly before any declarations.
+The compilation unit in Coggy is the Package, defined by the presence of a manifest file (e.g., `package.toml`). The manifest explicitly declares the package's logical namespace, which MAY contain `::`, and its dependencies.
+
+* **Boundary and Traversal**: The compiler recursively includes all `.cog` source files in the manifest's directory and all its subdirectories. Physical folder names MUST DO NOT affect the namespace.
+* **Nested Packages**: If the compiler encounters a subdirectory containing another manifest file, it MUST halts traversal for that branch. That subdirectory is treated as an entirely isolated compilation unit.
+* **Explicit Dependencies**: A package MUST explicitly declare any dependencies in its manifest (including local nested packages). A package CANNOT implicitly access another package simply because it resides in a subdirectory.
+* **Unified Namespace**: All files compiled within the same package automatically resolve each other's public and internal members, completely ignoring their physical folder structure.
+* **External Importing**: The `use` keyword brings the public members of an external (explicitly depended upon) package into the current file's namespace.
+* **Ordering**: All `use` directives MUST appear at the top of the file, before any declarations.
 
 ```C#
-// PACKAGE: Math
-// File: Vector.cog
+// MANIFEST: package.toml (name = "Math")
+// File: /Math/Vector.cog
 Vector
 {
-    X: int;
-    Y: int;
+    X: Int;
+    Y: Int;
 }
 
-// File: Engine.cog
-// No 'use' directive needed! 'Vector' is in the same package
+// File: /Math/Physics/Engine.cog
+// No 'use' directive, 'Vector' is in the same compilation unit
+// The '/Physics' folder is ignored
 Engine
 {
     Position: Vector; 
@@ -47,23 +51,23 @@ Access rights for any member are intrinsically tied to its identifier's lexical 
 ### Private Members
 
 * **Access**: Available ONLY within their immediate enclosing lexical scope.
-  * If declared at the file level, they are strictly private to that file.
-  * If declared inside a `Data` type or extension, they are strictly private to that block.
+  * If declared at the file level, they are private to that file.
+  * If declared inside a `Data` type or extension, they are private to that block.
 
 ## Scope and Visibility Constraints
 
 * **Exposure Restriction**: A public member MUST NOT expose a restricted (private or internal) type in its public signature (e.g., fields, return types, or parameters).
-* **Variant Fields**: Variants defined within a variant field MUST strictly use public identifiers, ensuring they are accessible wherever the field itself is accessible.
+* **Variant Fields**: Variants defined within a variant field MUST use public identifiers, ensuring they are accessible wherever the field itself is accessible.
 
 ```C#
 // PACKAGE: Geometry
 // File: Shapes.cog
 Circle
 {
-    Radius: float;        // Public field
-    _cache: float;        // Private field
+    Radius: Float;        // Public field
+    _cache: Float;        // Private field
 
-    New(radius: float) -> @
+    New(radius: Float) -> @
     {
         return Circle { Radius: radius, _cache: 0.0 };
     }
@@ -71,12 +75,12 @@ Circle
 
 Polygon_    // Internal Data
 {
-    Vertices: int;
+    Vertices: Int;
 }
 
 _helperData // Private Data (restricted to Shapes.cog)
 {
-    State: int;
+    State: Int;
 }
 
 InvalidData
