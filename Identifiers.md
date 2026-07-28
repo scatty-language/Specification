@@ -2,7 +2,7 @@
 
 Identifiers are names used to denote types, variables, fields, methods, properties, data, and packages.
 
-* **Only ASCII**: Identifiers MUST strictly consist of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
+* **Only ASCII**: Identifiers MUST consist of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
 * **No Unicode**: Unicode characters are FORBIDDEN in identifiers.
 
 ```EBNF
@@ -21,7 +21,7 @@ Alphanumeric   ::= Uppercase | Lowercase | Digit
 
 ## Identifier Categories
 
-The compiler STRICTLY enforces where each category of identifier can be used based on its declaration context.
+The compiler MUST enforces where each category of identifier can be used based on its declaration context.
 
 ### Public Identifiers
 
@@ -30,18 +30,18 @@ The compiler STRICTLY enforces where each category of identifier can be used bas
 
 ### Internal Identifiers
 
-* **Format**: Starts with an uppercase letter, followed by letters or digits, and strictly ends with a single underscore.
+* **Format**: Starts with an uppercase letter, followed by letters or digits, and ends with a single underscore.
 * **Usage**: Used for members accessible only within the same compiled Package.
 
 ### Private Identifiers
 
-* **Format**: Starts with a single underscore, followed strictly by a lowercase letter, and then letters or digits.
+* **Format**: Starts with a single underscore, followed by a lowercase letter, and then letters or digits.
 * **Usage**: Used for type-scoped private fields/methods or file-scoped private declarations.
 
 ### Local Identifiers
 
 * **Format**: Starts with a lowercase letter, followed by letters or digits.
-* **Usage**: Used STRICTLY for local variables, method parameters, and pattern-matching bindings. Local variables MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats.
+* **Usage**: Used for local variables, method parameters, and pattern-matching bindings. Local variables MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats.
 
 ```C#
 // Valid:
@@ -62,7 +62,7 @@ user_age        // ERROR: Underscores in the middle are forbidden (snake_case is
 An identifier MUST NOT exactly match any of Coggy's reserved keywords.
 
 * **Escaping**: If interoperability requires using a keyword as an identifier, the identifier MUST be enclosed in backticks (`` ` ``) during declaration and usage.
-* **Symbol Name**: The backticks are strictly a lexer construct, they are stripped during compilation and are NOT part of the final symbol name.
+* **Symbol Name**: The backticks are a lexer construct, they are stripped during compilation and are NOT part of the final symbol name.
 
 ```C#
 // Variable named 'match' using keyword escape
