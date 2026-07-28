@@ -10,21 +10,23 @@ Numeric data support standard arithmetic, bitwise and comparison operations.
 
 | Type | Size (bits) | Description |
 | :--- | :--- | :--- |
-| **`int`** | 32 | Signed integer |
-| **`uint`** | 32 | Unsigned integer |
-| **`long`** | 64 | Signed integer |
-| **`ulong`** | 64 | Unsigned integer |
-| **`byte`** | 8 | Unsigned 8-bit integer |
-| **`float`** | 32 | IEEE 754 single-precision floating point |
-| **`double`** | 64 | IEEE 754 double-precision floating point |
+| **`Int`** | 32 | Signed integer |
+| **`Uint`** | 32 | Unsigned integer |
+| **`Long`** | 64 | Signed integer |
+| **`Ulong`** | 64 | Unsigned integer |
+| **`Size`** | Arch-dependent | Pointer-sized signed integer (32 or 64 bits) |
+| **`Usize`** | Arch-dependent | Pointer-sized unsigned integer (32 or 64 bits) |
+| **`Byte`** | 8 | Unsigned 8-bit integer |
+| **`Float`** | 32 | IEEE 754 single-precision floating point |
+| **`Double`** | 64 | IEEE 754 Double-precision floating point |
 
 ## Logical and Character Data
 
 | Type | Size (bits) | Description |
 | :--- | :--- | :--- |
-| **`bool`** | 1 | Logical value (`true` or `false`) |
-| **`char`** | 8 | Single UTF-8 encoded character |
-| **`rune`** | 32 | Unicode code point |
+| **`Bool`** | 1 | Logical value (`true` or `false`) |
+| **`Char`** | 8 | Single UTF-8 encoded character |
+| **`Rune`** | 32 | Unicode code point |
 
 ## Literals
 
@@ -46,18 +48,18 @@ Binary     ::= "0b" [01] ([01_]* [01])?
 IntSuffix  ::= "u" | "L" | "uL" | "b"
 ```
 
-* **Default Type**: An integer literal without a suffix is strictly inferred as `int` if it fits within 32 signed bits. If it exceeds 32 bits, it is a compilation error unless explicitly suffixed.
+* **Default Type**: An integer literal without a suffix is inferred as `Int` if it fits within 32 signed bits. If it exceeds 32 bits, it is a compilation error unless explicitly suffixed.
 * **Suffixes**:
-  * `u` = `uint`
-  * `L` = `long`
-  * `uL` = `ulong`
-  * `b` = `byte`
+  * `u` = `Uint`
+  * `L` = `Long`
+  * `uL` = `Ulong`
+  * `b` = `Byte`
 
 ```C#
-a := 1_000_000;    // int
-b := 0xFF_AA;      // int
-c := 0b1010_0011b; // byte
-d := 42L;          // long
+a := 1_000_000;    // Int
+b := 0xFF_AA;      // Int
+c := 0b1010_0011b; // Byte
+d := 42L;          // Long
 ```
 
 ### Floating-Point Literals
@@ -70,15 +72,15 @@ Exponent     ::= ("e" | "E") ["+" | "-"] Decimal
 FloatSuffix  ::= "f" | "d"
 ```
 
-* **Default Type**: A floating-point literal without a suffix is strictly inferred as `double` (64-bit).
+* **Default Type**: A floating-point literal without a suffix is inferred as `Double` (64-bit).
 * **Suffixes**:
-  * `f` = `float`  (32-bit)
-  * `d` = `double` (64-bit)
+  * `f` = `Float`  (32-bit)
+  * `d` = `Double` (64-bit)
 
 ```C#
-pi := 3.14159;     // double
-mass := 5.972e24;  // double
-gravity := 9.81f;  // float
+pi := 3.14159;     // Double
+mass := 5.972e24;  // Double
+gravity := 9.81f;  // Float
 ```
 
 ### Logical Literals
@@ -87,7 +89,7 @@ gravity := 9.81f;  // float
 BoolLiteral ::= "true" | "false"
 ```
 
-* Evaluates strictly to the `bool` type.
+* Evaluates to the `Bool` type.
 
 ### Character and Rune Literals
 
@@ -98,28 +100,28 @@ CharLiteral ::= "'" (SourceChar | EscapeSequence) "'"
 ```
 
 * **Type Inference**:
-  * If the literal evaluates to a valid 1-byte ASCII character (U+0000 to U+007F), its default type is `char`.
-  * If the literal evaluates to a multi-byte Unicode code point (e.g., `'🦀'` or `'\u042F'`), its default type is strictly `rune`.
-* **Explicit Cast**: A 1-byte literal CAN be explicitly typed as a `rune` at declaration (e.g., `val: rune = 'A';`).
+  * If the literal evaluates to a valid 1-byte ASCII character (U+0000 to U+007F), its default type is `Char`.
+  * If the literal evaluates to a multi-byte Unicode code point (e.g., `'🦀'` or `'\u042F'`), its default type is `Rune`.
+* **Explicit Cast**: A 1-byte literal CAN be explicitly typed as a `Rune` at declaration (e.g., `val: Rune = 'A';`).
 
 ```C#
-ascii := 'A';       // char
-newline := '\n';    // char
-cyrillic := 'Я';    // rune (U+042F)
-emoji := '🔥';      // rune (U+1F525)
+ascii := 'A';       // Char
+newline := '\n';    // Char
+cyrillic := 'Я';    // Rune (U+042F)
+emoji := '🔥';      // Rune (U+1F525)
 ```
 
 ### String Literals
 
-String literals are enclosed in double quotes (`" "`).
+String literals are enclosed in Double quotes (`" "`).
 
 ```EBNF
 StringLiteral ::= '"' (SourceChar | EscapeSequence)* '"'
 ```
 
-* **Type**: Evaluates to the `string` type.
-* **Encoding**: Strings are strictly UTF-8 encoded in memory.
-* **Multi-line**: Standard string literals MUST NOT span multiple lines.
+* **Type**: Evaluates to the `String` type.
+* **Encoding**: Strings are UTF-8 encoded in memory.
+* **Multi-line**: Standard String literals MUST NOT span multiple lines.
 
 ```C#
 text := "Hello, Coggy!";
@@ -127,17 +129,17 @@ text := "Hello, Coggy!";
 
 ### Raw String Literals
 
-Raw string literals are enclosed in at least three double quotes (`"""`).
+Raw String literals are enclosed in at least three Double quotes (`"""`).
 
 ```EBNF
 RawStringLiteral ::= '"""' RawChar* '"""'
 RawChar          ::= SourceChar | NewLine
 ```
 
-* **No Escape Sequences**: Backslashes (`\`) have absolutely no special meaning inside a raw string. Escape sequences are STRICTLY IGNORED and interpreted as literal text.
-* **Embedded Quotes**: Single (`'`) and double (`"`) quotes can be used freely inside a raw string without escaping.
+* **No Escape Sequences**: Backslashes (`\`) have absolutely no special meaning inside a raw String. Escape sequences MUST be ignored and interpreted as literal text.
+* **Embedded Quotes**: Single (`'`) and Double (`"`) quotes can be used freely inside a raw String without escaping.
 * **Multi-line and Indentation**: Raw strings MAY span multiple physical lines. If the literal is multi-line, the compiler MUST use the column position of the closing `"""` to determine the base indentation. Any whitespace before this base column on each line is stripped during compilation.
-* **Type**: Evaluates to the `string` type.
+* **Type**: Evaluates to the `String` type.
 
 ```C#
 regex := """\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""";
