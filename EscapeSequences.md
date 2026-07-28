@@ -1,6 +1,6 @@
 # Escape Sequences
 
-Escape sequences allow the representation of non-printable and special characters inside string and character literals. An escape sequence strictly begins with a backslash (`\`) and is interpreted by the lexer.
+Escape sequences allow the representation of non-printable and special characters inside `String`, `Char`, `Rune` literals. An escape sequence begins with a backslash (`\`) and is interpreted by the lexer.
 
 ```EBNF
 EscapeSequence ::= "\" (SimpleEscape | NumericEscape)
@@ -32,8 +32,8 @@ HexDigit       ::= [0-9A-Fa-f]
 | **`\uHHHH`** | 4 hex digits | Unicode code point (U+0000–U+FFFF) |
 | **`\UHHHHHHHH`** | 8 hex digits | Unicode code point (U+0000–U+10FFFF) |
 
-* **Unicode Validation**: A `\u` or `\U` escape MUST represent a valid Unicode scalar value. The maximum valid value is `U+10FFFF`. Surrogate code points (`U+D800` to `U+DFFF`) are strictly FORBIDDEN and result in a compilation error.
-* **UTF-8 Strictness**: String literals in Coggy MUST remain valid UTF-8 sequences. If `\xHH` is used to inject raw bytes that result in a malformed UTF-8 string literal, the compiler MUST reject it.
+* **Unicode Validation**: A `\u` or `\U` escape MUST represent a valid Unicode scalar value. The maximum valid value is `U+10FFFF`. Surrogate code points (`U+D800` to `U+DFFF`) are FORBIDDEN and result in a compilation error.
+* **UTF-8 Strictness**: String literals in Coggy MUST remain valid UTF-8 sequences. If `\xHH` is used to inject raw bytes that result in a malformed UTF-8 String literal, the compiler MUST reject it.
 * **Case Insensitivity**: Hex digits (`A-F`) in numeric escapes are case-insensitive.
 
 ## Invalid Escapes
