@@ -2,18 +2,19 @@
 
 Coggy does not have file-level enumerations. Instead, Algebraic Data Types are modeled by declaring Variant Fields inside a `Data` type.
 
-A variant field encapsulates a hidden integer tag, an optional base value, and an optional variant-specific memory payload.
+A variant field encapsulates a hidden discriminant tag, an optional base value, and an optional variant-specific memory payload.
 
 ```EBNF
-VariantFieldDecl ::= [FieldModifier] Identifier [":" Type ["=" Expression]] "{" Variant+ "}"
-Variant          ::= PublicId ["(" PayloadList ")"] ["=" Expression] ","?
+VariantFieldDecl ::= [FieldModifier] Identifier [":" Type ["=" Expression]] ["::" TagType] "{" Variant+ "}"
+Variant          ::= PublicId ["(" PayloadList ")"] ["=" Expression] ["::" Expression] ","?
 PayloadList      ::= PayloadField ("," PayloadField)*
 PayloadField     ::= LocalId ":" Type ["=" Expression]
+TagType          ::= Identifier
 ```
 
 * **Optional Base Type**:
-  * If the `: Type` is **omitted**, the field acts purely as a state flag. The compiler implicitly assigns it an `Int` base type to represent the variant tag.
-  * If the `: Type` is **provided**, the compiler allocates an `Int` tag PLUS memory for the specified base type, PLUS memory for the largest payload.
+  * If the `: Type` is omitted, the field acts purely as a state flag.
+  * If the `: Type` is provided, the compiler allocates a discriminant tag PLUS memory for the specified base type, PLUS memory for the largest payload.
 * **Variant Resolution**:
   * If the field has a base type, every variant MUST resolve to a value of that type.
   * If a variant explicitly declares `= Expression`, that value is used.
@@ -56,6 +57,37 @@ SomeData
     {
         One,             // Inherits "Mmm"
         Two = "Cool"     // Overrides with "Cool"
+    }
+}
+```
+
+## Explicit Tags
+
+By default, the compiler intrinsically manages the hidden variant tag as an `Int`, automatically assigning sequential values starting from `0`.
+
+Developers MAY explicitly define the tag's underlying type and its exact values.
+
+* **Tag Type**: Declared after the optional base type and default value using `:: TagType`. It MUST resolve to a scalar integer primitive (e.g., `Byte`, `Int`, `Usize`).
+* **Tag Values**: Individual variants MAY declare their explicit tag value using `:: Expression`. The expression MUST be a compile-time constant matching the Tag Type.
+* **Auto-Increment**: If a variant omits the explicit tag value, the compiler automatically assigns it the value of the previous variant plus `1` (or `0` for the first variant).
+
+```C#
+Connection 
+{
+    // Base type is 'String', default is "Idle"
+    // Discriminant tag is explicitly a 'Byte'
+    State: String = "Idle" :: Byte 
+    {
+        Disconnected = "Offline" :: 0x00,
+        
+        // Base value inherited ("Idle"), Tag explicitly set to '0x01'
+        Connecting :: 0x01,
+        
+        // Tag auto-increments to '0x02'
+        Connected = "Online", 
+        
+        // Tag explicitly set to '0xFF', with payload
+        Error(code: Int) = "Fault" :: 0xFF 
     }
 }
 ```
