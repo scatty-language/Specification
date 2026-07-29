@@ -1,38 +1,63 @@
 # Control Flow
 
-Coggy strictly minimizes control flow constructs. Parentheses around conditions are forbidden. Branching and looping are exclusively handled by `if`, `match`, and `for`.
+In Coggy branching and looping are exclusively handled by `if`, `else`, `match`, and `for`.
 
 ## Conditionals
 
-Conditionals evaluate boolean expressions without enclosing parentheses.
+Conditionals evaluate boolean expressions or unpack Option types (`T?`).
 
 ```EBNF
-IfStatement ::= "if" Expression (Block | "=>" Statement) ["else" ("if" Expression (Block | "=>" Statement) | Block | "=>" Statement)]
-Block       ::= "{" Statement* "}"
+IfStatement           ::= "if" Condition (Block | "=>" Statement) ["else" IfTail]
+IfTail                ::= "if" Condition (Block | "=>" Statement) | Block | "=>" Statement
+Condition             ::= Expression | ConditionalBinding | ConditionalAssignment
+
+ConditionalBinding    ::= LocalId ":=" Expression
+ConditionalAssignment ::= AssignablePath "=" Expression
+AssignablePath        ::= Identifier ("." Identifier)*
+
+Block                 ::= "{" Statement* "}"
 ```
 
-* **Boolean Strictness**: The condition MUST evaluate to a strict `bool`. Implicit truthy/falsy casts (e.g., checking integers or pointers directly) are forbidden.
-* **Expression Body**: An `if` or `else` branch MAY use the `=>` syntax followed by a single statement or expression, instead of a block `{}`. This provides a more concise syntax for simple conditionals.
+* **Strict Boolean**: If the `Condition` is an `Expression`, it MUST evaluate to `Bool`.
+
+### Conditional Binding
+
+Introduces a new local variable to hold the unwrapped payload.
+
+* **Option Requirement**: The RHS `Expression` MUST evaluate to an Option type (`T?`).
+* **Execution**: If the Option is `Some`, the payload is bound to the new `Identifier` (type `T`), and the block executes. If `None`, it skips.
 
 ```C#
-// Block-bodied
-if score > 90 
-{
-    Console.WriteLine("A");
-} 
-else if score > 80 
-{
-    Console.WriteLine("B");
-} 
-else 
-{
-    Console.WriteLine("F");
-}
+maybeUser: User? = GetUser();
 
-// Expression-bodied
-if score > 90 => Console.WriteLine("A");
-else if score > 80 => Console.WriteLine("B");
-else => Console.WriteLine("F");
+if user := maybeUser 
+{
+    Console.WriteLine(user.Name); // 'user' is a new local variable
+}
+```
+
+### Conditional Assignment
+
+* **Mutation of Existing State**: Unwraps an Option and assigns the payload directly to an existing variable or field.
+* **Type Safety Guard**: The RHS `Expression` MUST evaluate to an Option type (`T?`). The LHS `AssignablePath` MUST be a mutable target of type `T`.
+* **Non-Option Types**: Using `=` with non-Option types in an `if` condition is FORBIDDEN. This entirely eliminates the classic C/C++ assignment typo bug.
+* **Execution**: If the Option is `Some`, the payload is assigned to the LHS target, and the block executes. If the Option is `None`, the assignment is skips, and the execution skips to the `else` branch.
+
+```C#
+SomeData 
+{
+    Value: Int;
+
+    UpdateFrom(ref @, rawAge: Int) 
+    {
+        // Unwraps the Option from 'as?' directly into the field '@.Value'
+        // If rawAge is <= 0, the Option is None, and @.Value is NOT modified
+        if @.Value = rawAge as? Int^Positive 
+        {
+            Console.WriteLine("Age successfully updated!");
+        }
+    }
+}
 ```
 
 ## Loops
@@ -49,7 +74,7 @@ Range           ::= Expression ".." Expression [".." Expression]
 
 * **Conditional Loop**: Providing a single boolean expression acts as a traditional `while` loop.
 * **Range/Iterator Loop**: The `in` operator binds the iteration element to an immutable local variable.
-* **Custom Iteration (`by`)**: The optional `by` modifier delegates the traversal to a specific execution strategy or custom iterator. The identifier provided MUST resolve to a type that implements the `$Iterator` contract.
+* **Custom Iteration (`by`)**: The optional `by` modifier delegates the traversal to a specific execution strategy or custom iterator. The identifier provided MUST resolve to a type that implements the `~Iterator` interface.
 
 ```C#
 // Conditional loop
@@ -91,40 +116,62 @@ for item in list by Parallel
 
 ## Pattern Matching
 
-The `match` is used both for executing code blocks and returning values.
+The `match` construct is used both for executing code blocks and returning values.
 
 ```EBNF
 MatchExpr       ::= "match" Expression "{" MatchArm+ "}"
 MatchArm        ::= Pattern ("or" Pattern)* "=>"? (Block | Expression) ","?
-Pattern         ::= EnumVariant | Literal | "_"
+Pattern         ::= "." Identifier ["(" LocalId ("," LocalId)* ")"] | Literal | "_"
+FallStmt        ::= "fall" ";"
 ```
 
-* **Exhaustiveness**: A `match` MUST cover all possible values of the expression. If it does not, a wildcard `_` fallback MUST be provided.
-* **Refinement**: Within a specific match arm, the matched data is implicitly refined to that type/variant, granting direct access to its payload without manual casting.
-* **No Fallthrough**: Execution strictly terminates after the first matching arm. Fallthrough is physically impossible.
-* **Expression Mode**: If used as an expression, every arm MUST evaluate to the same return type.
+* **Exhaustiveness**: A `match` MUST cover all possible variants of the expression. If it does not, a wildcard `_` fallback MUST be provided.
+* **Payload Binding**: When matching against a Variant Field, the payload MAY be bound to local identifiers using parentheses (e.g., `.Hmm(x, y)`).
+* **Implicit Refinement**: If payload binding is omitted, but a variant is matched, the matched expression is implicitly refined to that variant within the match arm.
+* **Expression Mode**: If used as an expression, every arm MUST evaluate to the exact same return type.
+
+### Execution Flow and Explicit Fallthrough
+
+* **No Implicit Fallthrough**: By default, execution terminates after the first matching arm finishes.
+* **Explicit `fall`**: The `fall` statement MAY be used inside a block-bodied match arm to immediately transfer execution to the body of the next sequential arm, bypassing its pattern evaluation.
+* **Fallthrough Restrictions**:
+  1. **Statement Only**: `fall` is FORBIDDEN if the `match` construct is being evaluated as an expression.
+  2. **No Payload Destination**: `fall` MUST NOT transfer control into a match arm that binds payload variables.
+  3. **Not Last**: `fall` MUST NOT be used in the last match arm.
 
 ```C#
-match color 
+match statusCode 
 {
-    .Red || .Blue
+    404 => Console.WriteLine("Not Found"),
+    
+    // Cascading logic using 'fall'
+    401, 403 
+    {
+        Console.WriteLine("Access Denied");
+        fall; // Transfers control directly to the '_' block
+    },
+    
+    _ => Console.WriteLine("Logging error...")
+}
+
+match some.VariedField 
+{
+    .Wow 
     {
         Console.WriteLine("Wow!");
-    }
-    .Green
+        fall; // ERROR: Cannot fall into '.Hmm' because it binds 'x' and 'y'
+    },
+    
+    .Hmm(x, y) 
     {
-        Console.WriteLine("Go!");
-    }
-    _
-    {
-        Console.WriteLine("Boring color...");
+        Console.WriteLine(x + y);
     }
 }
 
-area := match shape 
+area := match shape.Type 
 {
-    .Circle => Math.Pi * shape.Radius * shape.Radius,
-    .Rectangle => (shape.Width * shape.Height) as float,
-    _ => 0.0
+    .Circle(r) => Math.Pi * r * r,
+    .Rectangle(w, h) => (w * h) as Float,
+    _ => 0.0f
 };
 ```
