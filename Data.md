@@ -5,8 +5,10 @@ Data declarations define memory layouts, state, and behaviors. By default, all `
 Coggy uses a single, unified `Data` concept.
 
 ```EBNF
-DataDecl        ::= Identifier ["<" TypeArgs ">"] [":" ParentList] "{" Member* "}"
+DataDecl        ::= Identifier ["<" TypeArgs ">"] [":" ParentList] ( "{" Member* "}" | "(" [ShortFieldList] ")" ";" )
 ParentList      ::= Identifier ("," Identifier)*
+
+ShortFieldList  ::= FieldDecl ("," FieldDecl)*
 
 Member          ::= FieldDecl | ConstDecl | InlineFieldDecl | VariantFieldDecl | PropertyDecl | MethodDecl
 
@@ -25,3 +27,16 @@ A standard `Data` declaration defines a concrete, instantiable value type.
   * Fields MUST be laid out sequentially in memory. The compiler MAY apply padding to satisfy alignment.
   * **Empty Data Size**: Any instantiable Data type declared without fields MUST occupy a minimum of 1 byte in memory.
 * **Flat Topology**: All top level members MUST be declared ONLY at the top level of a file.
+
+```C#
+// Standart-form declaration
+Vector 
+{
+    $Id: Int;
+    #X: Int;
+    #Y: Int = 1;
+}
+
+// Short-form declaration
+Vector($Id: Int, #X: Int, #Y: Int = 1);
+```
