@@ -1,21 +1,22 @@
 # Concurrency
 
-Coggy strictly utilizes Structured Concurrency. Concurrency is lexically scoped, guaranteeing deterministic execution trees, strict lifetime bounds, and data-race freedom at compile time.
+Coggy utilizes Structured Concurrency. Concurrency is lexically scoped, guaranteeing deterministic execution trees, strict lifetime bounds, and data-race freedom at compile time.
 
 ## Concurrent Scopes and Spawn
 
 The `concurrent` keyword introduces an asynchronous execution boundary. Within this boundary, the `spawn` keyword is used to dispatch concurrent tasks.
 
 ```EBNF
-ConcurrentStmt ::= "concurrent" Block
-SpawnStmt      ::= "spawn" (Block | "=>" Statement)
+ConcurrentStmt ::= "concurrent" ["throws"] Block
+SpawnStmt      ::= "spawn" ["by" Expression] (Block | "=>" Statement) CatchArm* ["rollback" ["by" Expression] (Block | "=>" Statement)]
 ```
 
-* **Implicit Join**: A `concurrent` block MUST NOT exit until all logically spawned tasks within its lexical scope have strictly completed. The compiler automatically inserts a synchronization barrier at the end of the `concurrent` block.
+* **Implicit Join**: A `concurrent` block MUST NOT exit until all logically spawned tasks within its lexical scope have completed. The compiler automatically inserts a synchronization barrier at the end of the `concurrent` block.
 * **No Escaping**: The `spawn` keyword MUST ONLY be used within the lexical scope of a `concurrent` block.
+* **Execution Strategy**: The optional `by` modifier delegates the task's scheduling and resilience logic (e.g., retries, timeouts) to a specific strategy. The evaluated expression MUST implement the `~SpawnStrategy` standard interface.
 
 ```C#
-ProcessData(data: int) { }
+ProcessData(data: Int) { }
 
 // Execution blocks here until all spawned tasks complete
 concurrent
@@ -40,7 +41,7 @@ When a variable from an outer scope is accessed inside a `spawn` block, strict c
 3. **Shared Mutable State**: To share mutable state between concurrent tasks, variables MUST be explicitly wrapped in thread-safe containers provided by the Standard Library (such as `AtomicShared<T>` or `Mutex<T>`). Standard `Shared<T>` is FORBIDDEN inside a `spawn` block.
 
 ```C#
-Calculate(value: int) { }
+Calculate(value: Int) { }
 
 counter := 0;
 
@@ -67,7 +68,7 @@ Spawned tasks MAY return values. The `concurrent` block itself can evaluate to a
 * All `spawn` branches yielding a value MUST return the exact same type.
 
 ```C#
-// Returns an array of integers: int[]
+// Returns an array of integers: Int[]
 results := concurrent 
 {
     spawn => 10;
@@ -81,35 +82,43 @@ results := concurrent
 Structured Concurrency inherently encapsulates error states. If an unhandled exception escapes a `spawn` block, it fundamentally changes the state of the enclosing `concurrent` scope.
 
 * **Fail-Fast by Default**: Because `concurrent` blocks are non-throwing by default, if any spawned task throws an exception, the entire program aborts immediately.
+* **Local Fallback**: A `spawn` statement MAY include `catch` arms. If a task throws an exception (or if a `by` strategy exhausts all attempts and throws), the exception is evaluated against these arms.
+  * If caught, the exception is suppressed locally. The `concurrent` block DOES NOT transition to a `Cancelled` state, and sibling tasks remain unaffected.
+  * If uncaught, the exception propagates and triggers the standard fail-fast or cancellation mechanics.
 * **Cooperative Cancellation (`concurrent throws`)**: If the block is marked with `throws`:
   1. If ANY task throws, the `concurrent` block transitions to a `Cancelled` state.
   2. Other tasks MUST cooperatively observe cancellation.
-  3. The `concurrent` block waits for all tasks to acknowledge cancellation, then strictly rethrows an `AggregateException`.
+  3. The `concurrent` block waits for all tasks to acknowledge cancellation, then rethrows an `AggregateException`.
 
 ### The Rollback Sub-Block
 
 To facilitate transactional semantics without complex manual compensations, `spawn` supports an attached `rollback` block.
 
-```EBNF
-SpawnStmt ::= "spawn" (Block | "=>" Statement) ["rollback" (Block | "=>" Statement)]
-```
-
-* **Execution Condition**: The `rollback` block strictly executes ONLY IF its associated `spawn` task has strictly and successfully completed, AND the enclosing `concurrent` scope subsequently enters a `Cancelled` state (due to an exception in another task).
+* **Execution Condition**: The `rollback` block executes ONLY IF its associated `spawn` task has and successfully completed, AND the enclosing `concurrent` scope subsequently enters a `Cancelled` state (due to an exception in another task).
 * **Variable Capture Rules**: Variable access inside a `rollback` block follows the standard implicit copy rules.
 * **Implicit Non-Throwing**: The `rollback` block MUST be non-throwing. If an exception is thrown inside a `rollback` block, the program MUST immediately abort.
+* **Rollback Strategy**: The `rollback` block MAY specify a `by` strategy to handle resilience during the compensation phase.
 
 ```C#
+use System::Concurrency;
+
 concurrent throws 
 {
-    // Task 1: Uploads a file
-    spawn 
+    // Task 1: Uploads a file with declarative resilience
+    spawn by Retry.New(3).WithDelay(100) 
     {
         fileId := Storage.Upload(fileData);
     } 
-    rollback 
+    catch e: ~Exception 
     {
-        // Executes if Task 1 succeeds, but Task 2 fails
-        // ABORTS if Delete throws
+        // Executes if all 3 upload attempts fail
+        // Prevents the cancellation of the entire concurrent block
+        Logger.Warn("Upload failed completely");
+    }
+    rollback by Retry.New(3)
+    {
+        // Executes if Task 1 succeeds, but Task 2 triggers cancellation
+        // Attempts up to 3 times. ABORTS the program if all 3 fail
         Storage.Delete(fileId);
     }
 
