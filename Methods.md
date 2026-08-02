@@ -16,6 +16,45 @@ MethodModifiers ::= "throws" | "unsafe"
 * **Expression Body**: Methods composed of a single expression MAY use the `=>` syntax instead of a block `{}`.
 * **Default Parameters**: Methods MAY declare parameters with default values using the `=` syntax. Parameters with default values MUST appear after all parameters without default values.
 
+## Method Invocation and Arguments
+
+Method invocations support both explicitly named and positional arguments. They follow the exact same "gap-filling" assignment logic as structural `Data` initialization.
+
+```EBNF
+MethodCall   ::= [ReceiverPath "."] Identifier "(" [ArgumentList] ")"
+ArgumentList ::= Argument ("," Argument)* ","?
+Argument     ::= [LocalId ":"] ["ref"] Expression
+```
+
+* **Named Argument (`LocalId: Expression`)**: Explicitly binds the evaluated expression to the parameter with the specified name.
+* **Positional Argument (`Expression`)**: If the parameter name is omitted, the expression is intrinsically bound to the first structurally declared parameter that has NOT YET been assigned an argument in the current call.
+* **Dynamic Type Order**: Using named arguments dynamically shifts the expected type order for any subsequent positional arguments, as they will fill the remaining unassigned parameters in their original declaration sequence.
+* **Default Fallback**: Any parameter that remains unassigned after all arguments are evaluated MUST have a default value declared in the method signature.
+* **The `ref` Keyword**: If a parameter is declared with `ref`, the argument MUST explicitly include the `ref` modifier at the call site, regardless of whether it is named or positional (e.g., `paramName: ref myVar`).
+
+```C#
+Process(amount: Int, offset: Int, isDryRun: Bool, force: Bool = false) { }
+
+// Fills in declaration order
+// Required type order: 'Int', 'Int', 'Bool'
+Process(10, 0, true); 
+
+// 'isDryRun' is explicitly assigned
+// First positional '10' binds to the first unassigned parameter ('amount')
+// Second positional '0' binds to the next unassigned parameter ('offset')
+// 'force' remains unassigned and implicitly takes its default value (false)
+Process(isDryRun: true, 10, 0);
+
+Update(ref target: Vector, x: Int, y: Int) { }
+
+vec := Vector.New(0, 0);
+
+// 'y' is named
+// Positional 'ref vec' binds to 'target'
+// Positional '5' binds to 'x'
+Update(y: 10, ref vec, 5); 
+```
+
 ## Instance Methods
 
 An instance method operates on a specific instance of Data.
