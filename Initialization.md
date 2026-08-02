@@ -5,7 +5,7 @@ To guarantee memory safety and zero runtime overhead, Coggy DOES NOT zero-initia
 ```EBNF
 StructInitExpr  ::= TypePath "{" [FieldInitList] "}"
 FieldInitList   ::= FieldInit ("," FieldInit)* ","?
-FieldInit       ::= Identifier ":" Expression
+FieldInit       ::= [Identifier ":"] Expression
 TypePath        ::= Identifier | "."
 ```
 
@@ -13,10 +13,37 @@ TypePath        ::= Identifier | "."
 
 When instantiating a `Data` type using the `{}` block syntax, every field defining the type's memory layout MUST receive a evaluated value.
 
-* **Explicit Initialization**: A field's value MAY be explicitly provided inside the `{}` block.
-* **Implicit Fallback**: If a field is omitted from the `{}` block, the field MUST have a default value (`= Expression`) declared in the `Data` type definition. The compiler implicitly evaluates and assigns this default value.
+* **Explicit Initialization**: A field's value MAY be explicitly provided inside the `{}` block, either positionally or by name.
+* **Implicit Fallback**: If a field is completely omitted from the `{}` block, the field MUST have a default value (`= Expression`) declared in the `Data` type definition. The compiler implicitly evaluates and assigns this default value.
 * **Override**: If an explicitly provided field also possesses a default value in its declaration, the explicit value OVERRIDES the default expression. The default expression is NOT evaluated.
 * **Compilation Error**: Omitting a field that lacks a default declaration is FORBIDDEN.
+
+## Positional and Named Assignment
+
+Coggy supports both explicitly named (memberwise) and positional field assignments within the `{}` block. These styles CAN be freely mixed.
+
+* **Named Assignment (`Identifier: Expression`)**: Binds the evaluated expression explicitly to the specified field name.
+* **Positional Assignment (`Expression`)**: If the field identifier is omitted, the expression is bound to the first structurally declared field in the `Data` type that has NOT YET been assigned within the current `{}` block.
+* **Dynamic Type Order**: Using a named assignment dynamically shifts the expected type order for any subsequent positional arguments.
+
+```C#
+// Declaration order: MyInt, MyFloat, MyBool
+MyData(MyInt: Int, MyFloat: Float, MyBool: Bool);
+
+// Fills in declaration order. Required type order: 'Int', 'Float', 'Bool'
+data1 := MyData { 0, 0.0, true };
+
+// 'MyFloat' is explicitly assigned
+// The first positional '0' binds to the first unassigned field ('MyInt')
+// The second positional 'true' binds to the next unassigned field ('MyBool')
+// Required type order: 'Float', 'Int', 'Bool'
+data2 := MyData { MyFloat: 0.0, 0, true };
+
+// 'MyBool' and 'MyFloat' are assigned.
+// The only remaining unassigned field is 'MyInt'
+// Required type order: 'Bool', 'Float', 'Int'
+data3 := MyData { MyBool: true, MyFloat: 0.0, 0 };
+```
 
 ## Visibility and Forced Encapsulation
 
