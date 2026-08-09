@@ -1,18 +1,22 @@
 # Copy-Update
 
-The `with` expression allows to create a new instance of a `Data` type by copying an existing instance and mutating specific fields inline.
-
 ```EBNF
-CopyUpdateExpr  ::= Expression "with" "{" InitializerList "}"
+CopyUpdateExpr  ::= Expression "with" CopyUpdateBody
+CopyUpdateBody  ::= "{" InitializerList "}"
 InitializerList ::= FieldAssignment ("," FieldAssignment)* ","?
 FieldAssignment ::= Identifier ":" Expression
 ```
 
-* **Value Semantics**: The expression performs a logically independent structural copy of the target `Expression`.
-* **Selective Mutation**: The fields explicitly declared within the `{}` block overwrite the corresponding fields in the new copy. The provided expressions MUST match the field types.
-* **Omission Guarantee**: Any field NOT explicitly listed within the `{}` block retains its exact value from the original instance.
-* **Visibility Constraints**: The `with` expression respects standard visibility rules. A developer MUST NOT update restricted (private or internal) fields from an external scope.
-* **No Implicit Forwarding**: The `with` expression initializes physical fields. Updating transparently forwarded members of an Inline Field directly is FORBIDDEN, the developer MUST assign a new instance to the inline field's root identifier.
+* MUST perform a structural bitwise copy and apply mutations for Trivial Types.
+* MUST move the target expression, reuse allocated resources in-place, and yield the updated instance for Owning Types.
+* MUST NOT access the original identifier after a `with` expression consumes an Owning Type.
+* MUST overwrite corresponding fields in the copy with explicitly declared assignments in the `CopyUpdateBody`.
+* MUST resolve the assigned expression to the exact type of the target field.
+* MUST retain the original instance's value for any field omitted from the `CopyUpdateBody`.
+* MUST NOT update restricted (private or internal) fields from outside their permitted lexical scope.
+* MUST update physical fields only.
+* MUST NOT directly update transparently forwarded members of an Inline Field.
+* MUST assign a new instance to the root identifier of an Inline Field to mutate its state via `with`.
 
 ```C#
 ServerConfig 
@@ -29,14 +33,9 @@ defaultConfig := ServerConfig
     Timeout: 3000 
 };
 
-// Creates a completely independent copy, modifying ONLY 'Port' and 'Timeout'
-// 'Host' is retained as "localhost"
 testConfig := defaultConfig with 
 { 
     Port: 9000, 
     Timeout: 5000 
 };
-
-// ERROR: Cannot update non-existent or inaccessible fields
-badConfig := defaultConfig with { UnknownField: 1 };
 ```
