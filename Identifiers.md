@@ -1,10 +1,5 @@
 # Identifiers
 
-Identifiers are names used to denote types, variables, fields, methods, properties, data, and packages.
-
-* **Only ASCII**: Identifiers MUST consist of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
-* **No Unicode**: Unicode characters are FORBIDDEN in identifiers.
-
 ```EBNF
 Identifier     ::= PublicId | InternalId | PrivateId | LocalId
 
@@ -19,56 +14,54 @@ Digit          ::= [0-9]
 Alphanumeric   ::= Uppercase | Lowercase | Digit
 ```
 
-## Identifier Categories
+* MUST consist exclusively of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
+* MUST NOT contain Unicode characters.
+* MUST enforce identifier usage based strictly on lexical formatting and declaration context.
 
-The compiler MUST enforces where each category of identifier can be used based on its declaration context.
+## Public Identifiers
 
-### Public Identifiers
+* MUST start with an uppercase letter and contain only letters or digits.
+* MUST NOT end with an underscore.
+* MUST designate globally accessible `Data` types, properties, methods, variants, and fields.
 
-* **Format**: Starts with an uppercase letter, followed by letters or digits. MUST NOT end with an underscore.
-* **Usage**: Used for globally accessible Data types, Enums, properties, methods, and shared fields.
+## Internal Identifiers
 
-### Internal Identifiers
+* MUST start with an uppercase letter, contain only letters or digits, and terminate with exactly one underscore.
+* MUST designate members accessible exclusively within the declaring compiled package.
 
-* **Format**: Starts with an uppercase letter, followed by letters or digits, and ends with a single underscore.
-* **Usage**: Used for members accessible only within the same compiled Package.
+## Private Identifiers
 
-### Private Identifiers
+* MUST start with a single underscore, followed by a lowercase letter, and contain only letters or digits.
+* MUST designate type-scoped private members or file-scoped private declarations.
 
-* **Format**: Starts with a single underscore, followed by a lowercase letter, and then letters or digits.
-* **Usage**: Used for type-scoped private fields/methods or file-scoped private declarations.
+## Local Identifiers
 
-### Local Identifiers
-
-* **Format**: Starts with a lowercase letter, followed by letters or digits.
-* **Usage**: Used for local variables, method parameters, and pattern-matching bindings. Local variables MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats.
+* MUST start with a lowercase letter and contain only letters or digits.
+* MUST designate local variables, method parameters, and pattern-matching bindings.
+* MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats for local scope bindings.
 
 ```C#
-// Valid:
-DataName        // PublicId
-Engine_         // InternalId
-_cacheSize      // PrivateId
-index           // LocalId
+DataName
+Engine_
+_cacheSize
+index
 
 // Invalid:
-1stValue        // ERROR: Cannot start with a digit
-_Data           // ERROR: PrivateId must start with '_' followed by lowercase
-Data__          // ERROR: Multiple underscores are forbidden
-user_age        // ERROR: Underscores in the middle are forbidden (snake_case is not allowed)
+1stValue
+_Data
+Data__
+user_age
 ```
 
 ## Keywords Restriction
 
-An identifier MUST NOT exactly match any of Coggy's reserved keywords.
-
-* **Escaping**: If interoperability requires using a keyword as an identifier, the identifier MUST be enclosed in backticks (`` ` ``) during declaration and usage.
-* **Symbol Name**: The backticks are a lexer construct, they are stripped during compilation and are NOT part of the final symbol name.
+* MUST NOT exactly match any reserved keyword.
+* MAY escape a reserved keyword to function as an identifier by enclosing it in backticks (`` ` ``).
+* MUST strip backticks during lexing; backticks MUST NOT form part of the compiled symbol name.
 
 ```C#
-// Variable named 'match' using keyword escape
 `match` := 10;
 Console.WriteLine(`match`);
 
-// Calling an external function named 'spawn'
 ExtAPI.`spawn`();
 ```
