@@ -1,7 +1,5 @@
 # Escape Sequences
 
-Escape sequences allow the representation of non-printable and special characters inside `String`, `Char`, `Rune` literals. An escape sequence begins with a backslash (`\`) and is interpreted by the lexer.
-
 ```EBNF
 EscapeSequence ::= "\" (SimpleEscape | NumericEscape)
 SimpleEscape   ::= "n" | "r" | "t" | "\" | "\"" | "'" | "0"
@@ -32,23 +30,13 @@ HexDigit       ::= [0-9A-Fa-f]
 | **`\uHHHH`** | 4 hex digits | Unicode code point (U+0000–U+FFFF) |
 | **`\UHHHHHHHH`** | 8 hex digits | Unicode code point (U+0000–U+10FFFF) |
 
-* **Unicode Validation**: A `\u` or `\U` escape MUST represent a valid Unicode scalar value. The maximum valid value is `U+10FFFF`. Surrogate code points (`U+D800` to `U+DFFF`) are FORBIDDEN and result in a compilation error.
-* **UTF-8 Strictness**: String literals in Coggy MUST remain valid UTF-8 sequences. If `\xHH` is used to inject raw bytes that result in a malformed UTF-8 String literal, the compiler MUST reject it.
-* **Case Insensitivity**: Hex digits (`A-F`) in numeric escapes are case-insensitive.
+* MUST represent a valid Unicode scalar value for all `\u` and `\U` escapes.
+* MUST NOT exceed a maximum value of `U+10FFFF` in numeric escapes.
+* MUST NOT use surrogate code points in the range `U+D800` through `U+DFFF`.
+* MUST reject any `\xHH` sequence that results in a malformed UTF-8 string literal.
+* MAY use either uppercase or lowercase hex digits (`A-F` or `a-f`).
 
 ## Invalid Escapes
 
-* **Unknown Sequence**: A backslash followed by a character not listed above is a strict compilation error.
-* **Truncated Escape**: A numeric escape with fewer than the required hex digits is a compilation error.
-
-```C#
-s := "Line1\nLine2";
-c := '\t';
-u := "\u0041";
-
-bad := "\q";                // ERROR: unknown escape sequence
-trunc := "\u41";            // ERROR: '\u' requires exactly 4 hex digits
-outOfRange := "\U00110000"; // ERROR: exceeds maximum Unicode scalar U+10FFFF
-surrogate := "\uD800";      // ERROR: surrogate code point is invalid
-badUtf8 := "\xFF";          // ERROR: '\xFF' alone is not a valid UTF-8 sequence
-```
+* MUST reject any backslash sequence containing characters not specified in the simple or numeric escape tables.
+* MUST reject numeric escapes containing fewer than the designated count of hexadecimal digits.
