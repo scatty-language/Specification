@@ -68,6 +68,7 @@ Range           ::= Expression ".." Expression [".." Expression]
 
 * MUST evaluate a single `Condition` expression as a boolean to perform conditional looping.
 * MUST bind the iteration element to an local variable when using the `in` operator.
+* MUST evaluate the upper bound of a range expression (`..`) as exclusive, omitting the right-hand boundary value from the iteration sequence.
 * MAY delegate the traversal strategy using the `by` modifier.
 * MUST resolve the identifier provided to the `by` modifier to a type implementing the `~Iterator` interface.
 
@@ -78,19 +79,19 @@ for x < 100
     x += 10;
 }
 
-// Iterator loop over a range
+// Iterator loop over an exclusive range (iterates 0 through 9)
 for i in 0..10 
 {
     Console.WriteLine(i);
 }
 
-// Iterator loop over a range with 2 step
+// Iterator loop over a range with a step of 2 (0, 2, 4, 6, 8)
 for i in 0..10..+2
 {
     Console.WriteLine(i);
 }
 
-// Iterator loop over a reverse range
+// Iterator loop over a reverse range (iterates 10 through 1)
 for i in 10..0..-1
 {
     Console.WriteLine(i);
