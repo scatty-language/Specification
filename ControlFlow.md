@@ -112,8 +112,8 @@ for item in list by Parallel
 ## Pattern Matching
 
 ```EBNF
-MatchExpr       ::= "match" Expression "{" MatchArm+ "}"
-MatchArm        ::= Pattern ("or" Pattern)* "=>"? (Block | Expression) ","?
+MatchExpr       ::= "match" ["!" | "?"] Expression "{" MatchArm+ "}"
+MatchArm        ::= Pattern ("or" Pattern)* "=>"? (Block | Expression) ";"?
 Pattern         ::= "." Identifier ["(" LocalId ("," LocalId)* ")"] | Literal | "_"
 FallStmt        ::= "fall" ";"
 ```
@@ -134,16 +134,16 @@ FallStmt        ::= "fall" ";"
 ```C#
 match statusCode 
 {
-    404 => Console.WriteLine("Not Found"),
+    404 => Console.WriteLine("Not Found");
     
     // Cascading logic using 'fall'
     401, 403 
     {
         Console.WriteLine("Access Denied");
         fall; // Transfers control directly to the '_' block
-    },
+    }
     
-    _ => Console.WriteLine("Logging error...")
+    _ => Console.WriteLine("Logging error...");
 }
 
 match some.VariedField 
@@ -152,7 +152,7 @@ match some.VariedField
     {
         Console.WriteLine("Wow!");
         fall; // ERROR: Cannot fall into '.Hmm' because it binds 'x' and 'y'
-    },
+    }
     
     .Hmm(x, y) 
     {
@@ -162,8 +162,39 @@ match some.VariedField
 
 area := match shape.Type 
 {
-    .Circle(r) => Math.Pi * r * r,
-    .Rectangle(w, h) => (w * h) as Float,
-    _ => 0.0f
+    .Circle(r) => Math.Pi * r * r;
+    .Rectangle(w, h) => (w * h) as Float;
+    _ => 0.0f;
+};
+```
+
+### Non-Exhaustive Pattern Matching
+
+* MUST NOT require exhaustive variant coverage or a wildcard `_` fallback when evaluating `match!` or `match?`.
+* MUST throw a runtime exception if a `match!` construct fails to match the evaluated expression against any provided arm.
+* MUST evaluate a `match?` construct containing exactly one match arm to an `Option` type.
+* MUST yield `Option::None` if a single-arm `match?` fails to match.
+* MUST evaluate a `match?` construct containing two or more match arms to a `Result` type.
+* MUST yield `Result::Error` if a multi-arm `match?` fails to match.
+* MUST implicitly wrap the evaluated value of a successful `match?` arm into the corresponding `Option` or `Result` success variant.
+
+```C#
+// match! throws an exception if the 'shape' is not a 'Circle'
+match! shape.Type  
+{
+    .Circle(r) => Console.WriteLine("Wow!");
+}
+
+// 'area' becomes 'Result::Error' if the 'shape' is neither 'Circle' or 'Rectangle'
+area := match? shape.Type 
+{
+    .Circle(r) => Math.Pi * r * r;
+    .Rectangle(w, h) => (w * h) as Float;
+};
+
+// 'circleArea' becomes 'Option::None' if the 'shape' is not a 'Circle'
+circleArea := match? shape.Type 
+{
+    .Circle(r) => Math.Pi * r * r;
 };
 ```
