@@ -1,36 +1,55 @@
 # Methods
 
-Methods in Coggy are categorized by the presence of the receiver parameter.
+* MUST NOT declare an explicit void return type.
+* MUST omit the `-> ReturnType` clause if no value is returned.
+* MAY use the `=>` syntax in place of a block `{}` for single-expression methods.
+* MAY declare parameters with default values using the `=` syntax.
+* MUST position parameters with default values sequentially after all parameters lacking default values.
 
-```EBNF
-MethodDecl      ::= Identifier "(" [Receiver] [ParameterList] ")" MethodModifiers* ["->" ReturnType] (Body | ";")
-Receiver        ::= ["ref"] "@" [","]
-ParameterList   ::= Parameter ("," Parameter)*
-Parameter       ::= ["ref"] LocalId ":" Type ["=" Expression]
-ReturnType      ::= Type | "@"
-Body            ::= Block | "=>" Expression ";"
-MethodModifiers ::= "throws" | "unsafe"
+## Variadic Parameters
+
+* MUST position a variadic parameter (`LocalId: ...Type`) as the final parameter in the method signature.
+* MUST NOT declare a default value for a variadic parameter.
+* MUST intrinsically evaluate the variadic parameter within the method body as a Static Array (`[Type ::: N]`), where `N` equals the exact number of passed arguments.
+* MUST generate a unique, distinct function signature during monomorphization for every distinct argument count evaluated at call sites.
+* MUST supply arguments to a variadic parameter positionally.
+* MUST NOT use named arguments for variadic elements.
+* MUST intrinsically generate and pass an empty static array (`[Type ::: 0]`) if no arguments are provided to the variadic parameter.
+
+```C#
+Logger 
+{
+    // Declares a variadic parameter for 'Int'
+    LogMetrics(prefix: String, metrics: ...Int) 
+    {
+        // 'metrics' acts as a Static Array ([Int ::: N])
+        for m in metrics 
+        {
+            Console.WriteLine(m);
+        }
+    }
+}
+
+// Call Site 1: 3 variadic arguments
+// Compiler generates: LogMetrics_3(prefix: String, metrics: [Int ::: 3])
+Logger.LogMetrics("A", 10, 20, 30);
+
+// Call Site 2: 2 variadic arguments
+// Compiler generates: LogMetrics_2(prefix: String, metrics: [Int ::: 2])
+Logger.LogMetrics("B", 5, 10);
+
+// Call Site 3: 0 variadic arguments
+// Compiler generates: LogMetrics_0(prefix: String, metrics: [Int ::: 0])
+Logger.LogMetrics("C");
 ```
-
-* **Implicit Void**: Explicitly declaring a void return type (e.g., `-> void`) is FORBIDDEN. If a method does not return a value, the `-> ReturnType` clause MUST be omitted.
-* **Expression Body**: Methods composed of a single expression MAY use the `=>` syntax instead of a block `{}`.
-* **Default Parameters**: Methods MAY declare parameters with default values using the `=` syntax. Parameters with default values MUST appear after all parameters without default values.
 
 ## Method Invocation and Arguments
 
-Method invocations support both explicitly named and positional arguments. They follow the exact same "gap-filling" assignment logic as structural `Data` initialization.
-
-```EBNF
-MethodCall   ::= [ReceiverPath "."] Identifier "(" [ArgumentList] ")"
-ArgumentList ::= Argument ("," Argument)* ","?
-Argument     ::= [LocalId ":"] ["ref"] Expression
-```
-
-* **Named Argument (`LocalId: Expression`)**: Explicitly binds the evaluated expression to the parameter with the specified name.
-* **Positional Argument (`Expression`)**: If the parameter name is omitted, the expression is intrinsically bound to the first structurally declared parameter that has NOT YET been assigned an argument in the current call.
-* **Dynamic Type Order**: Using named arguments dynamically shifts the expected type order for any subsequent positional arguments, as they will fill the remaining unassigned parameters in their original declaration sequence.
-* **Default Fallback**: Any parameter that remains unassigned after all arguments are evaluated MUST have a default value declared in the method signature.
-* **The `ref` Keyword**: If a parameter is declared with `ref`, the argument MUST explicitly include the `ref` modifier at the call site, regardless of whether it is named or positional (e.g., `paramName: ref myVar`).
+* MUST explicitly bind a named argument (`LocalId: Expression`) to the parameter with the specified identifier.
+* MUST bind a positional argument (`Expression`) to the first structurally declared parameter not yet assigned within the current invocation.
+* MUST dynamically shift the expected sequence for subsequent positional arguments upon evaluating a named argument.
+* MUST intrinsically evaluate and assign the declared default value for any parameter remaining unassigned after all arguments are bound.
+* MUST explicitly include the `ref` modifier at the call site for any argument bound to a parameter declared with `ref`.
 
 ```C#
 Process(amount: Int, offset: Int, isDryRun: Bool, force: Bool = false) { }
@@ -57,12 +76,12 @@ Update(y: 10, ref vec, 5);
 
 ## Instance Methods
 
-An instance method operates on a specific instance of Data.
-
-* **Receiver Position**: It MUST be declared as the first parameter once.
-* **By-Value (`@`)**: The method receives a logically independent copy of the instance. The method MAY mutate `@` locally, but these mutations are isolated and DO NOT affect the caller's original instance.
-* **In-Place Mutation (`ref @`)**: The method receives a direct reference to the caller's instance. Any mutations applied to `@` modify the original instance.
-* **No Reassignment**: Reassigning the `@` itself (e.g., `@ = Data.New();`) is FORBIDDEN.
+* MUST declare the receiver (`@` or `ref @`) as the first parameter.
+* MUST instantiate a logically independent copy of the instance for local receivers (`@`).
+* MAY mutate fields on a local receiver (`@`) without affecting the caller's original instance.
+* MUST borrow the original instance from the caller for in-place receivers (`ref @`) and apply mutations directly to it.
+* MUST NOT reassign the receiver parameter itself.
+* MUST NOT invoke a mutating instance method (`ref @`) on an unbound temporary rvalue expression as a standalone statement where the mutated copy is immediately discarded.
 
 ```C#
 Vector
@@ -81,7 +100,7 @@ Vector
     }
 
     // Expression body, reads the local value
-    Print(@) => Console.WriteLine($"{@.X}, {@.Y}");
+    Print(@) => Console.WriteLine("\(@.X), \(@.Y)");
 
     // Mutates the caller's original instance in-place
     Translate(ref @, dx: Int, dy: Int) 
@@ -90,59 +109,22 @@ Vector
         @.Y += dy;
     }
 }
-```
 
-### Fluent Methods
+// ERROR: 'GetActivePosition()' returns a temporary copy by value;
+// mutating it in-place via 'ref @' without binding the result discards the mutation
+player.GetActivePosition().Translate(10, 0);
 
-A fluent method is an instance method that explicitly declares its return type as `@`.
-
-* **Implicit Return**: The compiler MUST inject the return of the instance at the end of the execution path.
-* **Explicit Return Prohibition**: Manually writing `return @;` in a fluent method is FORBIDDEN.
-* **Builder Pattern**: If the receiver is `@`, the method mutates its local copy and implicitly returns it.
-* **Chaining Mutations**: If the receiver is `ref @`, the method mutates the original instance and implicitly returns a copy of the mutated state.
-
-```C#
-Vector 
-{
-    X: Int;
-    Y: Int;
-        
-    New(x: Int, y: Int) -> @ => Vector { X: x, Y: y };
-
-    // Builder pattern: operates on a value copy and returns the new copy
-    WithX(@, x: Int) -> @ 
-    {
-        @.X = x;
-        // implicitly returns '@'
-    }
-
-    // Fluent in-place mutation
-    Add(ref @, other: Vector) -> @ 
-    {
-        @.X += other.X;
-        @.Y += other.Y;
-        // implicitly returns '@'
-    }
-}
-
-// Builder chaining, original 'zero' is untouched
-zero := Vector.New(0, 0);
-unit := zero.WithX(1).WithY(1); 
-
-// In-place fluent chaining
-pos := Vector.New(10, 10);
-pos.Add(Vector.New(5, 0)).Add(Vector.New(0, 5)); 
-// 'pos' is now { X: 15, Y: 15 }
+// Valid: 'player.Position' is an lvalue field mutated in-place
+player.Position.Translate(10, 0);
 ```
 
 ## Static Methods
 
-Methods declared WITHOUT the `@` receiver parameter are static.
-
-* **No Instance State**: They CANNOT access instance fields.
-* **Invocation**: They MUST be invoked using the type name as a namespace (`DataName.MethodName()`).
-* **Unqualified Call Inside Type**: When calling a static method from within the lexical scope of the same type, the type name MAY be omitted. An unqualified call resolves to the static method on the containing type.
-* **Return Shorthand**: Static methods MAY declare their return type as `-> @`. In this context, `@` is a syntactic shorthand for the current Data type in which the method is declared.
+* MUST classify methods lacking an `@` receiver parameter as static methods.
+* MUST NOT access instance fields from within a static method.
+* MUST invoke static methods using the type identifier as a namespace qualifier (`DataName.MethodName()`).
+* MAY omit the type identifier qualifier when invoking a static method from within the lexical scope of its enclosing type.
+* MAY declare the return type of a static method as `-> @` to synthesize the explicit return type of the enclosing `Data` declaration.
 
 ```C#
 Vector 
@@ -167,4 +149,136 @@ Vector
 }
 
 zero := Vector.CreateZero();
+```
+
+## Method Cascading (`..`)
+
+* MAY chain sequential method invocations onto the same receiver instance using the cascade operator (`..`) following an initial member method invocation (`.`).
+* MUST resolve the target receiver of a cascade chain (`target.Method1()..Method2()..Method3()`) to the receiver expression immediately preceding the initial `.Method1()` invocation.
+* MUST evaluate the receiver expression exactly once and invoke each cascaded method sequentially on that receiver instance.
+* MUST discard any return values produced by intermediate methods within a cascade chain.
+* MUST restrict cascade chains to statement-level contexts:
+  * Standalone cascade statements (`target.Method1()..Method2();`).
+  * The top-level right-hand side of a variable declaration (`x := Init().Method1()..Method2();`).
+  * The top-level right-hand side of an assignment statement (`x = Init().Method1()..Method2();`).
+  * The top-level expression of a `return` statement (`return Init().Method1()..Method2();`).
+* MUST NOT embed a cascade chain inside sub-expressions, binary operations, or method argument lists.
+* MUST require the target receiver of a standalone (unassigned) cascade statement to be a mutable lvalue if any method in the cascade chain requires an in-place receiver (`ref @`).
+* MUST desugar a cascade chain bound to a variable, assignment target, or `return` statement by initializing the target with the evaluated receiver expression first and subsequently executing each method in the chain on that target.
+
+```C#
+Vector 
+{
+    X: Int;
+    Y: Int;
+
+    New(x: Int, y: Int) -> @ => Vector { X: x, Y: y };
+
+    Add(ref @, other: Vector) 
+    {
+        @.X += other.X;
+        @.Y += other.Y;
+    }
+}
+
+pos := Vector.New(0, 0);
+
+// Standalone cascade statement on an lvalue variable:
+// Invokes 'Add' three times sequentially on 'pos'
+pos.Add(.New(5, 0))..Add(.New(0, 5))..Add(.New(0, 10));
+
+// Cascade initialization of a new variable from an rvalue call:
+// Desugars into:
+//   nextPos := GetActivePosition();
+//   nextPos.Add(a);
+//   nextPos.Add(b);
+nextPos := GetActivePosition().Add(a)..Add(b);
+
+// Cascade on a nested property path:
+// Evaluates 'app.Window.Canvas' once and invokes all three methods on that Canvas
+app.Window.Canvas.Clear()..DrawLine(0, 0, 10, 10)..Present();
+
+// ERROR: Cannot mutably cascade on an unbound rvalue temporary without assigning the result
+GetActivePosition().Add(a)..Add(b);
+
+// ERROR: Cascade chains cannot be nested inside method arguments
+ProcessVector(pos.Add(a)..Add(b));
+```
+
+## Return Semantics and RVO
+
+* MUST NOT declare or return references (`ref`) from methods.
+* MUST return all `Data` by value.
+* MUST physically return values within CPU registers if the return type's evaluated memory footprint is less than or equal to the target architecture's native pointer size.
+* MUST intrinsically apply Return Value Optimization (RVO) if the return type's evaluated memory footprint exceeds the target architecture's native pointer size.
+* MUST implicitly pass a hidden pointer to a pre-allocated stack block from the caller during RVO.
+* MUST construct and write the returned value directly into the caller's pre-allocated memory during RVO, guaranteeing zero physical memory copying overhead.
+
+```C#
+// Footprint: 4 bytes (<= 8-byte pointer).
+// Returned blazingly fast in a CPU register.
+GetId() -> Int 
+{
+    return 42; 
+}
+
+Matrix 
+{
+    // Footprint: 64 bytes (16 * 4 bytes)
+    Cells: [Float ::: 16]; 
+}
+
+// Footprint: 64 bytes (> 8-byte pointer).
+// Guaranteed RVO. 'GetIdentity' writes directly into the caller's stack frame.
+// Zero copying occurs.
+GetIdentity() -> Matrix 
+{
+    return Matrix { Cells: [Float ::: 16] { 1.0f, /* ... */ } };
+}
+
+Process() 
+{
+    // The memory for 'mat' is allocated here. 
+    // A hidden pointer is passed to 'GetIdentity'.
+    mat := GetIdentity(); 
+}
+```
+
+## Method Type
+
+* MUST represent a function type (`fn`) as a stateless, raw function pointer.
+* MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
+* MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.
+* MUST perform an indirect call when invoking an `fn` pointer.
+* MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
+
+```C#
+Vector 
+{
+    X: Int;
+    Y: Int;
+
+    // Static method
+    Create() -> Vector => Vector { X: 0, Y: 0 };
+
+    // Instance method
+    Translate(ref @, dx: Int, dy: Int) 
+    {
+        @.X += dx;
+        @.Y += dy;
+    }
+}
+
+// 1. Pointing to a static method
+factory: fn() -> Vector = Vector.Create;
+
+// 2. Pointing to an instance method
+// The 'ref @' receiver is structurally treated as 'ref Vector'
+mover: fn(ref Vector, Int, Int) = Vector.Translate;
+
+vec := factory();
+mover(ref vec, 10, 10);
+
+// 3. Stateless lambda coercing to a raw function pointer
+mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
 ```
