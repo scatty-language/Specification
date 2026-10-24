@@ -1,9 +1,5 @@
 # Properties
 
-```EBNF
-PropertyDecl ::= Identifier ":" Type ( "=>" Expression ";" | Block )
-```
-
 * MUST NOT occupy memory in the Data layout.
 * MUST execute the property body upon every access.
 * MUST implicitly bind the `@` identifier to the current instance reference within an instance property.
