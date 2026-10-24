@@ -1,11 +1,5 @@
 # Generics
 
-```EBNF
-GenericParams  ::= "<" TypeParameter ("," TypeParameter)* ">"
-TypeParameter  ::= Identifier [":" ConstraintList]
-ConstraintList ::= TypeIdentifier ("," TypeIdentifier)*
-```
-
 * MUST compile generic declarations using monomorphization.
 * MUST guarantee at compile time that type arguments satisfy all specified interface constraints.
 
