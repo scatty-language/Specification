@@ -1,23 +1,21 @@
 # Compile-Time Reflection
 
-Coggy provides zero-cost compile-time reflection. Reflection queries are evaluated during compilation and are physically replaced with constant structural literal values in the compiled binary.
-
-```EBNF
-ReflectionExpr ::= "meta" "<" Type ">" "." Identifier
-```
-
-* **Compile-Time Evaluation**: Any expression starting with `meta<T>` is intrinsically evaluated by the compiler.
-* **Standard Library Wrappers**: The compiler maps the reflection data into typed `Data` defined within the `System::Reflection` standard library package.
-* **Constant Context**: The evaluated result of a `meta<T>` expression acts as a compile-time constant.
+* MUST initiate compile-time reflection queries using the `meta<TargetType>` syntax.
+* MUST evaluate all `meta<TargetType>` expressions during compilation.
+* MUST replace `meta<TargetType>` expressions in the compiled output with structural compile-time constant literals.
+* MUST map reflection metadata into typed `Data` structures defined in the `System::Reflection` package.
+* MUST treat the evaluated result of any `meta<TargetType>` query as a compile-time constant.
 
 ## Reflection Queries
 
-Depending on the `Type` kind passed to `meta<T>`, different queries are available.
-
-* **Fields**: Available for `Data` types. Evaluates to an array of field info.
-* **Variants**: Available for Variant Fields. Evaluates to an array of variant info.
-* **BaseType**: Available for Refinement Types. Evaluates to a `String` representing the base type's name.
-* **Kind**: Available for all types.
+* MUST support the `.Fields` reflection query on `Data` types.
+* MUST evaluate `.Fields` to an array of field metadata structures (`FieldInfo`).
+* MUST support the `.Variants` reflection query on types or fields declaring variants.
+* MUST evaluate `.Variants` to an array of variant metadata structures (`VariantInfo`).
+* MUST support the `.BaseType` reflection query on refinement types.
+* MUST evaluate `.BaseType` to a constant `String` containing the base type identifier.
+* MUST support the `.Kind` reflection query across all valid types, evaluating to the type's structural category.
+* MUST reject reflection queries not supported by the evaluated type kind at compile time.
 
 ```C#
 User 
@@ -26,8 +24,7 @@ User
     Name: String;
 }
 
-// The compiler replaces this with a static array literal
-fields: FieldInfo[] = meta<User>.Fields;
+fields: [FieldInfo] = meta<User>.Fields;
 
 for f in fields 
 {
@@ -35,5 +32,5 @@ for f in fields
 }
 
 ^Positive = Int where @ > 0;
-base: String = meta<^Positive>.BaseType; // Evaluates to constant "Int"
+base: String = meta<^Positive>.BaseType;
 ```
