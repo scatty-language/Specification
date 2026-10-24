@@ -1,17 +1,5 @@
 # Initialization
 
-```EBNF
-StructInitExpr         ::= TypePath [VariantPayloadInitBody] [StructInitBody] [InitModifier]
-VariantPayloadInitBody ::= "(" ArgumentList ")"
-StructInitBody         ::= "{" [FieldInitList] "}"
-FieldInitList          ::= FieldInit ("," FieldInit)* ","?
-FieldInit              ::= NamedFieldInit | PositionalFieldInit
-NamedFieldInit         ::= Identifier ":" Expression
-PositionalFieldInit    ::= Expression
-TypePath               ::= Identifier ["<" TypeArgs ">"] ["::" Identifier] | "." [Identifier]
-InitModifier           ::= "zeroed" | "noinit"
-```
-
 * MUST NOT implicitly zero-initialize memory.
 * MUST guarantee memory initialization via exhaustive structural initialization.
 
@@ -58,8 +46,8 @@ unsafe
 ## Variant Instantiation
 
 * MUST initialize variant payload fields via `VariantPayloadInitBody`, adhering to Method Invocation rules.
-* MUST initialize shared state fields via `StructInitBody`, adhering to Structural Initialization rules.
-* MAY omit the `StructInitBody` entirely if the Data type declares no shared fields or if all shared fields possess default values.
+* MUST initialize shared state fields via `StructInitBody`, adhering to Structural Initialization rules, when constructing a new `Data` instance.
+* MAY omit the `StructInitBody` during new instance construction if and only if the `Data` type declares no shared fields or if all shared fields possess default values.
 * MUST omit the `VariantPayloadInitBody` if the variant declares no payload fields.
 * MUST NOT assign a payload field via named assignment if its declaration omits an identifier.
 
@@ -85,6 +73,36 @@ Option<T>
 option1 := Option::None; 
 
 option2 := Option::Some(42); 
+```
+
+### Active Variant Switching
+
+* MAY assign a variant constructor expression without a `StructInitBody` (`Type::Variant(...)` or `.Variant(...)`) to an already initialized mutable variable or field of the enclosing base `Data` type.
+* MUST treat a variant assignment lacking a `StructInitBody` on an existing instance as an in-place variant switch.
+* MUST update only the active discriminant tag and the variant payload during an in-place variant switch.
+* MUST preserve the current values of all shared fields on the target instance during an in-place variant switch without re-evaluating or resetting shared field default values.
+* MUST replace the entire `Data` instance—including all shared fields—if a `StructInitBody` (`{ ... }`) is explicitly provided on the assigned variant expression.
+
+```C#
+Session 
+{
+    ::Disconnected;
+    ::Connected(SocketId: Int);
+    ::Failed(Reason: String);
+
+    Host: String;
+    Retries: Int = 0;
+}
+
+session := Session::Disconnected { Host: "127.0.0.1", Retries: 3 };
+
+// In-place variant switch (omits '{}'):
+// Updates active variant to '::Connected(42)' while preserving 'Host' ("127.0.0.1") and 'Retries' (3)
+session = .Connected(42);
+
+// Full instance replacement (includes '{}'):
+// Replaces the entire instance; omitted 'Retries' resets to its default value (0)
+session = Session::Failed("Timeout") { Host: "10.0.0.1" };
 ```
 
 ## Visibility and Forced Encapsulation
