@@ -1,12 +1,10 @@
 # Primitive Data
 
-Primitive data represent the fundamental building blocks of program.
-
-> While they are defined as data within the `System` library to describe their capabilities and contracts, the compiler maps them directly to machine-native types.
+* MUST map primitive data types directly to machine-native types during compilation.
 
 ## Numeric Data
 
-Numeric data support standard arithmetic, bitwise and comparison operations.
+* MUST size numeric primitive types according to the following definitions:
 
 | Type | Size (bits) | Description |
 | :--- | :--- | :--- |
@@ -22,6 +20,8 @@ Numeric data support standard arithmetic, bitwise and comparison operations.
 
 ## Logical and Character Data
 
+* MUST size logical and character primitive types according to the following definitions:
+
 | Type | Size (bits) | Description |
 | :--- | :--- | :--- |
 | **`Bool`** | 1 | Logical value (`true` or `false`) |
@@ -30,30 +30,12 @@ Numeric data support standard arithmetic, bitwise and comparison operations.
 
 ## Literals
 
-Literals are the lexical representation of primitive values in the source code.
-
-```EBNF
-Literal ::= IntLiteral | FloatLiteral | BoolLiteral | CharLiteral | StringLiteral
-```
-
 ### Integer Literals
 
-Integer literals can be written in decimal, hexadecimal, or binary formats. Underscores (`_`) MAY be used as visual separators anywhere between digits.
-
-```EBNF
-IntLiteral ::= (Decimal | Hexadecimal | Binary) [IntSuffix]
-Decimal    ::= [0-9] ([0-9_]* [0-9])?
-Hexadecimal::= "0x" [0-9A-Fa-f] ([0-9A-Fa-f_]* [0-9A-Fa-f])?
-Binary     ::= "0b" [01] ([01_]* [01])?
-IntSuffix  ::= "u" | "L" | "uL" | "b"
-```
-
-* **Default Type**: An integer literal without a suffix is inferred as `Int` if it fits within 32 signed bits. If it exceeds 32 bits, it is a compilation error unless explicitly suffixed.
-* **Suffixes**:
-  * `u` = `Uint`
-  * `L` = `Long`
-  * `uL` = `Ulong`
-  * `b` = `Byte`
+* MAY use underscores (`_`) anywhere between digits as visual separators.
+* MUST infer an unsuffixed integer literal as `Int` if its value fits within 32 signed bits.
+* MUST NOT permit an unsuffixed integer literal that exceeds 32 signed bits.
+* MUST explicitly type suffixed integer literals as follows: `u` for `Uint`, `L` for `Long`, `uL` for `Ulong`, and `b` for `Byte`.
 
 ```C#
 a := 1_000_000;    // Int
@@ -64,18 +46,8 @@ d := 42L;          // Long
 
 ### Floating-Point Literals
 
-Floating-point literals MUST contain a decimal point or an exponent.
-
-```EBNF
-FloatLiteral ::= Decimal "." Decimal [Exponent] [FloatSuffix]
-Exponent     ::= ("e" | "E") ["+" | "-"] Decimal
-FloatSuffix  ::= "f" | "d"
-```
-
-* **Default Type**: A floating-point literal without a suffix is inferred as `Double` (64-bit).
-* **Suffixes**:
-  * `f` = `Float`  (32-bit)
-  * `d` = `Double` (64-bit)
+* MUST evaluate an unsuffixed floating-point literal as `Double` (64-bit).
+* MUST explicitly type suffixed floating-point literals as follows: `f` for `Float` (32-bit), `d` for `Double` (64-bit).
 
 ```C#
 pi := 3.14159;     // Double
@@ -85,24 +57,14 @@ gravity := 9.81f;  // Float
 
 ### Logical Literals
 
-```EBNF
-BoolLiteral ::= "true" | "false"
-```
-
-* Evaluates to the `Bool` type.
+* MUST evaluate logical literals as the `Bool` type.
 
 ### Character and Rune Literals
 
-Character literals are enclosed in single quotes (`' '`) and contain exactly one character or one valid escape sequence.
-
-```EBNF
-CharLiteral ::= "'" (SourceChar | EscapeSequence) "'"
-```
-
-* **Type Inference**:
-  * If the literal evaluates to a valid 1-byte ASCII character (U+0000 to U+007F), its default type is `Char`.
-  * If the literal evaluates to a multi-byte Unicode code point (e.g., `'🦀'` or `'\u042F'`), its default type is `Rune`.
-* **Explicit Cast**: A 1-byte literal CAN be explicitly typed as a `Rune` at declaration (e.g., `val: Rune = 'A';`).
+* MUST contain exactly one valid character or one valid escape sequence.
+* MUST infer a literal evaluating to a 1-byte ASCII character (`U+0000` to `U+007F`) as `Char`.
+* MUST infer a literal evaluating to a multi-byte Unicode code point as `Rune`.
+* MAY explicitly cast a 1-byte ASCII literal to a `Rune` type.
 
 ```C#
 ascii := 'A';       // Char
@@ -113,42 +75,39 @@ emoji := '🔥';      // Rune (U+1F525)
 
 ### String Literals
 
-String literals are enclosed in Double quotes (`" "`).
-
-```EBNF
-StringLiteral ::= '"' (SourceChar | EscapeSequence)* '"'
-```
-
-* **Type**: Evaluates to the `String` type.
-* **Encoding**: Strings are UTF-8 encoded in memory.
-* **Multi-line**: Standard String literals MUST NOT span multiple lines.
+* MUST evaluate to the `String` type.
+* MUST encode string literal memory as UTF-8.
+* MUST NOT span multiple physical lines.
+* MAY embed interpolated expressions within a string literal using the `\(Expression)` syntax.
+* MUST fold an interpolated string literal into a single constant `String` literal at compile time if all embedded expressions evaluate to compile-time constants.
 
 ```C#
-text := "Hello, Coggy!";
+text := "Hello, Scatty!";
+
+MaxUsers :: 100;
+
+// Evaluated at compile time into "Max capacity: 100"
+Banner :: "Max capacity: \(MaxUsers)";
 ```
 
 ### Raw String Literals
 
-Raw String literals are enclosed in at least three Double quotes (`"""`).
-
-```EBNF
-RawStringLiteral ::= '"""' RawChar* '"""'
-RawChar          ::= SourceChar | NewLine
-```
-
-* **No Escape Sequences**: Backslashes (`\`) have absolutely no special meaning inside a raw String. Escape sequences MUST be ignored and interpreted as literal text.
-* **Embedded Quotes**: Single (`'`) and Double (`"`) quotes can be used freely inside a raw String without escaping.
-* **Multi-line and Indentation**: Raw strings MAY span multiple physical lines. If the literal is multi-line, the compiler MUST use the column position of the closing `"""` to determine the base indentation. Any whitespace before this base column on each line is stripped during compilation.
-* **Type**: Evaluates to the `String` type.
+* MUST ignore escape sequences and interpret backslashes (`\`) as literal text.
+* MAY contain unescaped single (`'`) and double (`"`) quotes.
+* MAY span multiple physical lines.
+* MUST determine the base indentation column from the position of the closing `"""` sequence in multi-line raw strings.
+* MUST strip leading whitespace up to the base indentation column from each line during compilation.
+* MUST NOT permit content lines to contain less leading whitespace than the column position of the closing `"""`.
+* MUST evaluate to the `String` type.
 
 ```C#
 regex := """\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""";
 
 json := """
     {
-        "name": "Coggy",
+        "name": "Scatty",
         "version": 1.0,
-        "features": ["ARC", "Generics"]
+        "features": ["Exceptions", "Generics"]
     }
     """;
 
