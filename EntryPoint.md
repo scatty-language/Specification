@@ -1,57 +1,57 @@
 # Program Entry Point
 
-An executable Coggy package MUST declare a public `Data` type named `Program` containing a static method named `Run`. This method serves as the singular entry point for the operating system process.
-
-* **Static Context**: The `Run` method MUST NOT declare an instance receiver (`@`).
-* **Location**: The `Program` type MUST be declared at the top level of the package.
-
-The compiler recognizes and binds to the `Run` method if it matches one of the following permutations of parameters and return types.
+* MUST declare a public `Data` type named `Program` at the package top level in an executable package.
+* MUST declare a public static method named `Run` within the `Program` type as the process entry point.
+* MUST NOT declare an instance receiver (`@` or `ref @`) on the `Run` method.
+* MUST match the `Run` method signature to one of the permitted parameter and return type combinations.
 
 ## Command-Line Arguments
 
-* **Parameterless**: `Run()` - Ignores command-line arguments.
-* **With Arguments**: `Run(args: String[])` - The runtime intrinsically populates the array with the command-line arguments provided by the operating system.
+* MAY declare the `Run` method with zero parameters.
+* MAY declare the `Run` method with exactly one parameter typed as `[String]`.
+* MUST NOT declare parameters with types other than `[String]`.
+* MUST NOT declare more than one parameter on the `Run` method.
+* MUST populate the `[String]` parameter with command-line arguments provided by the host environment.
 
 ## Exit Codes
 
-* **Implicit Success (Void)**: If the return type is omitted, the runtime intrinsically returns an exit code of `0` (Success) to the operating system upon normal termination.
-* **Explicit Code (`Int`)**: If the method declares `-> Int`, the developer MUST return an explicit exit code.
+* MAY omit the return type on the `Run` method.
+* MUST return an exit code of `0` to the operating system upon successful termination if the return type is omitted.
+* MAY declare the return type of the `Run` method as `-> Int`.
+* MUST NOT declare a return type other than `Int` or omitted (void) on the `Run` method.
+* MUST return the evaluated `Int` return value to the operating system as the process exit code.
 
 ## Top-Level Error Handling
 
-The `Run` method MAY declare the `throws` modifier to allow domain exceptions to bubble up to the process boundary.
-
-* **Unhandled Escaping**: If a `throws` entry point yields an unhandled exception, the runtime intercepts it and intrinsically triggers the standard Abort and Panic Mechanics (Fatal Panic in Debug, Immediate Abort in Release).
-* **Fault Exit Code**: In the event of an Abort or Panic, the runtime returns a non-zero exit code to the operating system.
+* MAY declare the `Run` method with the `throws` modifier.
+* MUST trigger runtime Abort and Panic mechanics if an unhandled exception escapes a `throws` entry point.
+* MUST return a non-zero exit code to the operating system if execution terminates via an unhandled exception or process abort.
 
 ```C#
 // Minimal Entry Point
 Program 
 {
-    // Implicitly returns 0 on success
     Run() 
     {
-        Console.WriteLine("Hello, Coggy!");
+        Console.WriteLine("Hello, Scatty!");
     }
 }
 
 // Full Entry Point
+Program
 {
-    // Accepts OS arguments, explicitly returns an exit code, and propagates errors
-    Run(args: String[]) throws -> Int 
+    Run(args: [String]) throws -> Int 
     {
         if args.Length == 0 
         {
             Console.WriteLine("Usage: app <config_path>");
-            return 1; // Error exit code
+            return 1;
         }
 
-        // If 'Load' fails, the program panics/aborts immediately
         config := try! Config.Load(args[0]);
-        
         Engine.Start(config);
         
-        return 0; // Success exit code
+        return 0;
     }
 }
 ```
