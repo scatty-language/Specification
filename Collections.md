@@ -1,157 +1,81 @@
 # Collections
 
-Coggy provides intrinsic support for statically sized arrays, fixed-size heap arrays, dynamically sized lists, and Structure of Arrays (SoA) memory layouts.
+## Contextual and Indexed Initialization
 
-Heap-allocated collections (Arrays and Lists) are managed by Automated Reference Counting (ARC) with Copy-on-Write (CoW) semantics. Static arrays (`Type[N]`) are purely stack-allocated value types.
-
-## Heap Arrays
-
-The postfix `[]` modifier declares a standard, heap-allocated Array of Structures.
-
-* **Fixed Capacity**: The size of a heap array is defined strictly at runtime during instantiation and CANNOT grow or shrink.
-* **By-Reference**: Individual elements CAN be passed by reference.
+* MAY omit the explicit `CollectionType` prefix before `{ ... }` when the expected collection type is statically known from context (explicitly typed variable declarations, assignments, method parameters, `return` statements, or structural field initializers).
+* MUST reject an unqualified `{ ... }` collection initializer at compile time if the target type is inferred (`:=`) or ambiguous.
+* MAY initialize array or list elements positionally (`{ expr1, expr2 }`) or by explicit index mapping (`{ index = expr }`).
+* MAY provide a wildcard fallback entry (`_ = expr`) to initialize all remaining unmapped indices of a fixed-size or pre-allocated array.
 
 ```C#
-Vector { X: Int; Y: Int; }
+// Contextual initialization without repeating '[Int]'
+numbers: [Int] = { 1, 2, 3, 4 };
 
-// Memory: [X, Y] [X, Y] [X, Y]
-// Instantiated with a fixed size of 3
-aos: Vector[] = Vector[].New(3);
-aos[0] = Vector { X: 1, Y: 1 };
-
-Process(ref aos[0]);
+// Sparse index initialization with wildcard default fallback
+lookup: [String ::: 32] = { 0 = "One", 20 = "Big", _ = "None" };
 ```
 
-## Dynamic Lists
+## Standard Arrays and Lists
 
-The postfix `[~]` modifier declares a heap-allocated, dynamically resizable List.
-
-* **Dynamic Capacity**: The list automatically manages a hidden capacity and reallocates its internal buffer when it grows.
-* **By-Reference**: Individual elements CAN be passed by reference.
+* MUST allocate standard arrays (`[Type]`) contiguously with a fixed size determined at runtime instantiation.
+* MUST manage a hidden dynamic capacity for lists (`[+ Type]`) to support resizing and mutation operations.
 
 ```C#
-list: Vector[~] = Vector[~].New();
+// Heap-allocated Array of size 3
+aos: [Int] = [Int].New(3);
+aos[0] = 10;
 
-// Dynamically grows the underlying buffer
-list.Add(Vector { X: 1, Y: 1 });
-list.Add(Vector { X: 2, Y: 2 });
-
-Process(ref list[1]);
+// Heap-allocated Dynamic List
+list: [+ Int] = [+ Int] { 1, 2, 3 };
+list.Add(4);
 ```
 
 ## Hashed Collections
 
-Coggy provides intrinsic syntax for heap-allocated, hashed collections. Like dynamic lists, they are managed by Automated Reference Counting (ARC) with enforced Copy-on-Write (CoW) semantics.
-
-### Hash Sets
-
-The `[$]` postfix modifier declares a Hash Set: an unordered collection of unique elements based on their Identity hash.
-
-* **Identity Requirement**: The element type MUST inherently support hashing. For custom `Data` types, the hash is intrinsically derived from fields marked with the `$` modifier, or all fields if no `$` modifier is present.
-* **Uniqueness**: Adding an element that already exists (matching Identity) overwrites the existing entry or acts as a no-op.
+* MUST enforce element uniqueness in Hash Sets (`[$ Type]`) using the element's Identity hash (`$`).
+* MUST index Hash Maps (`[KeyType $ ValueType]`) using the key's Identity hash.
+* MUST throw an exception upon accessing an unmapped key via the index operator (`map[key]`).
 
 ```C#
-// A hashed set of 'String'
-activeUsers: String[$] = String[$].New();
-
+// A hashed set of Strings
+activeUsers: [$ String] = [$ String].New();
 activeUsers.Add("Alice");
-activeUsers.Add("Bob");
 
-if activeUsers.Contains("Alice") 
-{
-    Console.WriteLine("Found!");
-}
-```
-
-### Hash Maps
-
-The `[$KeyType]` postfix modifier declares a Hash Map. It logically represents a dynamically sized collection of `ValueType` elements, indexed by the Identity hash of a `KeyType`.
-
-* **Key Identity**: The `KeyType` MUST support structural hashing.
-* **Indexing**: Elements are accessed or mutated using standard bracket notation `[key]`.
-* **Missing Keys**: Accessing a key that does not exist via direct bracket notation (`map[key]`) intrinsically throws a `KeyNotFoundException`. Developers MAY use standard methods (like `.TryGetValue()` or `.Contains()`) for safe access.
-
-```C#
-// A map of 'Int' keyed by 'String'
-scores: Int[$String] = Int[$String].New();
-
-// Insertion/Mutation
+// A map of Ints keyed by String
+scores: [String $ Int] = [String $ Int].New();
 scores["Alice"] = 100;
-scores["Bob"] = 80;
-
-// Access
-aliceScore := scores["Alice"];
-
-// Safe access without throwing
-if score := scores.TryGetValue("Charlie") 
-{
-    Console.WriteLine(score);
-}
-```
-
-## Static Arrays
-
-The postfix `[N]` modifier (where `N` is a positive, compile-time integer constant) declares a fixed-size static array.
-
-* **Stack Allocation**: Static arrays are allocated inline, either on the call stack or physically embedded within an enclosing `Data` layout. They DO NOT use the heap and DO NOT use ARC.
-* **Pure Value Semantics**: Assigning a static array to a new variable or passing it by value performs an immediate, full structural memory copy. CoW DOES NOT apply.
-* **Initialization**: The array MUST be instantiated using the `{}` block syntax, providing expressions for its elements.
-
-```C#
-// Stack-allocated static array of size 2
-x := Int[2] { 0, 0 };
-
-// Full memory copy
-y := x;
-y[0] = 5;
-
-Console.WriteLine(x[0]); // Output: 0
-
-Matrix 
-{
-    // Physically embedded directly inside the Matrix memory layout
-    Cells: Float[16]; 
-}
 ```
 
 ## Structure of Arrays
 
-The prefix modifiers `[]`, `[~]`, and `[N]` declare a Structure of Arrays. This instructs the compiler to intrinsically invert the structural memory layout of the specified type.
-
-* **Deep Flattening**: The compiler recursively breaks down the base type (and any nested inline fields, structural fields, or array metadata) into independent, parallel contiguous arrays for each primitive data field.
-* **Static SoA (`[N]Type`)**: Prefixing with a constant size allocates the parallel arrays inline on the stack, bypassing ARC and adhering to pure Value Semantics.
-* **Target Restriction**: SoA prefixes CAN be applied to custom `Data` types and collections (e.g., `Int[]`), as they structurally possess internal fields. Applying SoA prefixes to scalar primitive types (e.g., `Int`, `Float`) is FORBIDDEN.
+* MUST intrinsically invert the structural memory layout into parallel contiguous arrays for each field when the SoA modifier (`%`) is applied.
+* MUST apply SoA modifiers ONLY to custom `Data` types or collections possessing internal fields.
+* MUST NOT apply SoA modifiers to scalar primitives or interfaces.
+* MAY combine the SoA modifier (`%`) with the dynamic list modifier (`+`) to declare dynamic SoA lists (`[+% Type]`).
+* MUST recursively flatten the base type, nested embedded fields, structural fields, and array metadata into independent, parallel arrays.
 
 ```C#
-Entity 
-{
-    Id: Int;
-    Position: Vector;
-}
+Entity { Id: Int; PosX: Float; }
 
-// Heap-Allocated Fixed SoA Array (Size 100)
-fixedSoa: []Entity = []Entity.New(100);
+// Fixed-size SoA Array
+soaArray: [% Entity] = [% Entity].New(100);
 
-// Heap-Allocated Dynamic SoA List
-dynamicSoa: [~]Entity = [~]Entity.New();
+// Dynamic SoA List
+soaList: [+% Entity] = [+% Entity].New();
+soaList.Add(Entity { Id: 1, PosX: 0.0f });
 
-// Stack-Allocated Static SoA (Size 16)
-staticSoa := [16]Entity { ... };
-
-// Valid: Flattens the internal struct of the Heap Array (token, length, ptr)
-complexSoa: [~]Int[] = [~]Int[].New();
+// Zero-cost independent array access
+id := soaList[0].Id;
 ```
 
-### Gather, Scatter, and Field Access
+### Gather, Scatter, Field Access
 
-The compiler transparently translates standard indexing into the corresponding parallel array operations.
-
-* **Field Access**: Accessing a specific field of an indexed element (`soa[i].Field`) directly reads or writes to the underlying independent array.
-* **Scatter (Write)**: Assigning a whole object to an index (`soa[i] = instance`) automatically scatters the fields of the instance into the respective parallel arrays.
-* **Gather (Read)**: Reading a whole object from an index (`val := soa[i]`) automatically gathers the fields from the parallel arrays and constructs a transient, stack-allocated instance of the `Data` type.
+* MUST directly read from or write to the corresponding parallel array when evaluating a field access on an indexed SoA element (`soa[i].Field`).
+* MUST implicitly scatter the fields of the assigned instance into the respective parallel arrays when writing to a whole indexed SoA element (`soa[i] = instance`).
+* MUST implicitly gather the fields from the parallel arrays and construct a transient, stack-allocated instance of the `Data` type when reading a whole indexed SoA element (`val := soa[i]`).
 
 ```C#
-soa: [~]Entity = [~]Entity.New();
+soa := [+% Entity].New();
 soa.Add(Entity { Id: 1, Position: Vector { X: 10, Y: 10 } });
 
 // Field access
@@ -166,16 +90,16 @@ snapshot := soa[0];
 
 ### The Reference Restriction
 
-* **Whole Element Prohibition**: Passing an indexed SoA element via the `ref` keyword (`ref soa[i]`) is FORBIDDEN.
-* **Field Exemption**: Passing an individual, primitive field of an indexed SoA element via the `ref` keyword (`ref soa[i].Id`) is ALLOWED.
-* **By-Value Allowance**: Passing an indexed SoA element by value (`Process(soa[i])`) is ALLOWED.
+* MUST NOT pass a gathered SoA element by reference (`ref soa[i]`).
+* MAY pass an individual primitive field of an indexed SoA element by reference (`ref soa[i].Id`).
+* MAY pass an indexed SoA element by value.
 
 ```C#
 MutateEntity(ref entity: Entity) { }
 MutateId(ref id: Int) { }
 ProcessEntity(entity: Entity) { }
 
-soa: [~]Entity = [~]Entity.New();
+soa: [+% Entity] = [+% Entity].New();
 soa.Add(Entity { Id: 1, Position: Vector { X: 10, Y: 10 } });
 
 // ERROR: Cannot pass a scattered SoA element by reference
@@ -188,16 +112,114 @@ MutateId(ref soa[0].Id);
 ProcessEntity(soa[0]);
 ```
 
-### CoW and SoA Iteration
+### SoA Iteration
 
-SoA types adhere to Value Semantics. If a `[]Data` or `[~]Data` is reassigned (`soa2 := soa`), the parallel arrays share the same ARC buffer until a mutation occurs.
-
-When iterating over an SoA collection, standard iterator loops natively perform the Gather operation.
+* MUST treat SoA collections as ARC-managed Owning Types with Copy-on-Write semantics; reassignment increments the strong reference count, and mutation detaches a deep copy of the parallel arrays if `strongCount > 1`.
+* MUST implicitly perform a Gather operation during standard iterator loops.
+* MUST copy the gathered instance by value (bitwise copy for Trivial Types, ARC retain for Owning Types).
 
 ```C#
 // Iteration dynamically gathers elements by value
 for entity in soa 
 {
     Console.WriteLine(entity.Id);
+}
+```
+
+## Static and Fixed-Capacity Layouts (`:::`)
+
+* MAY explicitly constrain the physical memory layout of a collection using the Physical Layout operator (`:::`) and a compile-time constant.
+* MUST allocate static arrays (`[Type ::: N]`) directly inline on the stack or physically embedded within an enclosing `Data` layout.
+* MUST pre-allocate the exact required memory for fixed-capacity dynamic collections (`[+ Type ::: N]`, `[$ Type ::: N]`) and guarantee zero runtime reallocations.
+* MUST throw a `CapacityException` if an insertion operation exceeds the explicitly defined fixed capacity `N`.
+
+```C#
+// Stack-allocated static array
+x := [Int ::: 2] { 0, 0 };
+
+// Full O(N) memory copy, no CoW!
+y := x; 
+y[0] = 5;
+
+// Fixed-capacity dynamic list. Will NEVER reallocate.
+fixedList := [+ Int ::: 16].New();
+fixedList.Add(1);
+
+Matrix 
+{
+    // Physically embedded (16 contiguous floats)
+    Cells: [Float ::: 16]; 
+}
+
+// Stack-allocated Static SoA!
+// Memory: [Id*16] [PosX*16] directly on the stack
+staticSoa := [% Entity ::: 16] { ... };
+```
+
+## Associated Arrays (`->`, `->!`, `->?`)
+
+* MAY declare a fixed-size associated array keyed by the variants of a `Data` type using `[KeyType -> ValueType]`, `[KeyType ->! ValueType]`, or `[KeyType ->? ValueType]`.
+* MUST require `KeyType` to be a tagged `Data` type (not `::: none`) that declares variants without payload fields and declares zero shared instance fields.
+* MUST allocate associated arrays inline on the stack or physically embedded within an enclosing `Data` layout with a fixed capacity equal to the exact count of variants declared in `KeyType`.
+* MUST map each variant of `KeyType` to its 0-based declaration ordinal (`0` through `VariantCount - 1`), regardless of whether `KeyType` declares explicit sparse or negative tag values (`:::`).
+* MUST resolve constant variant keys (`.Variant`) to their corresponding 0-based ordinal at compile time with zero runtime lookup overhead.
+
+```C#
+Color 
+{
+    ::Red   ::: 100;
+    ::Green ::: 200;
+    ::Blue  ::: 300;
+}
+
+// Physical capacity is 3 (ordinals 0, 1, 2), NOT 301
+weights: [Color -> Int] = { .Red = 10, .Green = 20, .Blue = 30 };
+
+// Resolves '.Blue' to ordinal 2 at compile time
+blueWeight := weights[.Blue];
+```
+
+### Exhaustive Associated Arrays (`[K -> V]`)
+
+* MUST initialize every variant of `KeyType` when instantiating `[KeyType -> ValueType]`, or provide a wildcard fallback entry (`_ = Expression`) to populate all omitted variants.
+* MUST NOT allocate a runtime validity bitmask for exhaustive associated arrays (`[KeyType -> ValueType]`).
+* MUST evaluate an index access (`array[key]`) on `[KeyType -> ValueType]` infallibly to `ValueType`.
+
+```C#
+// Exhaustive via explicit variant coverage
+rgbHex: [Color -> Int] = { .Red = 0xFF0000, .Green = 0x00FF00, .Blue = 0x0000FF };
+
+// Exhaustive via wildcard fallback ('_'); '.Green' and '.Blue' are initialized to 0
+redOnly: [Color -> Int] = { .Red = 100, _ = 0 };
+```
+
+### Non-Exhaustive Associated Arrays (`[K ->! V]` and `[K ->? V]`)
+
+* MAY omit variants without a wildcard `_` fallback when initializing `[KeyType ->! ValueType]` or `[KeyType ->? ValueType]`.
+* MUST encapsulate a fixed-size validity bitmask of `VariantCount` bits alongside the `VariantCount` element slots for `[KeyType ->! ValueType]` and `[KeyType ->? ValueType]`.
+* MUST set the bitmask bit corresponding to a variant's ordinal to `1` when that variant is initialized or assigned (`array[key] = value`), and `0` when omitted.
+* MUST verify the validity bit for `key`'s ordinal upon reading from `[KeyType ->! ValueType]` (`val := array[key]`), returning the stored `ValueType` if the bit is `1`, or immediately triggering runtime Abort or Fatal Panic mechanics if the bit is `0`.
+* MUST evaluate an index read (`array[key]`) on `[KeyType ->? ValueType]` to `ValueType?` (`Option<ValueType>`), yielding `Option::Some` if the validity bit for `key`'s ordinal is `1`, or `Option::None` if the bit is `0`.
+
+```C#
+// Non-exhaustive panic-on-missing array: capacity is 3 slots + 3-bit mask (0b101)
+strictPrices: [Color ->! Int] = { .Red = 100, .Blue = 300 };
+
+r := strictPrices[.Red];   // Evaluates to 100 (bit 0 is 1)
+// g := strictPrices[.Green]; // Aborts/Panics immediately (bit 1 is 0)
+
+// Dynamically populating an omitted variant sets bit 1 in the bitmask to 1
+strictPrices[.Green] = 200;
+
+// Non-exhaustive optional array
+safePrices: [Color ->? Int] = { .Red = 100, .Blue = 300 };
+
+if greenPrice := safePrices[.Green] 
+{
+    Console.WriteLine(greenPrice);
+} 
+else 
+{
+    Console.WriteLine("Green price is not configured");
 }
 ```
