@@ -1,18 +1,12 @@
 # Tuples
 
-Tuples provide concise syntax to group multiple values into a single, anonymous inline-allocated Data structure.
-
-```EBNF
-TupleType     ::= "(" TupleTypeElem ("," TupleTypeElem)+ ")"
-TupleTypeElem ::= [PublicId ":"] Type
-
-TupleExpr     ::= "(" TupleExprElem ("," TupleExprElem)+ ")"
-TupleExprElem ::= [PublicId ":"] Expression
-```
-
-* **Minimum Size**: Tuple MUST contain at least two elements. Single-element tuples are FORBIDDEN.
-* **Value Semantics**: Tuples adhere to standard Value Semantics. They are stack-allocated and copied by value upon assignment or parameter passing.
-* **Implicit Naming**: If an element is declared without an explicit name, the compiler automatically assigns it a positional identifier starting from 1 (e.g., `Item1`, `Item2`, `Item3`).
+* MUST allocate tuples as anonymous, inline contiguous `Data` structures.
+* MUST contain at least two elements in a tuple declaration or instantiation.
+* MUST NOT declare or instantiate a single-element tuple.
+* MUST adhere to Value Semantics for all tuple copies, parameter passing, and assignments.
+* MAY define explicit element names within a tuple type or literal.
+* MUST automatically assign 1-based positional names (`Item1`, `Item2`, ...) to tuple elements declared without an explicit identifier.
+* MUST allow member access via explicitly declared element names or positional identifiers.
 
 ```C#
 GetBounds() -> (Min: Int, Max: Int) 
@@ -21,18 +15,17 @@ GetBounds() -> (Min: Int, Max: Int)
 }
 
 point: (Int, Int) = (10, 20);
+first := point.Item1;
 
-Console.WriteLine(point.Item1); // Prints 10
-
-user := (Id: 1, Name: "Coggy");
-Console.WriteLine(user.Name);
+user := (Id: 1, Name: "Scatty");
+userName := user.Name;
 ```
 
 ## Type Equivalence and Assignment
 
-Tuple types are resolved by their structural sequence of types.
-
-* **Positional Assignment**: MAY assign one tuple to another if and only if their underlying types match exactly in positional order.
+* MUST evaluate tuple type equivalence solely based on the positional sequence of element types.
+* MUST ignore element identifiers when evaluating tuple type equivalence or performing assignments.
+* MUST permit assignment between tuple instances if and only if their element counts and positional types match identically.
 
 ```C#
 pointA: (X: Int, Y: Int) = (10, 20);
@@ -41,32 +34,23 @@ unnamed: (Int, Int) = (0, 0);
 
 pointA = pointB;
 unnamed = pointA;
-
-Console.WriteLine(pointA.X); // Evaluates to 5
 ```
 
 ## Destructuring
 
-Tuples can be unpacked directly into multiple distinct local variables using destructuring assignment.
-
-```EBNF
-DestructureStmt ::= "(" LocalId ("," LocalId)+ ")" ("=" | ":=") Expression ";"
-```
-
-* **Declaration (`:=`)**: Introduces entirely new local variables into the current scope.
-* **Mutation (`=`)**: Assigns the unpacked values to existing, mutable local variables.
-* **Discard (`_`)**: The wildcard identifier `_` MAY be used in place of a `LocalId` to discard an element without binding it to a variable.
+* MAY unpack a tuple into individual bindings using destructuring declaration (`:=`) or destructuring assignment (`=`).
+* MUST introduce new local variables into the current scope when destructuring with `:=`.
+* MUST assign unpacked values to existing mutable variables when destructuring with `=`.
+* MUST require the number of target bindings in a destructuring pattern to match the exact element count of the source tuple.
+* MAY use the discard symbol `_` in place of a local identifier to omit an element binding during destructuring.
+* MUST NOT generate a variable or allow access to elements bound to `_`.
 
 ```C#
-// Declaration destructuring
 (min, max) := GetBounds();
-Console.WriteLine(min);
 
-// Mutation destructuring
 min = -10;
 max = 10;
 (min, max) = GetBounds(); 
 
-// Discarding element
 (id, _) := (Id: 42, Name: "Ignored");
 ```
