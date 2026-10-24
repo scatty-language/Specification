@@ -1,11 +1,5 @@
 # Interfaces
 
-```EBNF
-InterfaceDecl     ::= "~" Identifier "{" InterfaceMember* "}"
-InterfaceMember   ::= InterfacePropDecl | MethodDecl | RefinementDecl
-InterfacePropDecl ::= Identifier ":" Type ( ";" | "=>" Expression ";" | Block )
-```
-
 * MUST NOT contain state fields.
 * MUST occupy exactly 0 bytes in memory.
 * MAY be implemented by a Data type in unlimited quantities.
@@ -14,9 +8,13 @@ InterfacePropDecl ::= Identifier ":" Type ( ";" | "=>" Expression ";" | Block )
 ## Method Contracts and Default Implementations
 
 * MAY declare contract methods without a body.
-* MUST provide a concrete method with an identical signature in the implementing Data type for every contract method.
+* MUST provide a concrete method with a matching signature in the implementing `Data` type for every contract method.
+* MAY omit the `throws` modifier on the implementing method in a `Data` type when satisfying an interface contract method declared with `throws`.
+* MUST NOT declare the `throws` modifier on an implementing method if the corresponding interface contract method omits `throws`.
+* MUST evaluate direct invocations on a concrete `Data` type according to the concrete method's `throws` modifier.
+* MUST evaluate invocations through an interface reference or generic constraint according to the interface contract's `throws` modifier.
 * MAY declare default methods with a body to provide shared behavior.
-* MAY shadow a default interface method by explicitly declaring a method with an identical signature in the implementing Data type.
+* MAY shadow a default interface method by explicitly declaring a method with an identical signature in the implementing `Data` type.
 
 ```C#
 ~Comparable 
@@ -73,7 +71,7 @@ Entity : ~Vectorable
 
 ## Receiver and Self-Resolution
 
-* MUST resolve the receiver within an Interface declaration strictly to the concrete implementing type, not the interface type.
+* MUST resolve the receiver within an Interface declaration to the concrete implementing type, not the interface type.
 * MUST return an instance of the exact concrete type if a method signature declares a return type of `-> @`.
 * MUST explicitly type parameters as the interface to interact polymorphically with any type implementing the interface.
 
