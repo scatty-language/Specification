@@ -2,7 +2,7 @@
 
 * MUST declare a type extension block using the prefix `+` operator applied to the target type identifier (`+TargetType`).
 * MAY extend any `Data` type, including primitive types.
-* MAY declare instance methods, static methods, properties, and refinement types within an extension block.
+* MAY declare instance methods, static methods, properties, and type guards within an extension block.
 * MUST NOT declare structural state fields within an extension block.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in the target type's primary definition.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in another extension block for the same target type.

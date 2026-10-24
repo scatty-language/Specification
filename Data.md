@@ -109,7 +109,7 @@ Option<T>
 
 ### Variants as Subtypes
 
-* MUST treat a variant path (`Data::Variant`) as a compile-time refined subtype of its enclosing `Data` type whose invariant requires the active discriminant tag to match `::Variant`.
+* MUST treat a variant path (`Data::Variant`) as a compile-time guarded subtype of its enclosing `Data` type whose invariant requires the active discriminant tag to match `::Variant`.
 * MUST guarantee that a variant subtype (`Data::Variant`) has the exact same physical memory layout as its enclosing `Data` type.
 * MUST expose both the shared members of the enclosing `Data` type and the payload fields of `::Variant` directly via member access (`.`) on any expression statically typed as `Data::Variant`.
 * MUST infer the enclosing base `Data` type—not the narrowed `Data::Variant` subtype - when initializing a variable with a variant constructor via type inference (`:=`).
@@ -150,7 +150,7 @@ anyColor: Color = strictRed;
 ProcessGreen(color as Color::Green);
 ProcessGreen(color as .Green);
 
-// Flow-sensitive refinement via 'is'
+// Flow-sensitive type guard via 'is'
 if color is .Green 
 {
     Console.WriteLine(color.X);

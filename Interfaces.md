@@ -106,7 +106,7 @@ Duplicate<T: ~Copyable>(item: T)
 ProcessDynamic(ref item: ~Copyable) { }
 ```
 
-## Weak Contracts and Interface Refinements
+## Weak Contracts and Interface Type Guards
 
 * MAY declare a method or property contract within an interface as a weak (optional) contract by appending the `?` suffix to its identifier (`Method?(...)` or `Property?: Type;`).
 * MUST NOT declare the `?` weak contract suffix on methods or properties outside of an `~Interface` declaration.
@@ -119,12 +119,12 @@ ProcessDynamic(ref item: ~Copyable) { }
   * If the concrete `Data` type implements the weak member, the compiler MUST permit direct access (`instance.Member` or `instance.Method()`) with zero runtime existence checks.
   * If the concrete `Data` type omits the weak member, the compiler MUST reject any access (`instance.Member`, `instance.Method()`, `instance.Method?()`, or `instance.Method!()`) with a compile-time error.
 
-### Dynamic Resolution and Refinements
+### Dynamic Resolution and Type Guards
 
 * MUST represent an unimplemented weak contract member as a null slot (`0x0`) within the interface's virtual method table (`vtable`) during dynamic dispatch.
-* MUST NOT invoke or read an unverified weak contract member directly (`box.Method()` or `box.Property`) on an unrefined dynamic interface container (`Box<~Interface>`), an interface reference (`ref item: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
+* MUST NOT invoke or read an unverified weak contract member directly (`box.Method()` or `box.Property`) on an unguarded dynamic interface container (`Box<~Interface>`), an interface reference (`ref item: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
 * MAY verify the presence of a weak contract member at runtime using the `is` operator (`if item is .Method` or `if item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch to allow direct invocation.
-* MAY declare refinement types over an interface (`^Refinement = ~Interface where @ is .Member` or `^Refinement = @ where @ is .Member`) either inside the `~Interface` body or at the file top level.
+* MAY declare type guards over an interface (`^Guard = ~Interface where @ is .Member` or `^Guard = @ where @ is .Member`) either inside the `~Interface` body or at the file top level.
 * MAY invoke a weak contract member conditionally using the `?` suffix (`item.Method?(args)` or `item.Property?`):
   * If the member returns a value of type `T`, the expression MUST evaluate to `T?` (`Option::Some` if implemented, or `Option::None` if unimplemented).
   * If the member returns void, the expression MUST execute the method if implemented or perform a no-op if unimplemented.
@@ -138,11 +138,11 @@ ProcessDynamic(ref item: ~Copyable) { }
     Seek?(ref @, offset: Long) throws;
     Length?: Long;
 
-    // Interface refinement declared inside the interface
+    // Interface type guard declared inside the interface
     ^Writable = @ where @ is .Write;
 }
 
-// Interface refinement declared outside at the file top level
+// Interface type guard declared outside at the file top level
 ^SeekableStream = ~Stream where @ is .Seek and @ is .Length;
 
 // Concrete type implementing only strong contracts and 'Length?'
@@ -160,10 +160,10 @@ ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<
     len := ro.Length; // Valid: 'Length' is implemented on 'ReadOnlyMemoryStream'
     // ro.Write(buf); // COMPILE-TIME ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
 
-    // 2. Refined interface: guaranteed to implement 'Write'
+    // 2. Guarded interface: guaranteed to implement 'Write'
     writable.Write(buf);
 
-    // 3. Unrefined dynamic interface: verified via 'is'
+    // 3. Unguarded dynamic interface: verified via 'is'
     if dynStream is .Write 
     {
         dynStream.Write(buf);

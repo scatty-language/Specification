@@ -317,7 +317,7 @@ Processor
 * MUST NOT apply implicit primitive or `~Castable<T>` type conversions during overload resolution.
 * MUST select the single best matching overload by evaluating candidate parameters according to the following descending specificity hierarchy:
   1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, or `Color::Green` matching `Color::Green`).
-  2. Base Type Downgrade: A refined type (`T^Refinement`) or variant subtype (`Data::Variant`) implicitly downgrades to its unrefined base `Data` type `T`.
+  2. Base Type Downgrade: A guarded type (`T^Guard`) or variant subtype (`Data::Variant`) implicitly downgrades to its unguarded base `Data` type `T`.
   3. Constrained Generic Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`).
   4. Unconstrained Generic Match: The argument matches an unconstrained generic type parameter (`T`).
   5. Variadic Parameter Match: Trailing arguments are packed into a variadic parameter (`...T`).

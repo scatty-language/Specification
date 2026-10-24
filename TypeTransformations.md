@@ -30,10 +30,10 @@
 * MUST provide intrinsic implementations of infallible `~Castable<T>` for safe widening primitive conversions (e.g., `Int` to `Float`, `Int` to `Long`).
 * MUST provide intrinsic implementations of fallible `~Castable<T>` for narrowing primitive conversions (e.g., `Long` to `Int`).
 
-## Chained Refinement Transformations
+## Chained Type Guard Transformations
 
-* MAY apply `as`, `as?`, or `as!` to transform a source type directly into a refined target type (`Source as Target^Refinement`) if the source type implements `~Castable<Target>`.
-* MUST execute the `~Castable<Target>` transformation prior to evaluating the `^Refinement` invariant.
+* MAY apply `as`, `as?`, or `as!` to transform a source type directly into a guarded target type (`Source as Target^Guard`) if the source type implements `~Castable<Target>`.
+* MUST execute the `~Castable<Target>` transformation prior to evaluating the `^Guard` invariant.
 
 ```C#
 Vector : ~Castable<Point> 
@@ -88,6 +88,6 @@ if user := record as? User
 // Forced transformation using 'as!'
 validUser := record as! User; // Aborts/Panics immediately if 'RawId' is invalid
 
-// Chained transformation and refinement validation
+// Chained transformation and type guard validation
 validId := "42" as? Int^Positive;
 ```

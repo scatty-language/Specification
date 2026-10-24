@@ -147,10 +147,10 @@ ProcessData() throws
 }
 ```
 
-## Refinement Filtering in Catch Blocks
+## Type Guard Filtering in Catch Blocks
 
-* MAY specify a Refinement Type as the filter type on a `catch` arm (`catch e: Type^Refinement`).
-* MUST evaluate the refinement's `where` expression against the active exception instance when the base type matches.
+* MAY specify a Type Guart as the filter type on a `catch` arm (`catch e: Type^Guard`).
+* MUST evaluate the type guard's `where` expression against the active exception instance when the base type matches.
 * MUST intercept the exception and refine the local variable's type within the `catch` block if the `where` expression evaluates to `true`.
 * MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `where` expression evaluates to `false`.
 

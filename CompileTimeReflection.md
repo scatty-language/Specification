@@ -12,7 +12,7 @@
 * MUST evaluate `.Fields` to an array of field metadata structures (`FieldInfo`).
 * MUST support the `.Variants` reflection query on types or fields declaring variants.
 * MUST evaluate `.Variants` to an array of variant metadata structures (`VariantInfo`).
-* MUST support the `.BaseType` reflection query on refinement types.
+* MUST support the `.BaseType` reflection query on type guards.
 * MUST evaluate `.BaseType` to a constant `String` containing the base type identifier.
 * MUST support the `.Kind` reflection query across all valid types, evaluating to the type's structural category.
 * MUST reject reflection queries not supported by the evaluated type kind at compile time.

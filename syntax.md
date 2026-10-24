@@ -11,7 +11,7 @@ top_level_declaration
     ::= data_decl
       | interface_decl
       | extension_decl
-      | refinement_decl
+      | guard_decl
       | type_alias_decl
       | const_decl
       | var_decl
@@ -74,7 +74,7 @@ interface_decl
 interface_member
     ::= interface_prop_decl
       | method_decl
-      | refinement_decl
+      | guard_decl
 
 interface_prop_decl
     ::= identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
@@ -82,16 +82,16 @@ interface_prop_decl
 extension_decl
     ::= "+" type "{" { member } "}"
 
-refinement_decl
+guard_decl
     ::= "^" identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "where" expression ";"
 
 target_type
     ::= "@" | type
 
 parent_list
-    ::= refined_parent { "," refined_parent }
+    ::= guard_parent { "," guard_parent }
 
-refined_parent
+guard_parent
     ::= "^" identifier [ "<" type_args ">" ]
 
 type_alias_decl
@@ -135,7 +135,7 @@ type
       | collection_type
       | tuple_type
       | method_type
-      | refined_type
+      | guarded_type
       | option_type
       | weak_type
       | type_path
@@ -146,7 +146,7 @@ option_type
 weak_type
     ::= type "weak"
 
-refined_type
+guarded_type
     ::= type "^" identifier [ "<" type_args ">" ]
 
 primitive_type
@@ -301,14 +301,14 @@ match_arm
 
 pattern
     ::= variant_pattern
-      | refinement_pattern
+      | guard_pattern
       | literal
       | "_"
 
 variant_pattern
     ::= "." identifier [ "(" pattern_binding_list ")" ]
 
-refinement_pattern
+guard_pattern
     ::= "^" identifier [ "<" type_args ">" ]
 
 pattern_binding_list
