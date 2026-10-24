@@ -1,22 +1,8 @@
 # Identifiers
 
-```EBNF
-Identifier     ::= PublicId | InternalId | PrivateId | LocalId
-
-PublicId       ::= Uppercase Alphanumeric* (excluding those ending with "_")
-InternalId     ::= Uppercase Alphanumeric* "_"
-PrivateId      ::= "_" Lowercase Alphanumeric*
-LocalId        ::= Lowercase Alphanumeric*
-
-Uppercase      ::= [A-Z]
-Lowercase      ::= [a-z]
-Digit          ::= [0-9]
-Alphanumeric   ::= Uppercase | Lowercase | Digit
-```
-
 * MUST consist exclusively of ASCII letters (`A-Z`, `a-z`), digits (`0-9`), and underscores (`_`).
 * MUST NOT contain Unicode characters.
-* MUST enforce identifier usage based strictly on lexical formatting and declaration context.
+* MUST enforce identifier usage based on lexical formatting and declaration context.
 
 ## Public Identifiers
 
@@ -32,7 +18,7 @@ Alphanumeric   ::= Uppercase | Lowercase | Digit
 ## Private Identifiers
 
 * MUST start with a single underscore, followed by a lowercase letter, and contain only letters or digits.
-* MUST designate type-scoped private members or file-scoped private declarations.
+* MUST designate type-scoped private members or file-scoped private declarations accessible within the declaring file and its narrower conditional compilation files sharing the same `<BaseName>`.
 
 ## Local Identifiers
 
