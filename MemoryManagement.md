@@ -1,141 +1,210 @@
 # Memory Management
 
-Coggy employs Value Semantics with deterministic memory management.
+## Value Semantics and Type Categories
 
-## Value Semantics and Independence
+### Trivial Types
 
-All variables are fundamentally treated as independent values. Variables are mutable by default.
-
-* **Logical Independence**: Assigning a variable to another (`a := b`) or passing a variable to a function by value conceptually creates an independent, isolated copy of the data.
-* **Mutation Isolation**: Mutating the copy MUST NOT affect the original variable. Shared mutable state is FORBIDDEN.
+* MUST classify a `Data` type as a Trivial Type if it consists entirely of primitives or other Trivial Types and does not implement `~Disposable`.
+* MUST allocate Trivial Types as contiguous memory blocks directly on the stack or inline within an enclosing `Data`.
+* MUST execute a bitwise copy upon assignment or pass-by-value of a Trivial Type.
+* MUST guarantee complete logical and physical independence between the original and the copied variable.
 
 ```C#
-vectorA := Vector.New(0, 0);
-vectorA.X = 1;
+Vector(X: Int, Y: Int);
 
-vectorB := vectorA; // Conceptually an independent copy
-vectorB = 2;        // Mutates vectorB
+one := Vector { X: 10, Y: 10 };
+two := one;
+two.X = 20;
 
-Console.WriteLine(vectorA.X); // Output: 1
-Console.WriteLine(vectorB.X); // Output: 2
+Console.WriteLine(one.X); // Output: 10
 ```
 
-## Stack Allocation and Copy-on-Write
+### Owning Types
 
-* **Stack Allocation**: All `Data` are structurally allocated directly on the stack by default.
-* **Automated Reference Counting (ARC)**: Types that require dynamic sizing (e.g., `[~]`, `String`) internally manage a heap buffer using an ARC token. When such a type is copied (`listB := listA`), the compiler increments the ARC counter and does NOT duplicate the heap memory.
-* **Copy-on-Write (CoW)**: When a mutation is invoked on a type backed by ARC, the type MUST check the reference count.
-  * If `ARC == 1`, the memory is uniquely owned and mutated in-place.
-  * If `ARC > 1`, the type allocates a new heap buffer, duplicates the data, decrements the original ARC, and mutates the new buffer.
+* MUST classify a `Data` type as an Owning Type if it is a built-in heap-backed type (`String`, `RuneString`, dynamic or heap-allocated collections), implements the `~Disposable` interface, or contains any Owning Type or `weak` fields.
+* MUST manage the underlying heap allocation of an Owning Type via an atomic ARC Control Block tracking a strong reference count and a weak reference count.
+* MUST atomically increment the strong reference count upon assignment or pass-by-value of an Owning Type without duplicating the underlying heap memory.
+* MUST atomically decrement the strong reference count of the previously held instance prior to overwriting an already initialized Owning Type variable.
+* MUST NOT poison the source variable upon assignment or pass-by-value, both variables remain valid and accessible.
 
-## In-Place Mutation
+### Copy-on-Write (CoW)
 
-To mutate an original variable inside a function without triggering CoW or creating logical copies, it MUST be passed by reference using the `ref` keyword.
-
-* **Explicit Intent**: Both the function declaration and the call site MUST explicitly use the `ref` keyword.
+* MUST evaluate the strong reference count prior to executing any mutating operation (`ref @` method or field reassignment) on an Owning Type instance.
+* MUST execute the mutation directly in-place without allocating new memory if the instance is uniquely referenced (`strongCount == 1`).
+* MUST automatically clone a deep copy of the underlying data, decrement the original instance's strong reference count, and apply the mutation to the newly allocated copy if the instance is shared (`strongCount > 1`).
+* MUST ignore the weak reference count (`weakCount`) when determining uniqueness for Copy-on-Write. An instance with `strongCount == 1` and `weakCount > 0` MUST be mutated in-place so existing `weak` references remain attached to the mutated instance.
 
 ```C#
-// The function declares it will mutate the original 'Vector'
-SetToZero(ref vector: Vector) 
+list1 := [+ Int] { 1, 2, 3 };
+
+// ARC retain: 'list1' and 'list2' temporarily share the same heap buffer (strongCount == 2)
+list2 := list1;
+
+// Mutation triggers Copy-on-Write because strongCount > 1
+// 'list2' allocates its own copy before adding 4; 'list1' remains unchanged
+list2.Add(4);
+
+Console.WriteLine(list1.Count); // Output: 3
+Console.WriteLine(list2.Count); // Output: 4
+```
+
+## Weak References
+
+* MUST apply the `weak` type modifier exclusively to Owning Types. Applying `weak` to a Trivial Type or primitive is FORBIDDEN.
+* MUST atomically increment the target's weak reference count (`weakCount`) without incrementing its strong reference count (`strongCount`) when assigning an Owning Type to a `T weak` target.
+* MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
+* MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
+
+### Accessing and Unwrapping Weak References
+
+* MAY access members of a `T weak` variable directly or pass it to a context expecting a strong `T`.
+* MUST atomically verify that `strongCount > 0` and temporarily retain a strong reference for the duration of the access when evaluating a `T weak` directly.
+* MUST immediately trigger the runtime Abort/Fatal Panic mechanism if a `T weak` is accessed directly after its target has been disposed (`strongCount == 0`).
+* MAY safely test and promote a `T weak` reference to a strong `T` local variable using conditional binding (`if val := weakVar`), which executes the branch only if `strongCount > 0`.
+
+```C#
+Node : ~Copyable
 {
-    vector.X = 0;
-    vector.Y = 0;
+    Value: Int;
+    Parent: Node weak;
+    Children: [+ Node];
+
+    Copy(@) -> @ => Node { Value: @.Value, Parent: @.Parent, Children: @.Children };
 }
 
-vector := Vector.New(1 ,1);
-SetToZero(ref vector);
+parent := Node { Value: 1, Parent: none, Children: [+ Node].New() };
+child := Node { Value: 2, Parent: parent, Children: [+ Node].New() };
+
+// strongCount of 'parent' is 1; 'child.Parent' is weak and does not trigger CoW
+parent.Children.Add(child);
+
+// safe conditional promotion to a strong reference
+if strongParent := child.Parent
+{
+    Console.WriteLine(strongParent.Value); // Output: 1
+}
+
+// direct access (auto-promotes if alive, panics/aborts if already disposed)
+Console.WriteLine(child.Parent.Value);
+```
+
+## Borrowing and In-Place Mutation
+
+* MAY pass any variable by reference using the `ref` keyword to mutate the caller's instance in-place without incrementing its ARC strong reference count.
+* MUST explicitly declare the `ref` keyword at both the method parameter declaration and the invocation call site.
+* MUST preserve `strongCount == 1` when an unshared variable is passed by `ref`, avoiding unnecessary Copy-on-Write allocations inside the callee.
+
+```C#
+ClearList(ref list: [+ Int]) 
+{
+    // Mutates in-place without triggering CoW if 'myList' has strongCount == 1
+    list.Clear();
+}
+
+myList := [+ Int] { 10, 20 };
+ClearList(ref myList); 
 ```
 
 ### Law of Exclusivity
 
-* **Exclusivity Rule**: A specific memory location passed as a `ref` argument MUST NOT be aliased by any other parameter (either by `ref` or by value) in the exact same function call.
-* **Disjoint Fields Exemption**: Distinct structural fields of the same `Data` instance represent non-overlapping memory locations. The compiler MUST allow them to be passed simultaneously as separate `ref` arguments.
-* **Overlapping Memory Prohibition**: Passing a parent object (by value or `ref`) aliases all of its internal fields. Passing a parent instance and one of its nested fields simultaneously is FORBIDDEN.
+* MUST NOT alias a memory location passed as a `ref` argument with any other parameter (either by `ref` or by value) during the exact same method invocation.
+* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments, as they represent non-overlapping memory locations.
+* MUST NOT pass a parent instance (by value or `ref`) and any of its nested fields simultaneously within the same method invocation.
 
 ```C#
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
 
-vector := Vector.New(0, 0);
+vector := Vector { X: 0, Y: 0 };
 
 // ERROR: 'vector' is passed by 'ref' and by value simultaneously
 Process(ref vector, vector); 
 
-// VALID: 'X' and 'Y' are disjoint memory locations
+// Valid: distinct non-overlapping fields
 ProcessValues(ref vector.X, ref vector.Y);
 
-// ERROR: 'vector' memory completely overlaps with 'vector.X'
+// ERROR: 'vector' memory overlaps with 'vector.X'
 ProcessMixed(ref vector, ref vector.X); 
-```
-
-## Heap Allocation and Shared State
-
-Sharing mutable state requires explicit intent via the Standard Library.
-
-* **`Box<T>`**: Used to explicitly force a stack-allocated `Data` type onto the heap. This is required for defining recursive data structures.
-* **`Shared<T>`**: Used to represent Shared Mutable State. `Shared<T>` disables CoW and allows multiple owners to hold a reference to the exact same heap allocation and mutate it.
-* **Concurrency**: In multi-threaded contexts, `Shared<T>` is disallowed unless it is specifically a thread-safe variant like `AtomicShared<T>` or `Mutex<T>`.
-
-```C#
-Node 
-{
-    Value: Int;
-    Left: Box<Node>;
-    Right: Box<Node>;
-}
-
-logger := Shared.New(Logger.New());
-
-parser := Parser.New(logger);     // parser holds a reference
-analyzer := Analyzer.New(logger); // analyzer holds the SAME reference
 ```
 
 ## Resource Cleanup and Disposal
 
-The compiler inherently manages memory for all standard types. Explicit resource cleanup is reserved for types wrapping unmanaged or `unsafe` resources (e.g., raw pointers, OS handles).
+* MUST automatically decrement the strong reference count of all local Owning Type variables when they exit their lexical scope.
+* MUST automatically destroy the instance and recursively decrement the strong reference counts of all nested owning fields precisely when the instance's `strongCount` reaches `0`.
+* MUST NOT require manual implementation of cleanup interfaces solely to propagate ARC cleanup of nested fields.
 
-Types requiring custom cleanup MUST implement the `~Disposable` standard interface.
+### Custom Disposal and `~Copyable`
+
+* MUST explicitly implement the `~Disposable` interface to manage raw unmanaged resources (e.g., OS file descriptors, unmanaged pointers) or execute custom side effects upon deterministic destruction.
+* MUST execute the custom `Dispose(ref @)` method precisely when the instance's `strongCount` reaches `0`, prior to releasing any nested owning fields.
+* MUST NOT directly invoke the `Dispose` method from safe user code.
+* MUST also implement the `~Copyable` interface (`Copy(@) -> @`) on a custom `~Disposable` type if the type is mutated while shared (`strongCount > 1`). Otherwise, mutating a shared custom `~Disposable` type that does not implement `~Copyable` MUST be rejected or performed via unique ownership.
 
 ```C#
 ~Disposable 
 {
-    ~Dispose(ref @);
+    Dispose(ref @);
 }
-```
 
-When a variable implementing `~Disposable` exits its lexical scope (via normal block termination or exception unwinding), the compiler implicitly injects a call to `Dispose(ref @)`. The invocation depends on the type's underlying memory model:
-
-* **Stack-Allocated Types (No ARC)**: `Dispose(ref @)` is unconditionally invoked at the end of the scope.
-  * **Return Exemption**: If the variable is returned to the caller, the cleanup invocation MUST be omitted.
-* **ARC-Backed Types**: The ARC counter is decremented upon scope exit. `Dispose(ref @)` is invoked ONLY if the reference count reaches exactly `0`.
-
-```C#
 FileHandle : ~Disposable 
 {
-    _rawDescriptor: Int; // OS-level unmanaged resource
+    _rawDescriptor: Int;
+    Path: String;
 
-    ~Dispose(ref @) 
-    {
-        OS.Close(@._rawDescriptor);
-    }
+    Dispose(ref @) => OS.Close(@._rawDescriptor);
 }
 
 ProcessFile() throws 
 {
-    file := FileHandle { _rawDescriptor: OS.Open("data.txt") };
+    file := FileHandle { _rawDescriptor: OS.Open("data.txt"), Path: "data.txt" };
     
-    // If 'Parse' throws an exception, the stack unwinds,
-    // 'file' goes out of scope, and 'Dispose' is implicitly called
-    Parse(file); 
-    
-    // Normal exit: 'Dispose' is implicitly called
-}
+    Parse(ref file); 
 
-CreateFile() -> FileHandle 
-{
-    newFile := FileHandle { _rawDescriptor: OS.Open("new.txt") };
-    
-    // 'Dispose' is NOT called here
-    return newFile; 
+    // 'file' exits scope -> strongCount drops to 0:
+    // 1. 'file.Dispose()' is executed
+    // 2. 'file.Path' strongCount is decremented and deallocated
 }
 ```
+
+### Variant Payload Cleanup and Switching
+
+* MUST inspect the active discriminant tag when a tagged `Data` instance exits its lexical scope or its `strongCount` reaches `0`, and decrement the strong reference count (invoking `Dispose` where applicable) for the Owning Type payload fields belonging to the currently active variant prior to releasing shared Owning Type fields.
+* MUST execute an in-place variant switch on a tagged `Data` instance in the following strict three-step order to prevent use-after-free when the new variant's payload references data from the outgoing variant:
+  1. Evaluate all payload argument expressions for the new variant into temporary bindings prior to mutating the target instance.
+  2. Inspect the target instance's outgoing discriminant tag and release or dispose all Owning Type payload fields belonging to the outgoing active variant.
+  3. Update the discriminant tag to the new variant and move the evaluated payload values from Step 1 into the variant payload storage.
+
+```C#
+ConnectionState 
+{
+    ::Idle;
+    ::Active(Handle: FileHandle, Log: String);
+    ::Error(LastLog: String);
+
+    Endpoint: String;
+}
+
+UpdateState() throws 
+{
+     file := FileHandle { _rawDescriptor: OS.Open("net.log"), Path: "net.log" };
+     state := ConnectionState::Active(file, "Connected") { Endpoint: "localhost" };
+
+     // Safe self-referential variant switch:
+     // 1. Evaluates 'state.Log + " -> Failed"' while '::Active' payload is still alive
+     // 2. Disposes '::Active' payload ('file.Dispose()' is called and 'state.Log' is released)
+     // 3. Writes tag '::Error' and moves the new 'LastLog' string into the payload
+     if state is .Active 
+     {
+         state = .Error(state.Log + " -> Failed");
+     }
+
+     // 'state' exits scope:
+     // 1. Releases active variant '::Error' payload ('LastLog')
+     // 2. Releases shared field ('Endpoint')
+}
+```
+
+### Associated Array Cleanup
+
+* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an exhaustive associated array (`[K -> V]`) containing Owning Type elements is destroyed.
+* MUST inspect the validity bitmask of a non-exhaustive associated array (`[K ->! V]` or `[K ->? V]`) containing Owning Type elements upon destruction, assignment overwrite, or copy, and retain or release the element slots whose corresponding bitmask bit is `1`.
