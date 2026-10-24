@@ -1,24 +1,16 @@
 # Concurrency
 
-Coggy utilizes Structured Concurrency. Concurrency is lexically scoped, guaranteeing deterministic execution trees, strict lifetime bounds, and data-race freedom at compile time.
-
 ## Concurrent Scopes and Spawn
 
-The `concurrent` keyword introduces an asynchronous execution boundary. Within this boundary, the `spawn` keyword is used to dispatch concurrent tasks.
-
-```EBNF
-ConcurrentStmt ::= "concurrent" ["throws"] Block
-SpawnStmt      ::= "spawn" ["by" Expression] (Block | "=>" Statement) CatchArm* ["rollback" ["by" Expression] (Block | "=>" Statement)]
-```
-
-* **Implicit Join**: A `concurrent` block MUST NOT exit until all logically spawned tasks within its lexical scope have completed. The compiler automatically inserts a synchronization barrier at the end of the `concurrent` block.
-* **No Escaping**: The `spawn` keyword MUST ONLY be used within the lexical scope of a `concurrent` block.
-* **Execution Strategy**: The optional `by` modifier delegates the task's scheduling and resilience logic (e.g., retries, timeouts) to a specific strategy. The evaluated expression MUST implement the `~SpawnStrategy` standard interface.
+* MUST restrict the usage of the `spawn` keyword to the lexical scope of a `concurrent` block.
+* MUST NOT exit a `concurrent` block until all tasks spawned within its lexical scope have completed.
+* MUST synchronize and join all active child tasks at the closing boundary of the `concurrent` block.
+* MAY delegate scheduling and execution resilience for a task using the `by` modifier on a `spawn` statement.
+* MUST resolve the expression supplied to the `by` modifier to a type implementing the `~SpawnStrategy` interface.
 
 ```C#
 ProcessData(data: Int) { }
 
-// Execution blocks here until all spawned tasks complete
 concurrent
 {
     spawn => ProcessData(1);
@@ -32,44 +24,47 @@ concurrent
 }
 ```
 
-## Capture and Memory Safety Rules
+## Variable Capture and Memory Safety
 
-When a variable from an outer scope is accessed inside a `spawn` block, strict capture rules apply to prevent data races and ensure memory safety:
-
-1. **Implicit Copy**: Standard variables are captured by value. The spawned task receives an independent copy. Standard copy-on-write (CoW) applies to ARC-backed types.
-2. **No Capture by Reference**: Capturing outer variables by reference (`ref`) is FORBIDDEN. A `spawn` block MUST NOT reference variables that are passed as `ref` in the outer scope.
-3. **Shared Mutable State**: To share mutable state between concurrent tasks, variables MUST be explicitly wrapped in thread-safe containers provided by the Standard Library (such as `AtomicShared<T>` or `Mutex<T>`). Standard `Shared<T>` is FORBIDDEN inside a `spawn` block.
+* MUST capture variables referenced inside a `spawn` block by value.
+* MUST NOT capture outer variables by reference (`ref`) inside a `spawn` block.
+* MUST perform a bitwise copy when capturing Trivial Types into a `spawn` block.
+* MUST atomically increment the ARC strong reference count (`strongCount`) when capturing Owning Types into a `spawn` block.
+* MUST NOT invalidate or poison captured identifiers in the outer lexical scope or sibling `spawn` blocks.
+* MUST evaluate mutations to captured Owning Types according to Copy-on-Write (CoW) semantics, cloning an isolated task-local copy prior to mutation if `strongCount > 1`.
+* MUST NOT capture an Owning Type that implements `~Disposable` without implementing `~Copyable` across multiple `spawn` blocks, unless encapsulated in a thread-safe synchronization primitive.
 
 ```C#
 Calculate(value: Int) { }
 
-counter := 0;
-
 concurrent 
 {
-    // Valid: 'counter' is captured by value
-    spawn => Calculate(counter);
-    spawn => Calculate(counter);
-    
-    // Valid: Mutating the local copy of the captured variable is safe and isolated
+    counter := 0;
+    data := [+ String].New();
+    data.Add("Initial");
+
     spawn 
     {
-        localCounter := counter;
-        localCounter = localCounter + 1;
+        Calculate(counter);
+        data.Add("Processed by Task 1");
+    }
+    
+    spawn 
+    {
+        Calculate(counter);
+        data.Add("Processed by Task 2"); 
     }
 }
 ```
 
-## Returning Values from Tasks
+## Task Value Aggregation
 
-Spawned tasks MAY return values. The `concurrent` block itself can evaluate to a collection of these returned values, implicitly acting as an aggregator.
-
-* If a `spawn` block yields a value, the enclosing `concurrent` block evaluates to an array of those values.
-* All `spawn` branches yielding a value MUST return the exact same type.
+* MAY evaluate a `concurrent` block as an expression yielding an array of values if its enclosed `spawn` statements return values.
+* MUST evaluate all value-yielding `spawn` statements within the same `concurrent` block to the exact same type.
+* MUST collect and return the evaluated results of all spawned tasks as an array.
 
 ```C#
-// Returns an array of integers: Int[]
-results := concurrent 
+results: [Int] = concurrent 
 {
     spawn => 10;
     spawn => 20;
@@ -77,52 +72,44 @@ results := concurrent
 };
 ```
 
-## Exceptions in Structured Concurrency
+## Error Handling and Cancellation
 
-Structured Concurrency inherently encapsulates error states. If an unhandled exception escapes a `spawn` block, it fundamentally changes the state of the enclosing `concurrent` scope.
+* MUST immediately abort the process if an unhandled exception escapes a `spawn` block inside a non-throwing `concurrent` block.
+* MAY attach one or more `catch` arms to a `spawn` statement.
+* MUST suppress exception propagation and prevent scope cancellation if a thrown exception is caught by a `catch` arm attached to the `spawn` statement.
+* MAY declare a `concurrent` block with the `throws` modifier.
+* MUST transition a `concurrent throws` block into a `Cancelled` state immediately upon any unhandled exception escaping a child task.
+* MUST cooperatively signal cancellation to all sibling tasks upon entering the `Cancelled` state.
+* MUST await completion of all tasks in the scope and rethrow an `AggregateException` when a `concurrent throws` block is cancelled.
 
-* **Fail-Fast by Default**: Because `concurrent` blocks are non-throwing by default, if any spawned task throws an exception, the entire program aborts immediately.
-* **Local Fallback**: A `spawn` statement MAY include `catch` arms. If a task throws an exception (or if a `by` strategy exhausts all attempts and throws), the exception is evaluated against these arms.
-  * If caught, the exception is suppressed locally. The `concurrent` block DOES NOT transition to a `Cancelled` state, and sibling tasks remain unaffected.
-  * If uncaught, the exception propagates and triggers the standard fail-fast or cancellation mechanics.
-* **Cooperative Cancellation (`concurrent throws`)**: If the block is marked with `throws`:
-  1. If ANY task throws, the `concurrent` block transitions to a `Cancelled` state.
-  2. Other tasks MUST cooperatively observe cancellation.
-  3. The `concurrent` block waits for all tasks to acknowledge cancellation, then rethrows an `AggregateException`.
+## Rollback Blocks
 
-### The Rollback Sub-Block
-
-To facilitate transactional semantics without complex manual compensations, `spawn` supports an attached `rollback` block.
-
-* **Execution Condition**: The `rollback` block executes ONLY IF its associated `spawn` task has and successfully completed, AND the enclosing `concurrent` scope subsequently enters a `Cancelled` state (due to an exception in another task).
-* **Variable Capture Rules**: Variable access inside a `rollback` block follows the standard implicit copy rules.
-* **Implicit Non-Throwing**: The `rollback` block MUST be non-throwing. If an exception is thrown inside a `rollback` block, the program MUST immediately abort.
-* **Rollback Strategy**: The `rollback` block MAY specify a `by` strategy to handle resilience during the compensation phase.
+* MAY attach a `rollback` block to a `spawn` statement.
+* MUST execute a `rollback` block if and only if its associated `spawn` task completed successfully and the enclosing `concurrent` scope subsequently entered a `Cancelled` state.
+* MUST capture variables inside a `rollback` block by value.
+* MUST NOT allow exceptions to escape from a `rollback` block.
+* MUST immediately abort the process if an exception escapes from a `rollback` block.
+* MAY declare a resilience strategy for a `rollback` block using the `by` modifier.
+* MUST resolve the expression supplied to a `rollback by` modifier to a type implementing the `~SpawnStrategy` interface.
 
 ```C#
 use System::Concurrency;
 
 concurrent throws 
 {
-    // Task 1: Uploads a file with declarative resilience
     spawn by Retry.New(3).WithDelay(100) 
     {
         fileId := Storage.Upload(fileData);
     } 
     catch e: ~Exception 
     {
-        // Executes if all 3 upload attempts fail
-        // Prevents the cancellation of the entire concurrent block
         Logger.Warn("Upload failed completely");
     }
     rollback by Retry.New(3)
     {
-        // Executes if Task 1 succeeds, but Task 2 triggers cancellation
-        // Attempts up to 3 times. ABORTS the program if all 3 fail
         Storage.Delete(fileId);
     }
 
-    // Task 2: Fails and triggers cancellation
     spawn 
     {
         throw Exception.New("Database disconnected");
