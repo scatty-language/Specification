@@ -1,29 +1,21 @@
 # Type Aliases
 
-A Type Alias defines a transparent, compile-time synonym for an existing type.
+* MUST declare a type alias at the package or file top level.
+* MUST evaluate a type alias as a transparent compile-time synonym for its underlying target type.
+* MUST NOT create a distinct nominal type when declaring a type alias.
+* MUST treat a type alias and its underlying target type as completely interchangeable during type checking, assignment, and dispatch.
+* MUST NOT define aliases for methods, properties, functions, or variables.
+* MUST NOT contain direct or indirect circular references within type alias declarations.
 
-```EBNF
-TypeAliasDecl ::= Identifier ["<" TypeParams ">"] "=" Type ";"
-```
+## Generic Type Aliases
 
-* **Transparent Equivalence**: A Type Alias DOES NOT create a new, distinct type. The alias and its underlying type are identical and 100% interchangeable during type checking and assignment.
-* **Generic Support**: Aliases MAY declare generic type parameters. These parameters MUST be passed to the underlying type.
-* **Functions Forbidden**: Aliasing is restricted to Types. Aliasing methods, properties, or variables is FORBIDDEN.
-* **No Circularity**: An alias MUST NOT reference itself, either directly or indirectly through another alias.
+* MAY declare generic type parameters on a type alias.
+* MUST map and forward all declared generic type parameters to the underlying aliased type.
 
 ```C#
-// Simplifies a dynamic list of SoA static arrays of standard heap arrays
-Chunk<T> = [~][]T[][64];
+Chunk<T> = [+ [% [T] ::: 64]];
 
-// Simplifies a heavily constrained interface or refinement
 ValidId = Int^Positive;
 
-ProcessChunk<T>(chunk: Chunk<T>, id: ValidId) 
-{
-    // 'Chunk<T>' is transparently treated as '[~][]T[][64]'
-    // 'ValidId' is transparently treated as 'Int^Positive'
-}
-
-// ERROR: Cannot alias a method
-Print = Console.WriteLine; 
+ProcessChunk<T>(chunk: Chunk<T>, id: ValidId) { }
 ```
