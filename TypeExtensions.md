@@ -1,24 +1,16 @@
 # Type Extensions
 
-Extensions allow developers to add new capabilities (methods, properties, and refinements) to existing Data types without modifying their original declaration.
+* MUST declare a type extension block using the prefix `+` operator applied to the target type identifier (`+TargetType`).
+* MAY extend any `Data` type, including primitive types.
+* MAY declare instance methods, static methods, properties, and refinement types within an extension block.
+* MUST NOT declare structural state fields within an extension block.
+* MUST NOT declare members in an extension block that shadow or collide with members declared in the target type's primary definition.
+* MUST NOT declare members in an extension block that shadow or collide with members declared in another extension block for the same target type.
 
-```EBNF
-ExtensionDecl ::= "+" Type "{" Member* "}"
-```
+## Encapsulation and Access Rights
 
-* **Universal Support**: ANY Data type MAY be extended, including primitive types.
-* **Capabilities**: Extensions MAY declare:
-  * Instance methods and static methods.
-  * Properties.
-  * Refinement Types.
-* **Prohibitions**:
-  * Extensions MUST NOT declare new fields.
-  * Extensions MUST NOT declare members that shadows members in declaration or other Extension.
-
-## Encapsulation and Visibility
-
-* **Local Extensions (Same Module)**: If the extension Type is declared in the same module as the original type, it has full access to the type's private fields and methods.
-* **External Extensions (Cross-Project)**: If a type is imported from an external compiled project or library, extensions MUST ONLY access its public members.
+* MUST permit an extension block to access private and internal members of the target type if the extension is declared within the same package as the target type.
+* MUST restrict an extension block's access to public members of the target type if the target type is imported from an external package.
 
 ```C#
 MyData 
@@ -27,20 +19,15 @@ MyData
     Increment(ref @) => @._count = @._count + 1;
 }
 
-// Extension block for 'MyData'
 +MyData 
 {
-    // Property extension accessing a private field (valid if in the same module)
     Count: Int => @._count;
 
-    // Refinement type scoped to the extension
     ^ValidData = MyData where @.Count > 0;
 
-    // Instance method extension
     PrintCount(@) => Console.WriteLine(@.Count);
 }
 
-// Extension block for primitive type
 +String 
 {
     ^Email = String where @.Contains("@");
@@ -48,7 +35,7 @@ MyData
     Empty() -> String => "";
 }
 
-data := MyData {1};
+data := MyData { 1 };
 validData := data as MyData^ValidData;
 
 email := "test@example.com" as String^Email;
