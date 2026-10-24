@@ -1,6 +1,7 @@
 # Mutability
 
-* MUST treat all variables, parameters, and method receivers as mutable by default.
+* MUST treat all local variables and standard method parameters as mutable by default.
+* MUST treat the instance receiver (`@`) as immutable by default unless explicitly declared as `ref @`.
 * MAY reassign variables or mutate their fields freely when declared via `=` or `:=`.
 * MUST isolate mutations to the bound variable without affecting other variables.
 * MUST execute a bitwise copy upon assignment of Trivial Types.
@@ -52,8 +53,10 @@ Console.WriteLine(GenerateThreadLocalId()); // Output: 2
 
 ## Method Parameters
 
-* MUST treat parameters passed without the `ref` keyword as logically independent, mutable local copies (Call-by-Value).
+* MUST treat parameters passed without the `ref` keyword as logically independent of the caller's variable.
+* MUST pass parameters whose memory footprint exceeds the native pointer size via a hidden pointer under the hood without copying memory if the parameter is only read.
 * MAY mutate standard parameters internally within the method scope.
+* MUST materialize an isolated local copy (or trigger Copy-on-Write detachment for Owning Types) at the site of mutation when a standard parameter is modified inside the method.
 * MUST NOT reflect internal parameter mutations on the caller's original variable.
 
 ```C#
@@ -73,9 +76,8 @@ Process(myVal, myCounter);
 
 ## Method Receivers
 
-* MUST instantiate a logically independent copy of the instance for local receivers (`@`).
-* MAY mutate fields on a local receiver (`@`).
-* MUST NOT propagate local receiver mutations to the caller unless explicitly returned (`-> @`).
+* MUST treat an unqualified `@` receiver as an immutable view of the caller's instance.
+* MUST NOT mutate fields on an unqualified `@` receiver or invoke `ref @` methods on it.
 * MUST borrow the original instance from the caller for in-place receivers (`ref @`).
 * MUST apply mutations on an in-place receiver (`ref @`) directly to the caller's original instance.
 
@@ -84,11 +86,10 @@ Data
 {
     X: Int;
     
-    WithX(@, x: Int) -> @
-    {
-        @.X = x;
-    }
+    // '@' is immutable; returns a modified copy via 'with'
+    WithX(@, x: Int) -> @ => @ with { X: x };
     
+    // 'ref @' mutates the caller's instance in-place
     SetX(ref @, x: Int) 
     {
         @.X = x;

@@ -77,10 +77,10 @@ Update(y: 10, ref vec, 5);
 ## Instance Methods
 
 * MUST declare the receiver (`@` or `ref @`) as the first parameter.
-* MUST instantiate a logically independent copy of the instance for local receivers (`@`).
-* MAY mutate fields on a local receiver (`@`) without affecting the caller's original instance.
+* MUST treat an unqualified `@` receiver as an immutable reference to the caller's instance.
+* MUST NOT mutate any fields of `@`, pass `@` or its fields as `ref` arguments, or invoke `ref @` methods on `@` within a method declaring an immutable `@` receiver.
 * MUST borrow the original instance from the caller for in-place receivers (`ref @`) and apply mutations directly to it.
-* MUST NOT reassign the receiver parameter itself.
+* MUST NOT reassign the `@` or `ref @` receiver binding itself.
 * MUST NOT invoke a mutating instance method (`ref @`) on an unbound temporary rvalue expression as a standalone statement where the mutated copy is immediately discarded.
 
 ```C#
@@ -91,31 +91,25 @@ Vector
 
     New(x: Int, y: Int) -> @ => Vector { X: x, Y: y };
 
-    // @ is passed by value
-    // 'other' is passed by value
-    // The original instance remains unchanged
+    // '@' is an immutable view of the original instance (zero copy, zero ARC overhead)
     Sum(@, other: Vector) -> Vector 
     {
         return Vector.New(@.X + other.X, @.Y + other.Y);
     }
 
-    // Expression body, reads the local value
+    // Returns a modified copy using 'with' while keeping '@' immutable
+    WithX(@, x: Int) -> @ => @ with { X: x };
+
+    // Expression body, reads the immutable receiver
     Print(@) => Console.WriteLine("\(@.X), \(@.Y)");
 
-    // Mutates the caller's original instance in-place
+    // 'ref @' mutates the caller's original instance in-place
     Translate(ref @, dx: Int, dy: Int) 
     {
         @.X += dx;
         @.Y += dy;
     }
 }
-
-// ERROR: 'GetActivePosition()' returns a temporary copy by value;
-// mutating it in-place via 'ref @' without binding the result discards the mutation
-player.GetActivePosition().Translate(10, 0);
-
-// Valid: 'player.Position' is an lvalue field mutated in-place
-player.Position.Translate(10, 0);
 ```
 
 ## Static Methods
@@ -205,8 +199,12 @@ GetActivePosition().Add(a)..Add(b);
 ProcessVector(pos.Add(a)..Add(b));
 ```
 
-## Return Semantics and RVO
+## Parameter Passing and Return Semantics
 
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) within CPU registers if its evaluated memory footprint is less than or equal to the target architecture's native pointer size (`sizeof(Usize)`).
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`), avoiding eager memory copying at the call site.
+* MUST NOT increment or decrement the ARC `strongCount` of an Owning Type upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter.
+* MUST lazily materialize a local copy (via bitwise copy for Trivial Types or ARC retain and Copy-on-Write detachment for Owning Types) at the exact point of assignment or mutation if a standard (non-`ref`) parameter is mutated or stored within the method body.
 * MUST NOT declare or return references (`ref`) from methods.
 * MUST return all `Data` by value.
 * MUST physically return values within CPU registers if the return type's evaluated memory footprint is less than or equal to the target architecture's native pointer size.
@@ -216,7 +214,7 @@ ProcessVector(pos.Add(a)..Add(b));
 
 ```C#
 // Footprint: 4 bytes (<= 8-byte pointer).
-// Returned blazingly fast in a CPU register.
+// Returned in a CPU register.
 GetId() -> Int 
 {
     return 42; 
@@ -228,19 +226,17 @@ Matrix
     Cells: [Float ::: 16]; 
 }
 
-// Footprint: 64 bytes (> 8-byte pointer).
-// Guaranteed RVO. 'GetIdentity' writes directly into the caller's stack frame.
-// Zero copying occurs.
-GetIdentity() -> Matrix 
+// 'mat' (> 8 bytes) is passed via a hidden read-only pointer under the hood;
+// zero bytes are copied at the call site because 'mat' is only read.
+InspectMatrix(mat: Matrix) -> Float 
 {
-    return Matrix { Cells: [Float ::: 16] { 1.0f, /* ... */ } };
+    return mat.Cells[0];
 }
 
-Process() 
+// Guaranteed RVO: 'GetIdentity' writes directly into the caller's stack frame.
+GetIdentity() -> Matrix 
 {
-    // The memory for 'mat' is allocated here. 
-    // A hidden pointer is passed to 'GetIdentity'.
-    mat := GetIdentity(); 
+    return Matrix { Cells: [Float ::: 16] { 1.0f, _ = 0.0f } };
 }
 ```
 
