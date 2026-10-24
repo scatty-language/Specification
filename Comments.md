@@ -1,13 +1,5 @@
 # Comments
 
-```EBNF
-Comment        ::= LineComment | BlockComment
-LineComment    ::= "//" (SourceChar - NewLine)*
-BlockComment   ::= "/*" (BlockChar | BlockComment)* "*/"
-BlockChar      ::= /* Any sequence of characters that does not contain "/*" or "*/" */
-SourceChar     ::= /* Any valid UTF-8 character */
-```
-
 * MUST strip all comments during lexical analysis.
 * MUST NOT generate tokens from commented text.
 
