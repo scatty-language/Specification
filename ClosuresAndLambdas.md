@@ -1,21 +1,13 @@
 # Closures and Lambdas
 
-Coggy provides concise syntax for anonymous functions (lambdas). Lambdas natively capture variables from their enclosing lexical scope.
-
-The compiler translates every lambda expression into a transient, anonymous `Data` type.
-
-```EBNF
-LambdaExpr      ::= LambdaParams "=>" (Expression | Block)
-LambdaParams    ::= LocalId | "(" [LambdaParamList] ")"
-LambdaParamList ::= LambdaParam ("," LambdaParam)*
-LambdaParam     ::= ["ref"] LocalId [":" Type]
-```
-
-## Type Inference
-
-* **Implicit Types**: If the lambda is passed into a strongly typed context (e.g., a generic method with known constraints), the compiler MUST infer the parameter and return types automatically.
-* **Single Parameter**: If a lambda has exactly one parameter and its type can be inferred, the parentheses `()` MAY be omitted.
-* **Body**: The body can be a single `Expression` (implicitly returned) or a `{}` block.
+* MUST translate every lambda expression into a transient, anonymous `Data` type.
+* MUST implicitly implement the corresponding standard library `~Callable` interface on the generated anonymous `Data` type matching the lambda's parameter and return signatures.
+* MUST automatically infer parameter and return types when a lambda expression occurs within a strongly typed context.
+* MAY omit parentheses around the parameter identifier if a lambda declares exactly one parameter and its type is inferred.
+* MUST require parentheses around parameter declarations if the lambda declares zero parameters, two or more parameters, or any explicit type annotations.
+* MAY declare a lambda body as either a single `Expression` or a block `{}`.
+* MUST implicitly return the evaluated value of a single `Expression` body.
+* MUST require an explicit `return` statement to yield a value from a block `{}` body.
 
 ```C#
 // Single parameter, inferred type, expression body
@@ -31,30 +23,22 @@ add := (a: Int, b: Int) =>
 increment := (ref val: Int) => val += 1;
 ```
 
-## Zero-Cost Desugaring and Interfaces
+## Interface Implementation and Dispatch
 
-When a lambda is declared, the compiler implicitly generates an anonymous `Data` type. This type automatically implements standard library `~Callable` interfaces corresponding to the lambda's signature.
-
-```C#
-// Standard library generic interfaces for callables
-~Callable<TReturn> { Invoke(@) -> TReturn; }
-~Callable1<T1, TReturn> { Invoke(@, arg1: T1) -> TReturn; }
-// ...
-```
-
-When a lambda is passed to a generic method constrained by a `~Callable` interface, the compiler enforces monomorphization. The lambda's `Invoke` method is statically resolved and inlined.
+* MUST statically resolve and inline invocations of a lambda's `Invoke` method when passed to a generic method constrained by a `~Callable` interface.
+* MUST monomorphize generic functions parameterized over a `~Callable` interface.
+* MAY box a lambda instance into `Box<~Callable<...>>` to permit storage in heterogeneous collections or dynamic dispatch.
+* MUST apply dynamic dispatch rules to invocations on boxed `~Callable` instances.
 
 ```C#
-Extensions 
+Filtration 
 {
-    // Generic method constrained by a callable interface
-    Filter<T, TFunc: ~Callable1<T, Bool>>(list: []T, predicate: TFunc) -> []T 
+    Filter<T, TFunc: ~Callable<T, Bool>>(list: [+ T], predicate: TFunc) -> [+ T] 
     {
-        result := []T.New();
+        result := [+ T].New();
 
         for item in list 
         {
-            // Direct static dispatch. Statically inlined by the optimizer.
             if predicate.Invoke(item) 
             {
                 result.Add(item);
@@ -66,50 +50,40 @@ Extensions
 }
 
 users := GetUsers();
-active := users.Filter(u => u.IsActive); 
+active := Filtration.Filter(users, u => u.IsActive); 
+
+// Boxing lambdas for dynamic dispatch
+handlers := [+ Box<~Callable<Int>>].New();
+handlers.Add(Box.New(() => 42));
+handlers.Add(Box.New(() => 99));
 ```
 
-## Capture and Memory Safety Rules
+## Variable Capture and Memory Safety
 
-When a lambda references variables from its enclosing scope, it structurally captures them as fields within its anonymous `Data` type.
-
-1. **Value Capture**: All captured variables are implicitly copied by value into the anonymous lambda structure. Standard Copy-on-Write (CoW) applies to ARC-backed types.
-2. **Local Mutation**: A lambda MAY mutate its captured variables, but it mutates its local copy stored inside the anonymous `Data`. The original variable in the enclosing scope remains absolutely unaffected.
-3. **Reference Capture Prohibition**: Capturing outer variables by reference (`ref`) is FORBIDDEN. A lambda MUST NOT reference outer variables that were declared or passed as `ref`.
+* MUST capture referenced variables from outer lexical scopes as structural fields of the generated anonymous `Data` type.
+* MUST capture variables by value.
+* MUST NOT capture outer lexical variables by reference (`ref`).
+* MUST copy Trivial Types bitwise into the lambda instance upon capture.
+* MUST atomically increment the ARC strong reference count (`strongCount`) of Owning Types upon capture.
+* MUST NOT invalidate, move, or poison captured variables in the enclosing lexical scope.
+* MUST govern mutations of captured Owning Types via Copy-on-Write (CoW) semantics.
+* MAY capture an Owning Type via a `weak` reference to prevent ARC reference cycles.
 
 ```C#
 Process() 
 {
     multiplier := 10;
+    buffer := [+ Int].New();
     
-    // The compiler generates an anonymous Data containing 'multiplier: Int'
-    // 'multiplier' is copied by value.
-    scale := (val: Int) => val * multiplier;
-
-    counter := 0;
-    increment := () => 
+    // 'multiplier' is bitwise copied
+    // 'buffer' strongCount is incremented via ARC
+    worker := (val: Int) => 
     {
-        // Mutates the lambda's internal copy of 'counter'
-        counter += 1; 
-        Console.WriteLine(counter);
+        buffer.Add(val * multiplier);
     };
 
-    increment(); // Prints 1
-    increment(); // Prints 2
-    
-    // The original outer variable is completely unchanged
-    Console.WriteLine(counter); // Prints 0
+    // Both remain accessible in outer scope
+    Console.WriteLine(multiplier); 
+    Console.WriteLine(buffer.Count); 
 }
-```
-
-## Dynamic Dispatch (Type Erasure)
-
-If a lambda must be stored in a heterogeneous collection or passed where monomorphization is impossible, it CAN be cast to a dynamic interface wrapper (`Box<~Callable1<T1, TReturn>>`). In this case, standard dynamic dispatch rules apply.
-
-```C#
-// Storing lambdas dynamically requires boxing the anonymous Data
-handlers: Box<~Callable<Int>>[] = Box[].New();
-
-handlers.Add(Box.New(() => 42));
-handlers.Add(Box.New(() => 99));
 ```
