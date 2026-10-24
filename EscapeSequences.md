@@ -1,15 +1,5 @@
 # Escape Sequences
 
-```EBNF
-EscapeSequence ::= "\" (SimpleEscape | NumericEscape)
-SimpleEscape   ::= "n" | "r" | "t" | "\" | "\"" | "'" | "0"
-NumericEscape  ::= "u" HexDigit4 | "U" HexDigit8 | "x" HexDigit2
-HexDigit4      ::= HexDigit HexDigit HexDigit HexDigit
-HexDigit8      ::= HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit
-HexDigit2      ::= HexDigit HexDigit
-HexDigit       ::= [0-9A-Fa-f]
-```
-
 ## Simple Escapes
 
 | Sequence | Value | Description |
@@ -35,6 +25,14 @@ HexDigit       ::= [0-9A-Fa-f]
 * MUST NOT use surrogate code points in the range `U+D800` through `U+DFFF`.
 * MUST reject any `\xHH` sequence that results in a malformed UTF-8 string literal.
 * MAY use either uppercase or lowercase hex digits (`A-F` or `a-f`).
+
+## String Interpolation Delimiter
+
+* MUST initiate an interpolated expression segment upon encountering the `\(` sequence within a standard double-quoted `String` literal (`"..."`).
+* MUST parse a full expression with balanced parentheses inside `\(` and `)`, including nested function invocations and nested string literals.
+* MUST reject an empty interpolation sequence (`\()`) at compile time.
+* MUST use `\\(` to represent the literal character sequence `\(` within a standard `String` literal.
+* MUST NOT evaluate `\(` as an interpolation delimiter within `Char` literals (`'...'`) or raw string literals (`"""..."""`).
 
 ## Invalid Escapes
 
