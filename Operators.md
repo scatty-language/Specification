@@ -151,6 +151,63 @@ playerC := playerA + playerB;
 * MUST evaluate the receiver expression preceding the initial `.` access once and apply all subsequent `..` invocations to that same receiver.
 * MUST NOT use the cascade operator inside nested expressions or argument lists.
 
+## Indexing Operator
+
+* MUST require a type to implement the standard library `~Indexable<TKey, TValue>` interface to support the index operator (`[]`).
+
+```scatty
+~Indexable<TKey, TValue> 
+{
+    Get(@, key: TKey) throws -> TValue;
+    Set?(ref @, key: TKey, value: TValue) throws;
+
+    At(@, key: TKey) -> TValue? 
+    {
+        if res := try? @.Get(key) => return .Some(res);
+        return .None;
+    }
+
+    ^Mutable = @ where @ is .Set;
+}
+```
+
+### Reading by Index
+
+* MAY omit the `throws` modifier on a concrete `Get(@, key: TKey) -> TValue` implementation to declare an infallible index read.
+* MUST invoke `Get` directly without requiring a `throws` context when applying `col[key]` to a statically known infallible implementation.
+* MUST invoke `Get` and propagate any thrown exception as a `throws` expression (or immediately trigger Abort/Panic in a non-throwing method) when applying `col[key]` to a fallible implementation.
+* MAY invoke `.At(key)` to safely query a fallible indexable collection and receive `TValue?` (`Option::Some` if valid, or `Option::None` if out of bounds or unmapped) without throwing an exception.
+
+### Writing and In-Place Mutation by Index
+
+* MUST require the target type to implement the weak contract `Set(ref @, key: TKey, value: TValue)` (or be constrained by `~Indexable<TKey, TValue>^Mutable`) to support index assignment (`col[key] = value`).
+* MUST reject index assignment (`col[key] = value`) at compile time if the concrete type omits `Set`.
+* MUST automatically unpack compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), or mutating method calls (`col[key].Mutate()`) on non-contiguous `~Indexable` types implementing `Set` into a single-evaluation read-modify-write sequence:
+  1. Evaluate `key` once into a temporary binding `_key`.
+  2. Read `_temp := col.Get(_key)`.
+  3. Apply the field mutation, compound assignment, or `ref @` method call to `_temp`.
+  4. Write the modified value back via `col.Set(_key, _temp)`.
+
+### Multi-Argument Indexing
+
+* MAY supply two or more comma-separated index expressions within brackets (`col[k1, k2, ...]`).
+* MUST implicitly pack multiple index arguments `(k1, k2, ...)` into a tuple of type `(T1, T2, ...)` and resolve the operation against `~Indexable<(T1, T2, ...), TValue>`.
+
+```C#
+UpdateHero(ref heroes: [String $ Hero], ref grid: Grid) 
+{
+    // Safe optional lookup via '.At()' combined with optional chaining '?.' and '??'
+    hp: Int = heroes.At("Arthas")?.Hp ?? 0;
+
+    // Automatic read-modify-write unpacking via Get + Set:
+    heroes["Arthas"].Hp -= 10;
+
+    // Multi-argument indexing packs '(2, 3)' into a tuple key
+    grid[2, 3] = 99;
+    cell := grid[2, 3];
+}
+```
+
 ## Optional Chaining, Force Unwrap, and Coalescing
 
 ### Optional Chaining
@@ -208,8 +265,3 @@ result: Int = optInt!.Max(5);
 * MAY apply the binary coalescing operator (`left ?? right`) where `left` is an Option type (`T?`) or a weak reference type (`T weak`), and `right` evaluates to `T` (or `T?` for chained coalescing).
 * MUST evaluate `left` first and short-circuit (omitting evaluation of `right`) if `left` yields `Option::Some(val)` (or a live `T weak`), returning `val` of type `T`.
 * MUST evaluate and return `right` if and only if `left` yields `Option::None` (or a disposed `T weak` with `strongCount == 0`).
-
-```c#
-// Combines optional indexing '[]?', optional chaining '?.', and coalescing '??'
-finalScore: Int = users["Alice"]?.Score ?? 100;
-```

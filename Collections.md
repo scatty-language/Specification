@@ -35,6 +35,8 @@ list.Add(4);
 * MUST enforce element uniqueness in Hash Sets (`[$ Type]`) using the element's Identity hash (`$`).
 * MUST index Hash Maps (`[KeyType $ ValueType]`) using the key's Identity hash.
 * MUST throw an exception upon accessing an unmapped key via the index operator (`map[key]`).
+* MUST throw an exception (or trigger Abort/Panic in a non-throwing method) upon accessing an unmapped key via the index operator (`map[key]`).
+* MAY use `.At(key)` to safely query a key and return `ValueType?` (`Option::Some` or `Option::None`) without throwing.
 
 ```C#
 // A hashed set of Strings
