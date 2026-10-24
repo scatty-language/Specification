@@ -1,13 +1,10 @@
 # Mutability
 
-In Coggy all variables, parameters, and method receivers are mutable by default.
-
-```EBNF
-VarDecl ::= LocalId [":" Type] ("=" | ":=") Expression ";"
-```
-
-* **Default Mutability**: Any variable declared via `:=` or `=` is fully mutable. You MAY reassign the variable to a new value or mutate its fields freely.
-* **Logical Isolation**: Mutating a variable NEVER affects any other variable, even if one was assigned from the other. The compiler implicitly handles Copy-on-Write (CoW) for heap-backed data.
+* MUST treat all variables, parameters, and method receivers as mutable by default.
+* MAY reassign variables or mutate their fields freely when declared via `=` or `:=`.
+* MUST isolate mutations to the bound variable without affecting other variables.
+* MUST execute a bitwise copy upon assignment of Trivial Types.
+* MUST retain a shared reference via ARC upon assignment of Owning Types and automatically execute a Copy-on-Write (CoW) deep copy prior to any mutation if the underlying instance has a strong reference count greater than `1`.
 
 ```C#
 x := 10;
@@ -15,84 +12,101 @@ x = 20;
 
 pointA := Point.New(0, 0);
 pointB := pointA;
+pointB.X = 5;
+// 'pointA.X' remains 0
 
-pointB.X = 5; // Mutates 'pointB'
-// 'pointA.X' is still 0
+listA := [+ Int].New();
+listB := listA; // ARC retain (strongCount == 2)
+listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
+```
+
+## Static Variables
+
+* MAY declare a thread-local static variable within a method using the `static` modifier after the variable's explicit type (`local_id: Type static = Expression;`).
+* MAY declare a process-wide global static variable within a method using the `globstatic` modifier after the variable's explicit type (`local_id: Type globstatic = Expression;`).
+* MUST require an explicit type annotation when declaring a `static` or `globstatic` local variable.
+* MUST allocate `static` local variables within Thread-Local Storage (TLS) and evaluate their initialization expression once per thread upon initial execution of the declaration on that thread.
+* MUST allocate `globstatic` local variables within the global static data segment shared across all threads and evaluate their initialization expression exactly once upon the initial execution of the declaration in the process.
+* MAY read and mutate both `static` and `globstatic` local variables without an `unsafe` block.
+
+```C#
+GenerateThreadLocalId() -> Int 
+{
+    counter: Int static = 0;
+    
+    counter += 1;
+    return counter;
+}
+
+RecordGlobalEvent() -> Int 
+{
+    totalEvents: Int globstatic = 0;
+
+    totalEvents += 1;
+    return totalEvents;
+}
+
+Console.WriteLine(GenerateThreadLocalId()); // Output: 1
+Console.WriteLine(GenerateThreadLocalId()); // Output: 2
 ```
 
 ## Method Parameters
 
-Function and method parameters act as fully mutable local variables.
-
-* **Call-by-Value Mutability**: When a variable is passed to a method without the `ref` keyword, the method receives a logically independent copy. The method MAY mutate this parameter internally.
-* **Caller Independence**: Mutations applied to a standard parameter affect ONLY the local scope of the method. The original variable passed by the caller remains absolutely unchanged.
+* MUST treat parameters passed without the `ref` keyword as logically independent, mutable local copies (Call-by-Value).
+* MAY mutate standard parameters internally within the method scope.
+* MUST NOT reflect internal parameter mutations on the caller's original variable.
 
 ```C#
 Process(val: Int, counter: Int) 
 {
-    val = 5;     // Mutates the local copy
-    counter = 5; // Mutates the local copy
+    val = 5;
+    counter = 5;
 }
 
 myVal := 10;
 myCounter := 0;
 
 Process(myVal, myCounter);
-// 'myVal' is still 10, 'myCounter' is still 0
+// 'myVal' is 10
+// 'myCounter' is 0
 ```
 
 ## Method Receivers
 
-Methods operating on an instance dictate whether they mutate a local copy or the caller's original instance.
-
-* **Local Receiver (`@`)**: The method receives a local, logically independent copy of the instance. The method MAY mutate fields on `@`, but these mutations will disappear when the method returns, unless returned via a fluent interface (`-> @`).
-* **In-Place Receiver (`ref @`)**: The method borrows the original instance from the caller. Any mutations applied to `@` modify the original instance directly.
+* MUST instantiate a logically independent copy of the instance for local receivers (`@`).
+* MAY mutate fields on a local receiver (`@`).
+* MUST NOT propagate local receiver mutations to the caller unless explicitly returned (`-> @`).
+* MUST borrow the original instance from the caller for in-place receivers (`ref @`).
+* MUST apply mutations on an in-place receiver (`ref @`) directly to the caller's original instance.
 
 ```C#
 Data 
 {
     X: Int;
     
-    // Mutates a local copy
     WithX(@, x: Int) -> @
     {
         @.X = x;
     }
     
-    // Mutates the original caller's instance
     SetX(ref @, x: Int) 
     {
         @.X = x;
-        
-        @ = Data.New(); // ERROR: Reassigning the receiver itself is forbidden
     }
 }
 ```
 
 ## Constants
 
-If absolute immutability and compile-time evaluation are required, the Double-colon `::` binding operator MUST be used instead of standard assignment.
-
-```EBNF
-ConstDecl ::= Identifier [":" Type] "::" Expression ";"
-```
-
-* **Compile-Time Binding**: The RHS `Expression` MUST be evaluable at compile time.
-* **Strict Immutability**: A constant binding is permanent. It CANNOT be reassigned, its fields MUST NOT be mutated, and it CANNOT be passed to a `ref` parameter.
-* **Type Inference**: The type annotation `: Type` MAY be omitted if the compiler can infer it from the expression.
+* MUST declare compile-time constants using the double-colon binding operator (`::`).
+* MUST evaluate the constant's initialization expression at compile time.
+* MUST NOT reassign a constant, mutate its fields, or pass it to a `ref` parameter.
+* MAY omit the explicit type annotation (`: Type`) if the compiler can infer the type from the initialization expression.
 
 ```C#
-// Explicitly typed constant
 Pi: Float :: 3.14159f;
 
-// Implicitly typed constant
 MaxUsers :: 100;
 
 DoubleMax :: MaxUsers * 2;
-
-// ERROR: Reassignment is forbidden
-Pi = 3.14f;
-
-// ERROR: Function call is not a compile-time expression
-RandomValue :: Math.Random();
 ```
