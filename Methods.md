@@ -112,6 +112,63 @@ Vector
 }
 ```
 
+### Constrained Receivers
+
+* MAY constrain an instance receiver to a specific variant subtype (`@::Variant` or `ref @::Variant`) or a type guard (`@^Guard` or `ref @^Guard`).
+* MUST declare a variant-constrained receiver (`@::Variant` or `ref @::Variant`) exclusively within a `Data` type that declares `::Variant` or within a `+Type` extension of that `Data` type.
+* MUST NOT declare a variant-constrained receiver on an untagged union (`::: none`) or within an `~Interface` declaration.
+* MUST require the type guard in a guard-constrained receiver (`@^Guard` or `ref @^Guard`) to be applicable to the enclosing `Data` or `~Interface` type.
+* MUST statically type `@` as `Data::Variant` within the body of a method declaring `@::Variant` or `ref @::Variant`, exposing both shared members of `Data` and the payload fields of `::Variant`.
+* MUST statically type `@` as `Type^Guard` within the body of a method declaring `@^Guard` or `ref @^Guard`.
+* MUST require the target receiver expression at the call site to be statically typed or narrowed to `Data::Variant` when invoking a method with an `@::Variant` or `ref @::Variant` receiver.
+* MUST require the target receiver expression at the call site to be statically typed or narrowed to `Type^Guard` (or a child guard inheriting from `^Guard`) when invoking a method with an `@^Guard` or `ref @^Guard` receiver.
+* MUST reject at compile time any invocation of a constrained-receiver method on an unnarrowed base type, an incompatible variant subtype, or an unguarded type.
+* MAY declare the return type of a method as `-> @::Variant` or `-> @^Guard` to synthesize the corresponding variant subtype or guarded type of the enclosing `Data` declaration.
+
+```C#
+Bill 
+{
+    ::Init;
+    ::Closed;
+
+    Process(@::Init) -> Bill::Closed 
+    {
+        return .Closed;
+    }
+}
+
+Some 
+{
+    Value: Int;
+}
+
+^Valid = Some where @.Value > 0;
+
++Some 
+{
+    Process(@^Valid) 
+    {
+        Console.WriteLine(@.Value);
+    }
+}
+
+// ERROR: 'bill' is inferred as base type 'Bill' (and holds '::Closed'), not 'Bill::Init'
+bill := Bill::Closed;
+bill.Process();
+
+// Valid: explicitly typed as 'Bill::Init'
+initBill: Bill::Init = .Init;
+closedBill: Bill::Closed = initBill.Process();
+
+// ERROR: 'some' is unguarded 'Some', not 'Some^Valid'
+some := Some { Value: 10 };
+some.Process();
+
+// Valid: cast to 'Some^Valid' prior to invocation
+validSome := some as Some^Valid;
+validSome.Process();
+```
+
 ## Static Methods
 
 * MUST classify methods lacking an `@` receiver parameter as static methods.
@@ -245,6 +302,7 @@ GetIdentity() -> Matrix
 * MUST represent a function type (`fn`) as a stateless, raw function pointer.
 * MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
 * MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.
+* MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fn` signature.
 * MUST perform an indirect call when invoking an `fn` pointer.
 * MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
 
@@ -277,17 +335,24 @@ mover(ref vec, 10, 10);
 
 // 3. Stateless lambda coercing to a raw function pointer
 mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
+
+// Maps '@::Init' receiver to 'Bill::Init' first parameter
+processor: fn(Bill::Init) -> Bill::Closed = Bill.Process;
+
+// Maps '@^Valid' receiver to 'Some^Valid' first parameter
+validator: fn(Some^Valid) = Some.Process;
 ```
 
 ## Method Overloading
 
 * MAY declare multiple methods with the same identifier within the same `Data` type, interface, or extension block provided their parameter signatures are mutually distinguishable at every possible call site.
-* MUST distinguish overloaded methods strictly by:
+* MUST distinguish overloaded methods by:
   * The count of required parameters,
-  * The positional types of the parameters, or
-  * The presence or absence of the `ref` modifier on non-receiver parameters.
+  * The positional types of the parameters,
+  * The presence or absence of the `ref` modifier on non-receiver parameters, or
+  * Distinct receiver type constraints (`@::VariantA` versus `@::VariantB`, or `@^Guard` versus `@`).
 * MUST NOT overload methods that differ solely by:
-  * Receiver kind (`@` versus `ref @`, or instance versus static),
+  * Receiver mutability (`@` versus `ref @` on the identical receiver type) or instance versus static without a distinct parameter signature,
   * Return type (`-> ReturnType`),
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
   * Method modifiers (`throws` or `unsafe`).
@@ -323,6 +388,7 @@ Processor
   5. Variadic Parameter Match: Trailing arguments are packed into a variadic parameter (`...T`).
 * MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments.
 * MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types of the target `fn` type.
+* MUST apply the same specificity hierarchy to the receiver type when resolving overloaded instance methods (an expression of type `Type^Guard` or `Data::Variant` matches a constrained receiver `@^Guard` or `@::Variant` at Priority 1 over an unconstrained receiver `@` at Priority 2).
 * MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` type annotation.
 
 ```C#

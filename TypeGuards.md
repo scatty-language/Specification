@@ -39,6 +39,8 @@
 * MUST define the physical memory layout solely via the `BaseType`.
 * MUST evaluate the `^Guard` strictly as a compile-time or runtime invariant.
 * MUST implicitly pass the `BaseType` as the primary target type argument to the applied type guard.
+* MAY apply a type guard directly to an instance method receiver (`@^Guard` or `ref @^Guard`).
+* MUST require the caller's target expression to be statically typed or narrowed to `BaseType^Guard` when invoking a method declared with an `@^Guard` or `ref @^Guard` receiver.
 
 ```C#
 validAge: Int^Positive = 25 as ^;
@@ -47,6 +49,29 @@ email: String^Email = "test@domain.com" as ^;
 ProcessAge(age: Int^Positive) { }
 
 ProcessBigNumber(num: Float^Big) { }
+
+Account 
+{
+    Balance: Int;
+}
+
+^Solvent = Account where @.Balance > 0;
+
++Account 
+{
+    Withdraw(ref @^Solvent, amount: Int) 
+    {
+        @.Balance -=^ amount;
+    }
+}
+
+rawAcc := Account { Balance: 100 };
+rawAcc.Withdraw(50); // ERROR: 'rawAcc' is 'Account', not 'Account^Solvent'
+
+if rawAcc is Account^Solvent 
+{
+    rawAcc.Withdraw(50); // Valid: 'rawAcc' is narrowed to 'Account^Solvent'
+}
 ```
 
 ## Validation and Casting
@@ -112,6 +137,7 @@ match rawValue as? Int^Positive
 
 * MUST NOT mutate an internal field of a guarded `Data` variable (`instance: Data^Guard`) using standard assignment operators (`instance.Field = val`).
 * MUST require guarded assignment operators (`instance.Field =^ val`, `instance.Field +=^ val`) when mutating any field of a variable governed by a type guard, which re-evaluates the enclosing `Data^Guard` invariant after updating the field.
+* MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any field of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
 * MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
   * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [+ Int]^NonEmpty`), or
   * Passing `instance` (or any of its fields) as a `ref` argument to a parameter typed as the unguarded base type.

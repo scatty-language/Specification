@@ -110,7 +110,11 @@ method_decl
     ::= identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
 
 receiver
-    ::= [ "ref" ] "@" [ "," ]
+    ::= [ "ref" ] "@" [ receiver_constraint ] [ "," ]
+
+receiver_constraint
+    ::= "::" public_id
+      | "^" identifier [ "<" type_args ">" ]
 
 parameter_list
     ::= parameter { "," parameter }
@@ -119,7 +123,8 @@ parameter
     ::= [ "ref" ] local_id ":" [ "..." ] type [ "=" expression ]
 
 return_type
-    ::= type | "@"
+    ::= type
+      | "@" [ receiver_constraint ]
 
 body
     ::= block | "=>" expression ";"

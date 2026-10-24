@@ -118,6 +118,9 @@ Option<T>
 * MAY implicitly downgrade an expression of a variant subtype (`Data::Variant`) to its enclosing base `Data` type without an explicit cast.
 * MUST explicitly validate the active discriminant tag using `is`, `as`, `as?`, `as!`, or `match` (or bypass validation via `unas`) when narrowing an expression from a base `Data` type to a specific `Data::Variant` subtype.
 * MAY use the contextual leading-dot syntax (`.Variant`) with `is`, `as`, `as?`, `as!`, and `unas` when the base `Data` type is statically known.
+* MAY constrain the receiver of an instance method to a specific variant subtype (`@::Variant` or `ref @::Variant`).
+* MUST expose the payload fields of `::Variant` directly on `@` within the body of a method declaring an `@::Variant` or `ref @::Variant` receiver.
+* MUST reject invoking a method declared with `@::Variant` or `ref @::Variant` unless the receiver expression is statically typed or narrowed to `Data::Variant`.
 
 ```C#
 Color 
@@ -155,6 +158,38 @@ if color is .Green
 {
     Console.WriteLine(color.X);
     ProcessGreen(color);
+}
+
+Order 
+{
+    ::Draft(Items: [+ String]);
+    ::Submitted(TransactionId: Int);
+
+    // Direct access to '::Draft' payload ('@.Items') without pattern matching
+    AddItem(ref @::Draft, item: String) 
+    {
+        @.Items.Add(item);
+    }
+
+    Submit(@::Draft, txId: Int) -> @::Submitted 
+    {
+        return .Submitted(txId);
+    }
+}
+
+// Explicitly typed as 'Order::Draft'
+draft: Order::Draft = .Draft([+ String].New());
+draft.AddItem("Book");
+submitted: Order::Submitted = draft.Submit(1001);
+
+// Inferred as base type 'Order'
+order := Order::Draft([+ String].New());
+// order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
+
+// Valid after flow-sensitive narrowing via 'is'
+if order is .Draft 
+{
+    order.AddItem("Pen");
 }
 ```
 
