@@ -6,6 +6,8 @@
 * MUST NOT declare structural state fields within an extension block.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in the target type's primary definition.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in another extension block for the same target type.
+* MAY declare new overloads of an existing method name within an extension block provided their parameter signatures are distinct under Method Overloading rules.
+* MUST NOT declare members in an extension block whose signatures collide with or shadow members declared in the target type's primary definition or in another extension block for the same target type.
 
 ## Encapsulation and Access Rights
 
