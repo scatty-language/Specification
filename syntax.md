@@ -69,7 +69,7 @@ field_modifier
     ::= "$" | "#" | "#$"
 
 interface_decl
-    ::= "~" identifier "{" { interface_member } "}"
+    ::= "~" identifier [ "<" type_params ">" ] "{" { interface_member } "}"
 
 interface_member
     ::= interface_prop_decl
@@ -77,7 +77,7 @@ interface_member
       | refinement_decl
 
 interface_prop_decl
-    ::= identifier ":" type ( ";" | "=>" expression ";" | block )
+    ::= identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
 
 extension_decl
     ::= "+" type "{" { member } "}"
@@ -107,7 +107,7 @@ static_modifier
     ::= "static" | "globstatic"
 
 method_decl
-    ::= identifier [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
+    ::= identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
 
 receiver
     ::= [ "ref" ] "@" [ "," ]
@@ -197,7 +197,7 @@ type_identifier
     ::= identifier
 
 type_path
-    ::= identifier [ "<" type_args ">" ] { "::" identifier [ "<" type_args ">" ] }
+    ::= [ "~" ] identifier [ "<" type_args ">" ] { "::" [ "~" ] identifier [ "<" type_args ">" ] }
 
 statement
     ::= var_decl
@@ -384,10 +384,10 @@ postfix_operation
       | copy_update_suffix
 
 method_invocation
-    ::= [ "<" type_args ">" ] "(" [ argument_list ] ")"
+    ::= [ "?" | "!" ] [ "<" type_args ">" ] "(" [ argument_list ] ")"
 
 member_access
-    ::= "." identifier
+    ::= "." identifier [ "?" | "!" ]
 
 index_access
     ::= "[" expression "]"

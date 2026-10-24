@@ -292,6 +292,8 @@ mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
   * Method modifiers (`throws` or `unsafe`).
 * MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when trailing default parameters or empty variadic arguments are omitted.
+* MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
+* MAY implement multiple specializations of a generic interface on the same `Data` type, resolving invocations via standard Overload Resolution rules.
 
 ```C#
 Processor 

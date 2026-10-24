@@ -6,6 +6,8 @@
 * MAY specify `@` as the `TargetType` to create a universal refinement applicable to any type satisfying the `where` expression.
 * MUST evaluate `@` within the `where` expression as the instance receiver.
 * MAY declare explicit generic parameters and assign a type parameter as the `TargetType`.
+* MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a refinement declaration.
+* MAY declare refinement types over an interface either at the file's top level (`^Name = ~Interface where ...`) or directly inside the `~Interface` declaration block.
 
 ```C#
 ^Positive = @ where @ > 0;
