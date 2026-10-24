@@ -155,7 +155,7 @@ playerC := playerA + playerB;
 
 * MUST require a type to implement the standard library `~Indexable<TKey, TValue>` interface to support the index operator (`[]`).
 
-```scatty
+```C#
 ~Indexable<TKey, TValue> 
 {
     Get(@, key: TKey) throws -> TValue;
