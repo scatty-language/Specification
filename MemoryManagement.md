@@ -61,6 +61,9 @@ Console.WriteLine(list2.Count); // Output: 4
 * MUST atomically verify that `strongCount > 0` and temporarily retain a strong reference for the duration of the access when evaluating a `T weak` directly.
 * MUST immediately trigger the runtime Abort/Fatal Panic mechanism if a `T weak` is accessed directly after its target has been disposed (`strongCount == 0`).
 * MAY safely test and promote a `T weak` reference to a strong `T` local variable using conditional binding (`if val := weakVar`), which executes the branch only if `strongCount > 0`.
+* MAY apply the optional chaining (`?.`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
+  * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
+  * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if alive, or evaluates to `fallback` if disposed.
 
 ```C#
 Node : ~Copyable

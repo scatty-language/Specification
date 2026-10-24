@@ -318,7 +318,10 @@ expression
     ::= assignment_expr
 
 assignment_expr
-    ::= logical_or_expr [ assignment_operator assignment_expr ]
+    ::= coalescing_expr [ assignment_operator assignment_expr ]
+
+coalescing_expr
+    ::= logical_or_expr [ "??" coalescing_expr ]
 
 assignment_operator
     ::= "=" | ":=" | "+=" | "-=" | "*=" | "/=" | "%="
@@ -381,16 +384,20 @@ postfix_operation
     ::= method_invocation
       | member_access
       | index_access
+      | force_unwrap
       | copy_update_suffix
 
 method_invocation
     ::= [ "?" | "!" ] [ "<" type_args ">" ] "(" [ argument_list ] ")"
 
 member_access
-    ::= "." identifier [ "?" | "!" ]
+    ::= ( "." | "?." ) identifier [ "?" | "!" ]
 
 index_access
-    ::= "[" expression "]"
+    ::= [ "?" ] "[" expr_list "]"
+
+force_unwrap
+    ::= "!"
 
 copy_update_suffix
     ::= "with" copy_update_body

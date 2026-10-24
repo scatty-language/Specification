@@ -8,7 +8,7 @@
 
 | Level | Category | Operators | Associativity |
 | :--- | :--- | :--- | :--- |
-| **1** | Primary Access | `.`, `::`, `()`, `[]` | Left-to-right |
+| **1** | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]` | Left-to-right |
 | **2** | Unary & Control | `not`, `bnot`, `try?`, `try!` | Right-to-left |
 | **3** | Type & Casting | `as`, `as?`, `as!`, `unas`, `is`, `^` | Left-to-right |
 | **4** | Multiplicative | `*`, `/`, `%` | Left-to-right |
@@ -18,9 +18,10 @@
 | **8** | Relational & Equality | `<`, `>`, `<=`, `>=`, `==`, `!=` | Left-to-right |
 | **9** | Logical AND | `and` | Left-to-right |
 | **10** | Logical OR | `or` | Left-to-right |
-| **11** | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^` | Right-to-left |
+| **11** | Coalescing | `??` | Right-to-left |
+| **12** | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^` | Right-to-left |
 
-* MUST evaluate binary operators with equal precedence from left to right, except assignment operators which MUST evaluate from right to left.
+* MUST evaluate binary operators with equal precedence from left to right, except coalescing (`??`) and assignment operators which MUST evaluate from right to left.
 
 ```C#
 result := a + b as Float == c * d; 
@@ -144,8 +145,71 @@ playerC := playerA + playerB;
 }
 ```
 
-## Cascade Operator (`..`)
+## Cascade Operator
 
 * MAY use the cascade operator (`..`) at the statement level to invoke multiple methods sequentially on the same receiver instance (`target.MethodA()..MethodB()`).
 * MUST evaluate the receiver expression preceding the initial `.` access once and apply all subsequent `..` invocations to that same receiver.
 * MUST NOT use the cascade operator inside nested expressions or argument lists.
+
+## Optional Chaining, Force Unwrap, and Coalescing
+
+### Optional Chaining
+
+* MAY apply the optional chaining operators (`?.` and `?[...]`) to any expression of an Option type (`T?`) or a weak reference type (`T weak`).
+* MUST reject applying `?.` or `?[...]` to a non-optional, non-weak type at compile time.
+* MUST evaluate the left-hand target expression once:
+  * If the target evaluates to `Option::Some(val)` (or a live `T weak` with `strongCount > 0`), the compiler MUST unwrap (or temporarily retain) `val` and evaluate the remainder of the postfix chain.
+  * If the target evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`), the compiler MUST short-circuit and skip the entire remaining postfix chain (`.A.B.C()`), immediately yielding `Option::None` (or performing a no-op if the final member returns void).
+* MUST wrap a non-optional return value `R` of an optionally chained expression into `R?` (`Option<R>`).
+* MUST flatten the result of an optionally chained expression to `R?` (rather than `R??`) if the invoked member already returns an optional type `R?`.
+* MAY invoke a mutating (`ref @`) method via `?.` on a mutable `T?` lvalue variable, mutating the underlying `Some` payload in-place if present.
+
+```C#
+User 
+{
+    Name: String;
+    Score: Int;
+
+    AddBonus(ref @, bonus: Int) => @.Score += bonus;
+    GetNickname(@) -> String? => .Some(@.Name);
+}
+
+maybeUser: User? = GetUser();
+
+// Evaluates to 'Int?' ('Option::Some' if present, 'Option::None' if absent)
+score: Int? = maybeUser?.Score;
+
+// Flattens 'String?' return type (yields 'String?', NOT 'String??')
+nick: String? = maybeUser?.GetNickname();
+
+// Mutates 'maybeUser' payload in-place if 'Some'; no-op if 'None'
+maybeUser?.AddBonus(5);
+```
+
+### Postfix Force Unwrap
+
+* MAY apply the postfix force-unwrap operator (`!`) to any expression of an Option type (`T?`) or a weak reference type (`T weak`).
+* MUST evaluate `expr!` to the unwrapped payload `T` if `expr` is `Option::Some` (or a live `T weak` with `strongCount > 0`).
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics if `expr` evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MAY chain member accesses or invocations directly after `!` (`expr!.Method()`).
+
+```C#
+optInt: Int? = .Some(10);
+
+// Unwraps directly to 'Int' (or Aborts/Panics if 'None')
+exactVal: Int = optInt!;
+
+// Force-unwraps and invokes a method on the underlying 'Int'
+result: Int = optInt!.Max(5);
+```
+
+### Coalescing Operator
+
+* MAY apply the binary coalescing operator (`left ?? right`) where `left` is an Option type (`T?`) or a weak reference type (`T weak`), and `right` evaluates to `T` (or `T?` for chained coalescing).
+* MUST evaluate `left` first and short-circuit (omitting evaluation of `right`) if `left` yields `Option::Some(val)` (or a live `T weak`), returning `val` of type `T`.
+* MUST evaluate and return `right` if and only if `left` yields `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+
+```c#
+// Combines optional indexing '[]?', optional chaining '?.', and coalescing '??'
+finalScore: Int = users["Alice"]?.Score ?? 100;
+```
