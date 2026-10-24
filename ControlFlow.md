@@ -2,18 +2,6 @@
 
 ## Conditionals
 
-```EBNF
-IfStatement           ::= "if" Condition (Block | "=>" Statement) ["else" IfTail]
-IfTail                ::= "if" Condition (Block | "=>" Statement) | Block | "=>" Statement
-Condition             ::= Expression | ConditionalBinding | ConditionalAssignment
-
-ConditionalBinding    ::= LocalId ":=" Expression
-ConditionalAssignment ::= AssignablePath "=" Expression
-AssignablePath        ::= Identifier ("." Identifier)*
-
-Block                 ::= "{" Statement* "}"
-```
-
 * MUST evaluate a `Condition` expression to `Bool`.
 
 ### Conditional Binding
@@ -33,16 +21,19 @@ if user := maybeUser
 
 ### Conditional Assignment
 
-* MUST evaluate the right-hand expression to an Option type (`T?`).
+* MUST evaluate the right-hand expression to an Option type (`T?`) when using the standard assignment operator (`=`).
 * MUST resolve the left-hand `AssignablePath` to a mutable target of the unwrapped payload type `T`.
 * MUST NOT use the `=` assignment operator with non-Option types within a condition.
-* MUST mutate the left-hand target with the unwrapped payload and execute the block if the Option evaluates to `Some`.
-* MUST skip the assignment and transfer execution to the `else` branch if the Option evaluates to `None`.
+* MAY use the refined assignment operator (`=^`) within a condition when the left-hand `AssignablePath` resolves to a mutable target of a refined type (`T^Refinement`) and the right-hand expression evaluates to the underlying base type `T`.
+* MUST evaluate `AssignablePath =^ Expression` within a condition as `AssignablePath = (Expression) as? T^Refinement`.
+* MUST mutate the left-hand target with the unwrapped or validated payload and execute the block if the evaluation yields `Some`.
+* MUST skip the assignment and transfer execution to the `else` branch if the evaluation yields `None`.
 
 ```C#
 SomeData 
 {
     Value: Int;
+    SafeAge: Int^Positive;
 
     UpdateFrom(ref @, rawAge: Int) 
     {
@@ -50,21 +41,20 @@ SomeData
         // If rawAge is <= 0, the Option is None, and @.Value is NOT modified
         if @.Value = rawAge as? Int^Positive 
         {
-            Console.WriteLine("Age successfully updated!");
+            Console.WriteLine("Value successfully updated!");
+        }
+
+        // Refined conditional assignment: deduces 'Int^Positive' from '@.SafeAge'
+        // Evaluates as: if @.SafeAge = (rawAge - 1) as? Int^Positive
+        if @.SafeAge =^ rawAge - 1 
+        {
+            Console.WriteLine("SafeAge validated and updated!");
         }
     }
 }
 ```
 
 ## Loops
-
-```EBNF
-ForLoop         ::= "for" (Condition | Iteration) Block
-Condition       ::= Expression
-Iteration       ::= Identifier "in" Iterator ["by" Identifier]
-Iterator        ::= Expression | Range
-Range           ::= Expression ".." Expression [".." Expression]
-```
 
 * MUST evaluate a single `Condition` expression as a boolean to perform conditional looping.
 * MUST bind the iteration element to an local variable when using the `in` operator.
@@ -112,22 +102,48 @@ for item in list by Parallel
 
 ## Pattern Matching
 
-```EBNF
-MatchExpr       ::= "match" ["!" | "?"] Expression "{" MatchArm+ "}"
-MatchArm        ::= Pattern ("or" Pattern)* "=>"? (Block | Expression) ";"?
-Pattern         ::= "." Identifier ["(" LocalId ("," LocalId)* ")"] | Literal | "_"
-FallStmt        ::= "fall" ";"
-```
-
 * MUST exhaustively cover all possible variants of the evaluated expression, or provide a wildcard `_` fallback.
 * MAY bind the payload of a Variant Field to local identifiers using parentheses.
-* MUST implicitly refine the matched expression to the evaluated variant within the match arm if payload binding is omitted.
+* MUST implicitly refine the matched expression to the evaluated variant or refinement type within the match arm if payload binding is omitted.
 * MUST evaluate every match arm to the exact same return type if the `match` construct is utilized as an expression.
+
+### Refinement Patterns and Guards
+
+* MAY specify a refinement pattern (`^Identifier` or `^Identifier<TypeArgs>`) as a match arm pattern when the refinement is applicable to the matched expression's type.
+* MUST evaluate the refinement's `where` invariant against the matched expression at runtime and execute the arm if the invariant evaluates to `true`.
+* MUST implicitly refine the type of the matched expression to `BaseType^Refinement` within the body of a matching refinement arm.
+* MAY attach a `where Expression` guard clause to a match arm following its pattern list.
+* MUST evaluate the `where` guard expression to `Bool`.
+* MUST bring any payload variables bound by the arm's pattern into scope within the `where` guard expression.
+* MUST bind `@` within a match arm's `where` guard expression to the evaluated match subject.
+* MUST bypass the match arm and continue evaluating subsequent arms if the pattern matches but its `where` guard evaluates to `false`.
+* MUST NOT treat a match arm governed by a `^Refinement` pattern or a `where` guard as exhaustive coverage for the underlying type or variant; an unguarded fallback arm or `_` wildcard MUST be provided in an exhaustive `match`.
+
+```C#
+^ClientError = Int where @ >= 400 and @ < 500;
+^ServerError = Int where @ >= 500 and @ < 600;
+
+match statusCode 
+{
+    200 => Console.WriteLine("OK");
+    ^ClientError => Console.WriteLine("Client Error");
+    ^ServerError => Console.WriteLine("Server Error");
+    _ => Console.WriteLine("Other Status");
+}
+
+match shape 
+{
+    .Circle(r) where r > 100.0f => Console.WriteLine("Large Circle");
+    .Circle(r) => Console.WriteLine("Standard Circle: \(r)");
+    .Rectangle(w, h) where w == h => Console.WriteLine("Square");
+    _ => Console.WriteLine("Other Shape");
+}
+```
 
 ### Execution Flow and Explicit Fallthrough
 
 * MUST terminate execution of the `match` construct immediately after the first matching arm finishes (no implicit fallthrough).
-* MAY use the `fall` statement within a block-bodied match arm to immediately transfer execution to the body of the next sequential arm without evaluating its pattern.
+* MAY use the `fall` statement within a block-bodied match arm to immediately transfer execution to the body of the next sequential arm without evaluating its pattern or `where` guard.
 * MUST NOT use the `fall` statement if the `match` construct evaluates as an expression.
 * MUST NOT use the `fall` statement to transfer control into a match arm that declares payload variable bindings.
 * MUST NOT use the `fall` statement within the final match arm.
