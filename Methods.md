@@ -278,3 +278,71 @@ mover(ref vec, 10, 10);
 // 3. Stateless lambda coercing to a raw function pointer
 mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
 ```
+
+## Method Overloading
+
+* MAY declare multiple methods with the same identifier within the same `Data` type, interface, or extension block provided their parameter signatures are mutually distinguishable at every possible call site.
+* MUST distinguish overloaded methods strictly by:
+  * The count of required parameters,
+  * The positional types of the parameters, or
+  * The presence or absence of the `ref` modifier on non-receiver parameters.
+* MUST NOT overload methods that differ solely by:
+  * Receiver kind (`@` versus `ref @`, or instance versus static),
+  * Return type (`-> ReturnType`),
+  * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
+  * Method modifiers (`throws` or `unsafe`).
+* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when trailing default parameters or empty variadic arguments are omitted.
+
+```C#
+Processor 
+{
+    // Valid overloads: distinct parameter types and 'ref' parameter modifier
+    Execute(val: Int) { }
+    Execute(ref val: Int) { }
+    Execute(val: String) { }
+
+    // ERROR: Cannot overload solely on '@' vs 'ref @' receiver
+    Reset(@) { }
+    Reset(ref @) { }
+
+    // ERROR: Collides with 'Execute(val: Int)' when 'retry' is omitted
+    Execute(val: Int, retry: Bool = false) { }
+}
+```
+
+### Overload Resolution Priority
+
+* MUST NOT apply implicit primitive or `~Castable<T>` type conversions during overload resolution.
+* MUST select the single best matching overload by evaluating candidate parameters according to the following descending specificity hierarchy:
+  1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, or `Color::Green` matching `Color::Green`).
+  2. Base Type Downgrade: A refined type (`T^Refinement`) or variant subtype (`Data::Variant`) implicitly downgrades to its unrefined base `Data` type `T`.
+  3. Constrained Generic Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`).
+  4. Unconstrained Generic Match: The argument matches an unconstrained generic type parameter (`T`).
+  5. Variadic Parameter Match: Trailing arguments are packed into a variadic parameter (`...T`).
+* MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments.
+* MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types of the target `fn` type.
+* MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` type annotation.
+
+```C#
+Validator 
+{
+    // Priority 1 for 'Int^Positive'
+    Check(val: Int^Positive) => Console.WriteLine("Verified positive");
+
+    // Priority 2 for 'Int^Positive' (via base downgrade), Priority 1 for plain 'Int'
+    Check(val: Int) => Console.WriteLine("Plain integer");
+
+    // Priority 4 (Unconstrained generic)
+    Check<T>(val: T) => Console.WriteLine("Generic fallback");
+}
+
+raw: Int = -5;
+pos: Int^Positive = 10 as ^;
+
+Validator.Check(pos);   // Calls 'Check(val: Int^Positive)' (Exact Match)
+Validator.Check(raw);   // Calls 'Check(val: Int)' (Exact Match)
+Validator.Check("Hi");  // Calls 'Check<T>(val: T)' (Generic Match)
+
+// Disambiguates overloaded method via explicit 'fn' type
+intChecker: fn(Int) = Validator.Check;
+```
