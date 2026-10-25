@@ -59,17 +59,26 @@ concurrent
 
 ## Task Value Aggregation
 
-* MAY evaluate a `concurrent` block as an expression yielding an array of values if its enclosed `spawn` statements return values.
-* MUST evaluate all value-yielding `spawn` statements within the same `concurrent` block to the exact same type.
-* MUST collect and return the evaluated results of all spawned tasks as an array.
+* MAY evaluate a `concurrent` block as an expression yielding an array (`[T]`) if its enclosed `spawn` statements yield values of type `T`.
+* MUST evaluate all value-yielding `spawn` statements within the same `concurrent` block to the exact same type `T`.
+* MUST implicitly return the evaluated value of a single-expression `spawn` body (`spawn => Expression;`).
+* MUST require an explicit `return Expression;` statement to yield a value from a block-bodied `spawn` task (`spawn { ... }`).
+* MUST scope any `return` statement inside a `spawn` or `rollback` block strictly to that task's body; a `spawn` block MUST NOT return directly from the enclosing method.
+* MUST require every `catch` arm attached to a value-yielding `spawn` statement to either yield a fallback value of type `T` or rethrow an exception.
+* MUST collect and order the evaluated results in the returned `[T]` array strictly according to the sequential order in which the tasks were spawned.
 
 ```C#
 results: [Int] = concurrent 
 {
     spawn => 10;
     spawn => 20;
-    spawn => 30;
+    spawn 
+    {
+        base := 15;
+        return base * 2;
+    }
 };
+// results is [10, 20, 30]
 ```
 
 ## Error Handling and Cancellation

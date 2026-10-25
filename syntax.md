@@ -206,7 +206,7 @@ statement
       | match_expr
       | try_catch_stmt
       | try_force_block
-      | concurrent_stmt
+      | concurrent_expr
       | spawn_stmt
       | fall_stmt
       | return_stmt
@@ -284,7 +284,7 @@ catch_arm
 try_force_block
     ::= "try!" block
 
-concurrent_stmt
+concurrent_expr
     ::= "concurrent" [ "throws" ] block
 
 spawn_stmt
@@ -410,6 +410,7 @@ primary_expr
       | reflection_expr
       | lambda_expr
       | match_expr
+      | concurrent_expr
       | try_force_construct
       | tuple_expr
       | collection_init
