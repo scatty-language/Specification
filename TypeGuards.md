@@ -146,6 +146,9 @@ match rawValue as? Int^Positive
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
 * MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`if target =^ expr`).
+* MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
+* MUST evaluate the governing `where` invariant at runtime in both Debug and Release modes (triggering a Fatal Panic in Debug mode or an immediate process Abort in Release mode upon failure) whenever the postfix `strict` modifier is applied, unless the invariant is statically proven at compile time.
+* MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 
 ```C#
 User 
@@ -164,20 +167,15 @@ ResetUser(ref u: User)
 
 MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [+ Int]^NonEmpty) 
 {
-    // 1. Guarded scalar mutation: checked in Debug, zero-cost in default Release
+    // 1. Default guarded scalar mutation: checked in Debug, elided in default Release
     age -=^ 10;
 
-    // 2. Guarded struct field mutation:
-    // 'adult.Age = 10;' is a COMPILE-TIME ERROR; must use '=^'
-    // Re-verifies 'adult' against '^Adult' ('@.Age >= 18') in Debug / strict mode
-    adult.Age =^ 21;
+    // 2. Strict guarded mutation: enforced at runtime in BOTH Debug and Release modes
+    age -=^ 5 strict;
+    adult.Age =^ 21 strict;
 
-    // 3. Mutating 'ref @' method on a guarded collection:
-    // Automatically asserts '^NonEmpty' ('@.Count > 0') after 'RemoveAt' in Debug / strict mode
-    list.RemoveAt(0);
-
-    // 4. Passing a guarded variable by 'ref' to an unguarded 'ref User' parameter:
-    // Automatically asserts '^Adult' on 'adult' upon return in Debug / strict mode
-    ResetUser(ref adult); // Triggers Fatal Panic in Debug mode because Age became 5
+    // 3. Strict post-'ref @' and post-'ref' invariant checks in both Debug and Release
+    list.RemoveAt(0) strict;
+    ResetUser(ref adult) strict;
 }
 ```

@@ -101,7 +101,7 @@ const_decl
     ::= identifier [ ":" type ] "::" expression ";"
 
 var_decl
-    ::= local_id [ ":" type [ static_modifier ] ] ( "=" | "=^" | ":=" ) ( expression | cascade_chain ) ";"
+    ::= local_id [ ":" type [ static_modifier ] ] ( "=" | "=^" | ":=" ) ( expression | cascade_chain ) [ "strict" ] ";"
 
 static_modifier
     ::= "static" | "astatic" | "gstatic"
@@ -228,7 +228,7 @@ return_stmt
     ::= "return" [ expression | cascade_chain ] ";"
 
 cascade_stmt
-    ::= [ assignable_path assignment_operator ] cascade_chain ";"
+    ::= [ assignable_path assignment_operator ] cascade_chain [ "strict" ] ";"
 
 cascade_chain
     ::= postfix_expr ".." identifier method_invocation { ".." identifier method_invocation }
@@ -246,7 +246,7 @@ destructure_target
     ::= local_id | "_"
 
 expression_stmt
-    ::= expression ";"
+    ::= expression [ "strict" ] ";"
 
 if_statement
     ::= "if" condition ( block | "=>" statement ) [ "else" if_tail ]
@@ -640,7 +640,7 @@ keyword
       | "match" | "fall" | "try" | "catch" | "throw"
       | "return" | "use" | "with" | "meta" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"
-      | "where" | "zeroed" | "noinit" | "none" | "fn"
+      | "where" | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
 
