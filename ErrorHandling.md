@@ -52,11 +52,12 @@ Some() throws
 ## Throwing and Catching
 
 * MUST NOT allocate heap memory during the execution of a `throw` statement.
-* MUST copy the evaluated exception `Data` value bitwise into the pre-allocated Thread-Local Storage (TLS) exception buffer.
+* MUST move the evaluated exception `Data` value bitwise into the pre-allocated Thread-Local Storage (TLS) exception buffer, transferring ownership of any nested Owning Type fields (such as `Message: String`) without incrementing their reference counts.
 * MUST NOT allow `Data` types implementing `~Exception` to exceed the fixed 128-byte size limit of the TLS exception buffer.
 * MUST unwind the call stack until an execution frame containing a matching `catch` arm is reached.
 * MUST execute the first matching `catch` arm for an intercepted exception.
-* MUST copy the exception data from the TLS exception buffer into the local variable declared by the matching `catch` arm and clear the slot.
+* MUST move the exception data from the TLS exception buffer into the local variable declared by the matching `catch` arm and clear the TLS slot.
+* MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) prior to clearing the TLS exception buffer whenever an active exception is suppressed by a parameterless `catch` block, intercepted by `try?`, or overwritten by a new exception.
 * MAY omit the variable identifier and type in a `catch` arm to define a catch-all block.
 * MAY execute a parameterless `throw;` statement within a `catch` or `rollback` block to rethrow the active exception.
 * MUST NOT execute a parameterless `throw;` statement outside of a `catch` or `rollback` block.

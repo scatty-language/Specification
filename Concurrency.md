@@ -80,7 +80,8 @@ results: [Int] = concurrent
 * MAY declare a `concurrent` block with the `throws` modifier.
 * MUST transition a `concurrent throws` block into a `Cancelled` state immediately upon any unhandled exception escaping a child task.
 * MUST cooperatively signal cancellation to all sibling tasks upon entering the `Cancelled` state.
-* MUST await completion of all tasks in the scope and rethrow an `AggregateException` when a `concurrent throws` block is cancelled.
+* MUST await completion of all tasks in the scope (including execution of applicable `rollback` blocks) and propagate the first unhandled exception that triggered cancellation through the calling thread's TLS exception buffer when a `concurrent throws` block is cancelled.
+* MUST release and discard any subsequent unhandled exceptions thrown by sibling tasks after the `concurrent throws` scope has already entered the `Cancelled` state.
 
 ## Rollback Blocks
 
