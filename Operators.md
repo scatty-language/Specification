@@ -99,8 +99,8 @@ result := t1 + t2;
 
 ## Embedded Field Operator Delegation
 
-* MUST delegate `==` and `!=` operators to an embedded field (`@Field`) if the parent type declares zero `$` fields and the embedded field type defines equality operators.
-* MUST delegate arithmetic operators to an embedded field (`@Field`) if the parent type declares zero `#` fields and the embedded field type defines arithmetic operators.
+* MUST delegate `==` and `!=` operators to an embedded field (`Field embed`) if the parent type declares zero `$` fields and the embedded field type defines equality operators.
+* MUST delegate arithmetic operators to an embedded field (`Field embed`) if the parent type declares zero `#` fields and the embedded field type defines arithmetic operators.
 * MUST shadow and override embedded field operators if the parent type explicitly declares any `$` or `#` fields.
 * MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators and the parent type does not explicitly shadow them.
 
