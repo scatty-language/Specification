@@ -57,13 +57,6 @@ field_storage_modifier
 
 field_decl
     ::= short_field ";"
-      | embedded_variant_field_decl
-
-embedded_variant_field_decl
-    ::= identifier ":" type "embed" [ "=" expression ] "{" embedded_variant_entry { "," embedded_variant_entry } [ "," ] "}"
-
-embedded_variant_entry
-    ::= identifier [ "(" payload_field_list ")" ] [ "=" expression ]
 
 field_modifier
     ::= "$" | "#" | "#$"
