@@ -380,8 +380,7 @@ type_op_expr
 
 type_operator
     ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
-      | "is" ( type | variant_pattern )
-      | "^" type_identifier [ "<" type_args ">" ]
+      | "is" ( type | variant_pattern | guard_pattern )
 
 unary_expr
     ::= { unary_operator } postfix_expr
