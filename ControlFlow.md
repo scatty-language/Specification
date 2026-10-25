@@ -74,13 +74,25 @@ SomeData
 
 ## Loops
 
-* MUST evaluate a single `Condition` expression as a boolean to perform conditional looping.
-* MUST bind the iteration element to an local variable when using the `in` operator.
+* MUST evaluate a single `Condition` expression as a `Bool` to perform conditional looping.
+* MUST bind the iteration element to a new local variable (or unpack a tuple element into local variables via a destructuring pattern `(a, b)`) when using the `in` operator.
+* MUST require the number of bindings in a loop destructuring pattern to match the exact element count of the iterated tuple, permitting `_` to discard individual elements.
 * MUST evaluate the upper bound of a range expression (`..`) as exclusive, omitting the right-hand boundary value from the iteration sequence.
 * MAY delegate the traversal strategy using the `by` modifier.
 * MUST resolve the identifier provided to the `by` modifier to a type implementing the `~Iterator` interface.
+* MAY use the `break` statement inside a `for` loop body to immediately terminate the innermost enclosing `for` loop.
+* MAY use the `continue` statement inside a `for` loop body to immediately skip the remainder of the current iteration and advance to the next iteration of the innermost enclosing `for` loop.
+* MUST NOT use `break` or `continue` outside the lexical body of a `for` loop (or across a lambda or `spawn` boundary).
 
 ```C#
+// Conditional loop with break and continue
+for x < 100 
+{
+    x += 10;
+    if x == 50 => continue;
+    if x > 80 => break;
+}
+
 // Conditional loop
 for x < 100 
 {
@@ -109,6 +121,12 @@ for i in 10..0..-1
 for item in list 
 {
     Process(item);
+}
+
+// Tuple destructuring during map or pair iteration
+for (key, score) in scores 
+{
+    Console.WriteLine("\(key): \(score)");
 }
 
 // Custom iteration strategy

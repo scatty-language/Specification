@@ -210,6 +210,8 @@ statement
       | try_force_block
       | concurrent_expr
       | spawn_stmt
+      | break_stmt
+      | continue_stmt
       | fall_stmt
       | return_stmt
       | throw_stmt
@@ -218,6 +220,12 @@ statement
 
 block
     ::= "{" { statement } "}"
+
+break_stmt
+    ::= "break" ";"
+
+continue_stmt
+    ::= "continue" ";"
 
 return_stmt
     ::= "return" [ expression | cascade_chain ] ";"
@@ -235,7 +243,10 @@ fall_stmt
     ::= "fall" ";"
 
 destructure_stmt
-    ::= "(" destructure_target "," destructure_target { "," destructure_target } ")" ( "=" | ":=" ) expression ";"
+    ::= destructure_pattern ( "=" | ":=" ) expression ";"
+
+destructure_pattern
+    ::= "(" destructure_target "," destructure_target { "," destructure_target } ")"
 
 destructure_target
     ::= local_id | "_"
@@ -269,7 +280,7 @@ for_loop
     ::= "for" ( condition | iteration ) block
 
 iteration
-    ::= local_id "in" iterator [ "by" type_identifier ]
+    ::= ( local_id | destructure_pattern ) "in" iterator [ "by" type_identifier ]
 
 iterator
     ::= range_expr | expression
@@ -633,7 +644,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "if" | "else" | "for" | "in" | "by"
+      | "if" | "else" | "for" | "in" | "by" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw"
       | "return" | "use" | "with" | "meta" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"
