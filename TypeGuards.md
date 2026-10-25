@@ -7,6 +7,7 @@
 * MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `where` expression.
 * MUST evaluate `@` within the `where` expression as the immutable instance receiver.
 * MAY declare explicit generic parameters and assign a type parameter as the `TargetType`.
+* MAY omit the base type and use the contextual guard pattern (`is ^Guard` or `is ^Guard<TypeArgs>`) when the type guard is applicable to the left-hand expression's static type.
 
 ```C#
 ^Positive = @ where @ > 0;
