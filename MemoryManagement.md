@@ -54,6 +54,8 @@ Console.WriteLine(list2.Count); // Output: 4
 * MUST atomically increment the target's weak reference count (`weakCount`) without incrementing its strong reference count (`strongCount`) when assigning an Owning Type to a `T weak` target.
 * MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
 * MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
+* MAY initialize or reassign a `T weak` variable or field with the `none` literal to represent an unattached weak reference (`strongCount == 0`) without allocating an ARC Control Block.
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`if val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 
 ### Accessing and Unwrapping Weak References
 

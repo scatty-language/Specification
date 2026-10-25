@@ -115,3 +115,17 @@ badString := """
         Text
     """; // ERROR: The closing quotes cannot be less indented than the text content
 ```
+
+### Absence Literal
+
+* MAY use the `none` literal in contexts where the expected type is statically known to be an Option type (`T?`), a weak reference type (`T weak`), or a raw pointer type.
+* MUST evaluate `none` as a shorthand for `Option::None` when the target type is `T?` (`Option<T>`).
+* MUST evaluate `none` as an unattached empty weak reference (`strongCount == 0`) with zero heap allocation when the target type is `T weak`.
+* MUST evaluate `none` as a null address (`0x0`) when the target type is a raw pointer.
+* MUST NOT assign `none` to non-optional, non-weak, non-pointer types.
+* MUST reject `none` at compile time when the target type is inferred (`:=`) without an explicit type context.
+
+```C#
+maybeId: Int? = none;
+weakNode: Node weak = none;
+```

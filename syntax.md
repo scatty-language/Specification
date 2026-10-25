@@ -535,6 +535,7 @@ literal
       | char_literal
       | string_literal
       | raw_string_literal
+      | "none"
 
 integer_literal
     ::= ( decimal_literal | hex_literal | binary_literal ) [ int_suffix ]
