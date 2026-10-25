@@ -119,6 +119,7 @@ ProcessEntity(soa[0]);
 * MUST treat SoA collections as ARC-managed Owning Types with Copy-on-Write semantics; reassignment increments the strong reference count, and mutation detaches a deep copy of the parallel arrays if `strongCount > 1`.
 * MUST implicitly perform a Gather operation during standard iterator loops.
 * MUST copy the gathered instance by value (bitwise copy for Trivial Types, ARC retain for Owning Types).
+* MUST implicitly gather each element into a temporary stack instance and invoke `Dispose(ref temp)` prior to releasing nested owning fields whenever a SoA collection (`[% Type]` or `[+% Type]`) containing a `~Disposable` element type is destroyed, cleared, or has an element removed or overwritten.
 
 ```C#
 // Iteration dynamically gathers elements by value
@@ -208,7 +209,7 @@ redOnly: [Color -> Int] = { .Red = 100, _ = 0 };
 strictPrices: [Color ->! Int] = { .Red = 100, .Blue = 300 };
 
 r := strictPrices[.Red];   // Evaluates to 100 (bit 0 is 1)
-// g := strictPrices[.Green]; // Aborts/Panics immediately (bit 1 is 0)
+g := strictPrices[.Green]; // Aborts/Panics immediately (bit 1 is 0)
 
 // Dynamically populating an omitted variant sets bit 1 in the bitmask to 1
 strictPrices[.Green] = 200;

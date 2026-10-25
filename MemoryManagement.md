@@ -143,6 +143,7 @@ ProcessMixed(ref vector, ref vector.X);
 * MUST execute the custom `Dispose(ref @)` method precisely when the instance's `strongCount` reaches `0`, prior to releasing any nested owning fields.
 * MUST NOT directly invoke the `Dispose` method from safe user code.
 * MUST also implement the `~Copyable` interface (`Copy(@) -> @`) on a custom `~Disposable` type if the type is mutated while shared (`strongCount > 1`). Otherwise, mutating a shared custom `~Disposable` type that does not implement `~Copyable` MUST be rejected or performed via unique ownership.
+* MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`%`) collection whose element type implements `~Disposable`.
 
 ```C#
 ~Disposable 
