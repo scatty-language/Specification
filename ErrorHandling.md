@@ -89,12 +89,12 @@ TryProcess() throws
 
 * MUST apply `try?` to expressions that invoke a `throws` method.
 * MUST NOT apply `try?` to non-throwing expressions.
-* MUST evaluate `try?` to `Result<T>` when applied to an expression returning a value of type `T`.
-* MUST yield `Result::Ok` containing the returned value upon successful completion of the expression.
-* MUST yield `Result::Error` containing the intercepted exception instance if the expression throws.
-* MUST evaluate `try?` to `Option<~Exception>` when applied to an expression returning void.
-* MUST yield `Option::None` upon successful completion of a void-returning expression.
-* MUST yield `Option::Some` containing the intercepted exception instance if the void-returning expression throws.
+* MUST evaluate `try?` to `T?` (`Option<T>`) when applied to an expression returning a value of type `T`.
+* MUST yield `Option::Some` containing the returned value upon successful completion of a value-returning expression.
+* MUST intercept any thrown exception, clear the TLS exception buffer, and yield `Option::None` if a value-returning expression throws.
+* MUST evaluate `try?` to `Bool` when applied to an expression returning void.
+* MUST yield `true` upon successful completion of a void-returning expression.
+* MUST intercept any thrown exception, clear the TLS exception buffer, and yield `false` if a void-returning expression throws.
 
 ```C#
 FetchUser(id: Int) throws -> User 
@@ -108,11 +108,11 @@ Ping() throws
     throw Exception.New("Timeout");
 }
 
-// result is Result<User>
-result := try? FetchUser(10);
+// 'user' is 'User?' (Option<User>)
+user := try? FetchUser(10);
 
-// maybeError is ~Exception?
-maybeError := try? Ping();
+// 'isAlive' is 'Bool' (true if succeeded, false if threw)
+isAlive := try? Ping();
 ```
 
 ## `try!` Operator and Block

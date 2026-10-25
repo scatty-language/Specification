@@ -6,9 +6,9 @@
 
 ### Conditional Binding
 
-* MUST evaluate the right-hand expression to an Option type (`T?`).
-* MUST bind the unwrapped payload to the new local identifier and execute the block if the Option evaluates to `Some`.
-* MUST skip execution of the block if the Option evaluates to `None`.
+* MUST evaluate the right-hand expression to an Option type (`T?`) or a weak reference type (`T weak`).
+* MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and execute the block if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
+* MUST skip execution of the block if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
 
 ```C#
 maybeUser: User? = GetUser();
@@ -188,28 +188,26 @@ area := match shape.Type
 ### Non-Exhaustive Pattern Matching
 
 * MUST NOT require exhaustive variant coverage or a wildcard `_` fallback when evaluating `match!` or `match?`.
-* MUST throw a runtime exception if a `match!` construct fails to match the evaluated expression against any provided arm.
-* MUST evaluate a `match?` construct containing exactly one match arm to an `Option` type.
-* MUST yield `Option::None` if a single-arm `match?` fails to match.
-* MUST evaluate a `match?` construct containing two or more match arms to a `Result` type.
-* MUST yield `Result::Error` if a multi-arm `match?` fails to match.
-* MUST implicitly wrap the evaluated value of a successful `match?` arm into the corresponding `Option` or `Result` success variant.
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics if a `match!` construct fails to match the evaluated expression against any provided arm.
+* MUST evaluate a `match?` construct used as an expression to `T?` (`Option<T>`), regardless of the number of match arms.
+* MUST implicitly wrap the evaluated value of a matching `match?` arm into `Option::Some`.
+* MUST yield `Option::None` if a `match?` expression fails to match any provided arm (or perform a no-op if `match?` is used as a void statement).
 
 ```C#
-// match! throws an exception if the 'shape' is not a 'Circle'
+// 'match!' triggers Abort/Panic if 'shape.Type' is not a 'Circle'
 match! shape.Type  
 {
     .Circle(r) => Console.WriteLine("Wow!");
 }
 
-// 'area' becomes 'Result::Error' if the 'shape' is neither 'Circle' or 'Rectangle'
+// 'area' is 'Float?' ('Option::Some' if 'Circle' or 'Rectangle', 'Option::None' otherwise)
 area := match? shape.Type 
 {
     .Circle(r) => Math.Pi * r * r;
     .Rectangle(w, h) => (w * h) as Float;
 };
 
-// 'circleArea' becomes 'Option::None' if the 'shape' is not a 'Circle'
+// 'circleArea' is 'Float?' ('Option::Some' if 'Circle', 'Option::None' otherwise)
 circleArea := match? shape.Type 
 {
     .Circle(r) => Math.Pi * r * r;
