@@ -57,6 +57,8 @@ if not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST NOT apply the `$` modifier to a `T weak` field.
 * MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `$` modifier.
 * MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their ARC Control Block identity without dereferencing the target payload (`true` if both reference the exact same live allocation with `strongCount > 0` or if both have `strongCount == 0`, and `false` otherwise).
+* MUST NOT apply the `$` modifier to variant payload fields of an untagged union (`::: none`).
+* MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`::: none`) unless at least one shared field declared outside the variants is explicitly marked with the `$` modifier.
 
 ```C#
 User 
