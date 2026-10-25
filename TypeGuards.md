@@ -86,7 +86,7 @@ if rawAcc is Account^Solvent
 * MUST evaluate the type guard's `where` invariant at compile time whenever the operand of `as`, `as?`, `as!`, or `=^` is a compile-time constant expression:
   * If the compile-time evaluation yields `true`, the compiler MUST elide all runtime validation branches.
   * If the compile-time evaluation yields `false`, the compiler MUST reject the expression with a compile-time error (or evaluate `as?` directly to `Option::None`).
-* MUST evaluate the invariant and implicitly narrow the type within conditional blocks when using the `is` operator.
+* MUST evaluate the invariant and implicitly narrow the type within conditional branches, `and` condition chains, and subsequent statements following an unconditional early-exit branch when using the `is` and `is not` operators.
 * MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and throw a `CastException` upon failure when using the `as` operator.
 * MUST validate the invariant at runtime and yield `Option<BaseType^Guard>` when using the `as?` operator.
 * MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and immediately trigger runtime Abort or Fatal Panic mechanics upon failure when using the `as!` operator.

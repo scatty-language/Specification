@@ -263,15 +263,18 @@ if_tail
       | "=>" statement
 
 condition
+    ::= condition_clause { "and" condition_clause }
+
+condition_clause
     ::= conditional_binding
       | conditional_assignment
       | expression
 
 conditional_binding
-    ::= local_id ":=" expression
+    ::= local_id ":=" prefix_control_expr
 
 conditional_assignment
-    ::= assignable_path ( "=" | "=^" ) expression
+    ::= assignable_path ( "=" | "=^" ) prefix_control_expr
 
 assignable_path
     ::= [ "@" "." ] identifier { "." type_identifier }

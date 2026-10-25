@@ -24,28 +24,37 @@ if currentConfig == (Config { Port: 8080 })
 
 ### Conditional Binding
 
-* MUST evaluate the right-hand expression to an Option type (`T?`) or a weak reference type (`T weak`).
-* MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and execute the block if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
-* MUST skip execution of the block if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST evaluate the right-hand expression of a conditional binding (`:=`) to an Option type (`T?`) or a weak reference type (`T weak`).
+* MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and continue evaluating the condition or execute the controlled block if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
+* MUST short-circuit and skip execution of the controlled block if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MAY chain multiple conditional bindings, conditional assignments, and boolean expressions within a single `Condition` using the `and` operator.
+* MUST evaluate chained `and` clauses sequentially from left to right.
+* MUST bring any local identifier introduced by a conditional binding (`:=`) into scope for all subsequent clauses to its right within the same `and` chain and within the positive branch of the `if` or `for` statement.
+* MUST NOT access a local identifier introduced by a conditional binding within an `else` branch or outside the lexical scope of the positive branch.
+* MUST NOT declare duplicate local identifiers across multiple conditional bindings within the same `Condition`.
+* MUST NOT apply the `not` operator to a conditional binding or combine a conditional binding with the `or` operator.
 
 ```C#
 maybeUser: User? = GetUser();
 
-if user := maybeUser 
+if user := maybeUser and session := GetSession(user.Id) and user.IsActive 
 {
-    Console.WriteLine(user.Name); // 'user' is a new local variable
+    Console.WriteLine(user.Name);
+    Console.WriteLine(session.Token);
 }
 ```
 
 ### Conditional Assignment
 
-* MUST evaluate the right-hand expression to an Option type (`T?`) when using the standard assignment operator (`=`).
+* MUST evaluate the right-hand expression to an Option type (`T?`) when using the standard assignment operator (`=`) within a condition clause.
 * MUST resolve the left-hand `AssignablePath` to a mutable target of the unwrapped payload type `T`.
-* MUST NOT use the `=` assignment operator with non-Option types within a condition.
-* MAY use the guarded assignment operator (`=^`) within a condition when the left-hand `AssignablePath` resolves to a mutable target of a guarded type (`T^Guard`) and the right-hand expression evaluates to the underlying base type `T`.
-* MUST evaluate `AssignablePath =^ Expression` within a condition as `AssignablePath = (Expression) as? T^Guard`.
-* MUST mutate the left-hand target with the unwrapped or validated payload and execute the block if the evaluation yields `Some`.
-* MUST skip the assignment and transfer execution to the `else` branch if the evaluation yields `None`.
+* MUST NOT use the `=` assignment operator with non-Option types within a condition clause.
+* MAY use the guarded assignment operator (`=^`) within a condition clause when the left-hand `AssignablePath` resolves to a mutable target of a guarded type (`T^Guard`) and the right-hand expression evaluates to the underlying base type `T`.
+* MUST evaluate `AssignablePath =^ Expression` within a condition clause as `AssignablePath = (Expression) as? T^Guard`.
+* MAY chain conditional assignments with boolean expressions and conditional bindings using the `and` operator.
+* MUST mutate the left-hand target with the unwrapped or validated payload and continue evaluating subsequent `and` clauses (or execute the controlled block) if the evaluation yields `Option::Some`.
+* MUST skip the assignment, short-circuit any remaining `and` clauses, and transfer execution to the `else` branch if the evaluation yields `Option::None`.
+* MUST NOT apply the `not` operator to a conditional assignment or combine a conditional assignment with the `or` operator.
 
 ```C#
 SomeData 
@@ -55,20 +64,48 @@ SomeData
 
     UpdateFrom(ref @, rawAge: Int) 
     {
-        // Unwraps the Option from 'as?' directly into the field '@.Value'
-        // If rawAge is <= 0, the Option is None, and @.Value is NOT modified
-        if @.Value = rawAge as? Int^Positive 
+        if @.Value = rawAge as? Int^Positive and @.Value < 120 
         {
             Console.WriteLine("Value successfully updated!");
         }
 
-        // Guarded conditional assignment: deduces 'Int^Positive' from '@.SafeAge'
-        // Evaluates as: if @.SafeAge = (rawAge - 1) as? Int^Positive
         if @.SafeAge =^ rawAge - 1 
         {
             Console.WriteLine("SafeAge validated and updated!");
         }
     }
+}
+```
+
+### Flow-Sensitive Type Narrowing
+
+* MUST implicitly narrow the static type of a local variable, parameter, receiver (`@`), or immutable field path when evaluated with the `is` or `is not` operator against a variant subtype (`.Variant` or `Data::Variant`), a type guard (`^Guard` or `Type^Guard`), or a weak interface member (`.Member`).
+* MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses to the right within the same `and` condition chain and throughout the positive branch of the `if` or `for` statement.
+* MUST apply negative type narrowing (`expr is not Target`) to the `else` branch of an `if` statement, refining `expr` to `Target` within the `else` scope.
+* MUST apply early-exit type narrowing to all subsequent statements in the enclosing lexical scope whenever an `if` branch testing a negated condition (`expr is not Target`) unconditionally terminates execution of the current scope via `return`, `throw`, `break`, or `continue`.
+* MUST narrow an expression of a tagged `Data` type to the single remaining variant subtype (`Data::Variant`) in the `else` branch or following an unconditional early-exit branch if all other declared variants of that `Data` type are excluded by `is` or `is not` checks.
+* MUST immediately invalidate flow-sensitive type narrowing on a mutable variable or field at the point where it is reassigned, switched via `=::`, or passed as a `ref` argument to a method that may mutate its active variant or violate its type guard invariant.
+
+```C#
+ProcessOrder(order: Order, rawAge: Int) throws 
+{
+    // Narrowing across an 'and' chain
+    if order is .Draft and order.Items.Count > 0 
+    {
+        Console.WriteLine(order.Items[0]);
+    }
+
+    // Early-exit narrowing via 'is not'
+    if rawAge is not Int^Positive => return;
+
+    // 'rawAge' is narrowed to 'Int^Positive' for the remainder of the method
+    ProcessAge(rawAge);
+
+    // Complementary variant narrowing after early exit on a two-variant Data type ('Order::Draft' | 'Order::Submitted')
+    if order is .Draft => return;
+
+    // 'order' is narrowed to 'Order::Submitted'
+    Console.WriteLine(order.TransactionId);
 }
 ```
 
