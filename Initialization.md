@@ -55,14 +55,14 @@ unsafe
 HttpResponse
 {
     ::Success;
-    ::Error(code: Int, message: String = "Fatal");
+    ::Error(Code: Int, Message: String = "Fatal");
 
     Timestamp: Int;
 }
 
 response1 := HttpResponse::Success { Timestamp: 12345 };
 
-response2 := HttpResponse::Error(message: "Not Found", 404) { Timestamp: 12345 };
+response2 := HttpResponse::Error(Message: "Not Found", 404) { Timestamp: 12345 };
 
 Option<T> 
 {

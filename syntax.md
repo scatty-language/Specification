@@ -17,7 +17,7 @@ top_level_declaration
       | var_decl
 
 data_decl
-    ::= identifier [ "<" type_params ">" ] [ ":" interfaces ] [ ":::" tag_type ]
+    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ ":::" tag_type ]
         ( "{" { member } "}" | "(" [ short_field_list ] ")" ";" )
 
 interfaces
@@ -44,13 +44,13 @@ payload_field_list
     ::= payload_field { "," payload_field }
 
 payload_field
-    ::= [ field_modifier ] [ identifier ":" ] type [ "=" expression ] [ ":::" decimal_literal ]
+    ::= [ field_modifier ] [ type_identifier ":" ] type [ "=" expression ] [ ":::" decimal_literal ]
 
 short_field_list
     ::= short_field { "," short_field }
 
 short_field
-    ::= [ field_modifier ] ( identifier | "_" ) ":" type [ field_storage_modifier ] [ "=" expression ] [ ":::" decimal_literal ]
+    ::= [ field_modifier ] ( type_identifier | "_" ) ":" type [ field_storage_modifier ] [ "=" expression ] [ ":::" decimal_literal ]
 
 field_storage_modifier
     ::= "embed" | "static" | "astatic" | "gstatic"
@@ -62,7 +62,7 @@ field_modifier
     ::= "$" | "#" | "#$"
 
 interface_decl
-    ::= "~" identifier [ "<" type_params ">" ] "{" { interface_member } "}"
+    ::= "~" type_identifier [ "<" type_params ">" ] "{" { interface_member } "}"
 
 interface_member
     ::= interface_prop_decl
@@ -70,13 +70,13 @@ interface_member
       | guard_decl
 
 interface_prop_decl
-    ::= identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
+    ::= type_identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
 
 extension_decl
     ::= "+" type "{" { member } "}"
 
 guard_decl
-    ::= "^" identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "where" expression ";"
+    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "where" expression ";"
 
 target_type
     ::= "@" | type
@@ -85,10 +85,15 @@ parent_list
     ::= guard_parent { "," guard_parent }
 
 guard_parent
-    ::= "^" identifier [ "<" type_args ">" ]
+    ::= "^" type_identifier [ "<" type_args ">" ]
 
 type_alias_decl
-    ::= identifier [ "<" type_params ">" ] "=" type ";"
+    ::= type_identifier [ "<" type_params ">" ] "=" type ";"
+
+type_identifier
+    ::= public_id
+      | internal_id
+      | private_id
 
 const_decl
     ::= identifier [ ":" type ] "::" expression ";"
@@ -100,14 +105,14 @@ static_modifier
     ::= "static" | "astatic" | "gstatic"
 
 method_decl
-    ::= identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
+    ::= type_identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
 
 receiver
     ::= [ "ref" ] "@" [ receiver_constraint ] [ "," ]
 
 receiver_constraint
     ::= "::" public_id
-      | "^" identifier [ "<" type_args ">" ]
+      | "^" type_identifier [ "<" type_args ">" ]
 
 parameter_list
     ::= parameter { "," parameter }
@@ -126,7 +131,7 @@ method_modifier
     ::= "throws" | "unsafe"
 
 property_decl
-    ::= identifier ":" type ( "=>" expression ";" | block )
+    ::= type_identifier ":" type ( "=>" expression ";" | block )
 
 type
     ::= primitive_type
@@ -145,7 +150,7 @@ weak_type
     ::= type "weak"
 
 guarded_type
-    ::= type "^" identifier [ "<" type_args ">" ]
+    ::= type "^" type_identifier [ "<" type_args ">" ]
 
 primitive_type
     ::= "Int" | "Uint" | "Long" | "Ulong"
@@ -183,7 +188,7 @@ type_params
     ::= type_parameter { "," type_parameter }
 
 type_parameter
-    ::= identifier [ ":" constraint_list ]
+    ::= type_identifier [ ":" constraint_list ]
 
 constraint_list
     ::= type_identifier { "," type_identifier }
@@ -191,11 +196,8 @@ constraint_list
 type_args
     ::= type { "," type }
 
-type_identifier
-    ::= identifier
-
 type_path
-    ::= [ "~" ] identifier [ "<" type_args ">" ] { "::" [ "~" ] identifier [ "<" type_args ">" ] }
+    ::= [ "~" ] type_identifier [ "<" type_args ">" ] { "::" [ "~" ] type_identifier [ "<" type_args ">" ] }
 
 statement
     ::= var_decl
@@ -224,7 +226,7 @@ cascade_stmt
     ::= [ assignable_path assignment_operator ] cascade_chain [ "strict" ] ";"
 
 cascade_chain
-    ::= postfix_expr ".." identifier method_invocation { ".." identifier method_invocation }
+    ::= postfix_expr ".." type_identifier method_invocation { ".." type_identifier method_invocation }
 
 throw_stmt
     ::= "throw" [ expression ] ";"
@@ -261,13 +263,13 @@ conditional_assignment
     ::= assignable_path ( "=" | "=^" ) expression
 
 assignable_path
-    ::= [ "@" "." ] identifier { "." identifier }
+    ::= [ "@" "." ] identifier { "." type_identifier }
 
 for_loop
     ::= "for" ( condition | iteration ) block
 
 iteration
-    ::= identifier "in" iterator [ "by" identifier ]
+    ::= local_id "in" iterator [ "by" type_identifier ]
 
 iterator
     ::= range_expr | expression
@@ -279,7 +281,7 @@ try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
 
 catch_arm
-    ::= "catch" [ identifier ":" type ] ( block | "=>" statement )
+    ::= "catch" [ local_id ":" type ] ( block | "=>" statement )
 
 try_force_block
     ::= "try!" block
@@ -304,10 +306,10 @@ pattern
       | "_"
 
 variant_pattern
-    ::= "." identifier [ "(" pattern_binding_list ")" ]
+    ::= "." type_identifier [ "(" pattern_binding_list ")" ]
 
 guard_pattern
-    ::= "^" identifier [ "<" type_args ">" ]
+    ::= "^" type_identifier [ "<" type_args ">" ]
 
 pattern_binding_list
     ::= local_id { "," local_id }
@@ -366,9 +368,9 @@ type_op_expr
     ::= unary_expr { type_operator }
 
 type_operator
-    ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." identifier | "^" )
+    ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
       | "is" ( type | variant_pattern )
-      | "^" identifier [ "<" type_args ">" ]
+      | "^" type_identifier [ "<" type_args ">" ]
 
 unary_expr
     ::= { unary_operator } postfix_expr
@@ -390,7 +392,7 @@ method_invocation
     ::= [ "?" | "!" ] [ "<" type_args ">" ] "(" [ argument_list ] ")"
 
 member_access
-    ::= ( "." | "?." ) identifier [ "?" | "!" ]
+    ::= ( "." | "?." ) type_identifier [ "?" | "!" ]
 
 index_access
     ::= [ "?" ] "[" expr_list "]"
@@ -419,10 +421,10 @@ primary_expr
       | "(" expression ")"
 
 contextual_expr
-    ::= "." identifier [ "<" type_args ">" ] [ "(" [ argument_list ] ")" ] [ "{" [ initializer_list ] "}" ]
+    ::= "." type_identifier [ "<" type_args ">" ] [ "(" [ argument_list ] ")" ] [ "{" [ initializer_list ] "}" ]
 
 reflection_expr
-    ::= "meta" "<" type ">" "." identifier
+    ::= "meta" "<" type ">" "." type_identifier
 
 lambda_expr
     ::= lambda_params "=>" ( expression | block )
@@ -477,7 +479,7 @@ field_init
     ::= named_field_init | positional_field_init
 
 named_field_init
-    ::= identifier ":" expression
+    ::= type_identifier ":" expression
 
 positional_field_init
     ::= expression
@@ -492,13 +494,13 @@ initializer_list
     ::= field_assignment { "," field_assignment } [ "," ]
 
 field_assignment
-    ::= identifier ":" expression
+    ::= type_identifier ":" expression
 
 argument_list
     ::= argument { "," argument } [ "," ]
 
 argument
-    ::= [ local_id ":" ] [ "ref" ] expression
+    ::= [ ( local_id | type_identifier ) ":" ] [ "ref" ] expression
 
 identifier
     ::= public_id
