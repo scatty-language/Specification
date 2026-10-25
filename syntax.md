@@ -302,7 +302,7 @@ match_expr
     ::= "match" [ "!" | "?" ] expression "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { ( "or" | "," ) pattern } [ "where" expression ] [ "=>" ] ( block | expression ) [ ";" ]
+    ::= pattern { ( "or" | "," ) pattern } [ "where" expression ] ( block | "=>" expression [ ";" ] )
 
 pattern
     ::= variant_pattern
@@ -331,6 +331,7 @@ coalescing_expr
 assignment_operator
     ::= "=" | ":=" | "+=" | "-=" | "*=" | "/=" | "%="
       | "=^" | "+=^" | "-=^" | "*=^" | "/=^" | "%=^"
+      | "=::"
 
 logical_or_expr
     ::= logical_and_expr { "or" logical_and_expr }
@@ -405,7 +406,10 @@ force_unwrap
     ::= "!"
 
 copy_update_suffix
-    ::= "with" copy_update_body
+    ::= "with" ( variant_update [ copy_update_body ] | copy_update_body )
+
+variant_update
+    ::= "::" public_id [ variant_payload_init_body ]
 
 primary_expr
     ::= literal

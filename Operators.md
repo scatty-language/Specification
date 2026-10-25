@@ -19,7 +19,7 @@
 | **9** | Logical AND | `and` | Left-to-right |
 | **10** | Logical OR | `or` | Left-to-right |
 | **11** | Coalescing | `??` | Right-to-left |
-| **12** | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^` | Right-to-left |
+| **12** | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
 
 * MUST evaluate binary operators with equal precedence from left to right, except coalescing (`??`) and assignment operators which MUST evaluate from right to left.
 

@@ -37,3 +37,38 @@ testConfig := defaultConfig with
 Console.WriteLine(defaultConfig.Port); // Output: 8080
 Console.WriteLine(testConfig.Port);    // Output: 9000
 ```
+
+## Variant Copy-Update
+
+* MAY switch the active variant of a tagged `Data` instance when constructing a modified copy via `with` (`instance with ::Variant` or `instance with ::Variant(args)`).
+* MAY combine a variant switch and a `CopyUpdateBody` in a single `with` expression (`instance with ::Variant(args) { Field: value }`).
+* MUST copy and preserve all shared fields from the source instance that are not explicitly overwritten in the `CopyUpdateBody`.
+* MUST release or dispose any Owning Type payload fields belonging to the outgoing active variant if the `with` expression is optimized to mutate an rvalue or uniquely referenced instance (`strongCount == 1`) in-place.
+* MUST statically type the result of `instance with ::Variant(...)` as the narrowed variant subtype `Data::Variant` (which implicitly downgrades to the base `Data` type when bound via `:=`).
+* MUST NOT apply a variant update (`with ::Variant`) to an untagged union (`::: none`).
+
+```C#
+Bill 
+{
+    Id: Int;
+    Amount: Float;
+
+    ::Init;
+    ::Closed(TransactionId: Int);
+
+    Close(@::Init, txId: Int) -> @::Closed 
+    {
+        // Preserves '@.Id' and '@.Amount' while switching variant to '::Closed(txId)'
+        return @ with ::Closed(txId);
+    }
+
+    CloseWithDiscount(@::Init, txId: Int, newAmount: Float) -> @::Closed 
+    {
+        // Switches variant to '::Closed(txId)' and updates shared field 'Amount'
+        return @ with ::Closed(txId) { Amount: newAmount };
+    }
+}
+
+initBill: Bill::Init = Bill::Init { Id: 1, Amount: 100.0f };
+closedBill: Bill::Closed = initBill.Close(9001);
+```

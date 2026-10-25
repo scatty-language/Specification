@@ -189,21 +189,21 @@ ConnectionState
 
 UpdateState() throws 
 {
-     file := FileHandle { _rawDescriptor: OS.Open("net.log"), Path: "net.log" };
-     state := ConnectionState::Active(file, "Connected") { Endpoint: "localhost" };
+    file := FileHandle { _rawDescriptor: OS.Open("net.log"), Path: "net.log" };
+    state := ConnectionState::Active(file, "Connected") { Endpoint: "localhost" };
+    
+    // Safe self-referential variant switch via '=::':
+    // 1. Evaluates 'state.Log + " -> Failed"' while '::Active' payload is still alive
+    // 2. Disposes '::Active' payload ('file.Dispose()' is called and 'state.Log' is released)
+    // 3. Writes tag '::Error' and moves the new 'LastLog' string into the payload
+    if state is .Active 
+    {
+        state =:: Error(state.Log + " -> Failed");
+    }
 
-     // Safe self-referential variant switch:
-     // 1. Evaluates 'state.Log + " -> Failed"' while '::Active' payload is still alive
-     // 2. Disposes '::Active' payload ('file.Dispose()' is called and 'state.Log' is released)
-     // 3. Writes tag '::Error' and moves the new 'LastLog' string into the payload
-     if state is .Active 
-     {
-         state = .Error(state.Log + " -> Failed");
-     }
-
-     // 'state' exits scope:
-     // 1. Releases active variant '::Error' payload ('LastLog')
-     // 2. Releases shared field ('Endpoint')
+    // 'state' exits scope:
+    // 1. Releases active variant '::Error' payload ('LastLog')
+    // 2. Releases shared field ('Endpoint')
 }
 ```
 

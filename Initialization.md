@@ -77,11 +77,12 @@ option2 := Option::Some(42);
 
 ### Active Variant Switching
 
-* MAY assign a variant constructor expression without a `StructInitBody` (`Type::Variant(...)` or `.Variant(...)`) to an already initialized mutable variable or field of the enclosing base `Data` type.
-* MUST treat a variant assignment lacking a `StructInitBody` on an existing instance as an in-place variant switch.
-* MUST update only the active discriminant tag and the variant payload during an in-place variant switch.
-* MUST preserve the current values of all shared fields on the target instance during an in-place variant switch without re-evaluating or resetting shared field default values.
-* MUST replace the entire `Data` instance—including all shared fields—if a `StructInitBody` (`{ ... }`) is explicitly provided on the assigned variant expression.
+* MAY switch the active variant of an already initialized mutable variable or field of a base `Data` type in-place using the `=::` operator (`target =:: Variant` or `target =:: Variant(args)`).
+* MUST NOT include a leading dot (`.`), a type qualifier (`Type::`), or a `StructInitBody` (`{ ... }`) on the right-hand side of the `=::` operator.
+* MUST update only the active discriminant tag and the variant payload during an in-place variant switch (`=::`).
+* MUST preserve the current values of all shared fields on the target instance during an in-place variant switch (`=::`) without re-evaluating or resetting shared field default values.
+* MUST NOT apply the `=::` operator to a variable, field, or parameter explicitly typed as a narrowed variant subtype (`Data::Variant`).
+* MUST replace the entire `Data` instance—including all shared fields—when assigning a variant constructor using the standard assignment operator (`=`).
 
 ```C#
 Session 
@@ -96,11 +97,11 @@ Session
 
 session := Session::Disconnected { Host: "127.0.0.1", Retries: 3 };
 
-// In-place variant switch (omits '{}'):
+// In-place variant switch via '=::':
 // Updates active variant to '::Connected(42)' while preserving 'Host' ("127.0.0.1") and 'Retries' (3)
-session = .Connected(42);
+session =:: Connected(42);
 
-// Full instance replacement (includes '{}'):
+// Full instance replacement via '=':
 // Replaces the entire instance; omitted 'Retries' resets to its default value (0)
 session = Session::Failed("Timeout") { Host: "10.0.0.1" };
 ```
