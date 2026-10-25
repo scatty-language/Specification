@@ -3,6 +3,24 @@
 ## Conditionals
 
 * MUST evaluate a `Condition` expression to `Bool`.
+* MUST interpret an unparenthesized `{` token in the header of an `if`, `for`, or `match` construct as the opening delimiter of the construct's body block.
+* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside an `if` condition, `for` header, or `match` subject.
+
+```C#
+IsDebug :: true;
+
+// Valid: '{' opens the 'if' block
+if IsDebug 
+{
+    Console.WriteLine("Debug mode");
+}
+
+// Valid: struct initializer with '{ ... }' inside 'if' header is parenthesized
+if currentConfig == (Config { Port: 8080 }) 
+{
+    Console.WriteLine("Default port");
+}
+```
 
 ### Conditional Binding
 
