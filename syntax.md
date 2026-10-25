@@ -465,7 +465,7 @@ collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]
 
 collection_elem
-    ::= [ collection_elem_key "=" ] expression
+    ::= [ collection_elem_key "=" ] coalescing_expr
 
 collection_elem_key
     ::= logical_or_expr | "_"
