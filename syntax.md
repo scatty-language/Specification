@@ -428,7 +428,6 @@ variant_update
 primary_expr
     ::= literal
       | contextual_expr
-      | reflection_expr
       | lambda_expr
       | match_expr
       | concurrent_expr
@@ -441,9 +440,6 @@ primary_expr
 
 contextual_expr
     ::= "." type_identifier [ "<" type_args ">" ] [ "(" [ argument_list ] ")" ] [ "{" [ initializer_list ] "}" ]
-
-reflection_expr
-    ::= "meta" "<" type ">" "." type_identifier
 
 lambda_expr
     ::= lambda_params "=>" ( expression | block )
@@ -654,7 +650,7 @@ keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
       | "if" | "else" | "for" | "in" | "by" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw"
-      | "return" | "use" | "with" | "meta" | "ref" | "weak"
+      | "return" | "use" | "with" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"
       | "where" | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
