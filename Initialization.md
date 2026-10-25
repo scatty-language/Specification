@@ -81,7 +81,7 @@ option2 := Option::Some(42);
 * MUST NOT include a leading dot (`.`), a type qualifier (`Type::`), or a `StructInitBody` (`{ ... }`) on the right-hand side of the `=::` operator.
 * MUST update only the active discriminant tag and the variant payload during an in-place variant switch (`=::`).
 * MUST preserve the current values of all shared fields on the target instance during an in-place variant switch (`=::`) without re-evaluating or resetting shared field default values.
-* MUST NOT apply the `=::` operator to a variable, field, or parameter explicitly typed as a narrowed variant subtype (`Data::Variant`).
+* MUST NOT apply the `=::` operator to a variable, field, or parameter that is statically typed or flow-narrowed to a specific variant subtype (`Data::Variant`).
 * MUST replace the entire `Data` instance—including all shared fields—when assigning a variant constructor using the standard assignment operator (`=`).
 
 ```C#

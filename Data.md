@@ -121,6 +121,12 @@ Option<T>
 * MAY constrain the receiver of an instance method to a specific variant subtype (`@::Variant` or `ref @::Variant`).
 * MUST expose the payload fields of `::Variant` directly on `@` within the body of a method declaring an `@::Variant` or `ref @::Variant` receiver.
 * MUST reject invoking a method declared with `@::Variant` or `ref @::Variant` unless the receiver expression is statically typed or narrowed to `Data::Variant`.
+* MUST NOT apply the variant switch operator (`=::`) or assign a different variant to a variable, field, or parameter while it is statically typed or narrowed to a specific variant subtype (`Data::Variant`).
+* MAY pass an expression statically typed or narrowed to `Data::Variant` as a `ref` argument to a `ref Data` parameter (or invoke an enclosing `ref @` method on it) if and only if the target method is statically known and does not:
+  * Apply the `=::` operator to the `ref` binding,
+  * Reassign the entire `ref` binding via `=`, or
+  * Forward the `ref` binding to another method or `fn` pointer that may mutate the active variant.
+* MUST reject at compile time passing a `Data::Variant` expression by `ref` to any `ref Data` method that mutates the active variant or to an indirect function pointer (`fn(ref Data)`).
 
 ```C#
 Color 
@@ -184,13 +190,49 @@ submitted: Order::Submitted = draft.Submit(1001);
 
 // Inferred as base type 'Order'
 order := Order::Draft([+ String].New());
-// order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
+order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
 
 // Valid after flow-sensitive narrowing via 'is'
 if order is .Draft 
 {
     order.AddItem("Pen");
 }
+
+Session 
+{
+    ::Disconnected;
+    ::Connected(SocketId: Int);
+
+    Retries: Int = 0;
+
+    // Safe for 'Session::Connected': mutates only shared field 'Retries'
+    IncrementRetries(ref @) 
+    {
+        @.Retries += 1;
+    }
+
+    // Mutates active variant via '=::'
+    Reset(ref @) 
+    {
+        @ =:: Disconnected;
+    }
+}
+
+active: Session::Connected = .Connected(42);
+
+// Valid: 'IncrementRetries' does not alter the active variant
+active.IncrementRetries();
+
+// ERROR: 'active' is typed as 'Session::Connected'; cannot switch variant directly
+active =:: Disconnected;
+
+// ERROR: 'Reset' mutates the active variant via '=::' and cannot be called on 'Session::Connected'
+active.Reset();
+
+// Valid after widening to the base 'Session' type
+anySession: Session = active;
+anySession =:: Disconnected;
+anySession.Reset();
 ```
 
 ### Explicit Tags
