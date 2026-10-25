@@ -343,7 +343,13 @@ logical_or_expr
     ::= logical_and_expr { "or" logical_and_expr }
 
 logical_and_expr
-    ::= relational_expr { "and" relational_expr }
+    ::= prefix_control_expr { "and" prefix_control_expr }
+
+prefix_control_expr
+    ::= { prefix_control_operator } relational_expr
+
+prefix_control_operator
+    ::= "not" | "try?" | "try!"
 
 relational_expr
     ::= bitwise_expr { relational_operator bitwise_expr }
@@ -380,13 +386,13 @@ type_op_expr
 
 type_operator
     ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
-      | "is" ( type | variant_pattern | guard_pattern )
+      | "is" [ "not" ] ( type | variant_pattern | guard_pattern )
 
 unary_expr
     ::= { unary_operator } postfix_expr
 
 unary_operator
-    ::= "not" | "bnot" | "try?" | "try!" | "-" | "+"
+    ::= "bnot" | "-" | "+"
 
 postfix_expr
     ::= primary_expr { postfix_operation }

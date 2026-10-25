@@ -8,18 +8,19 @@
 
 | Level | Category | Operators | Associativity |
 | :--- | :--- | :--- | :--- |
-| **1** | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]` | Left-to-right |
-| **2** | Unary & Control | `not`, `bnot`, `try?`, `try!` | Right-to-left |
-| **3** | Type & Casting | `as`, `as?`, `as!`, `unas`, `is`, `^` | Left-to-right |
-| **4** | Multiplicative | `*`, `/`, `%` | Left-to-right |
-| **5** | Additive | `+`, `-` | Left-to-right |
-| **6** | Shift | `bsl`, `bsr` | Left-to-right |
-| **7** | Bitwise | `band`, `bxor`, `bor` | Left-to-right |
-| **8** | Relational & Equality | `<`, `>`, `<=`, `>=`, `==`, `!=` | Left-to-right |
-| **9** | Logical AND | `and` | Left-to-right |
-| **10** | Logical OR | `or` | Left-to-right |
-| **11** | Coalescing | `??` | Right-to-left |
-| **12** | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
+| 1 | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]`, `with` | Left-to-right |
+| 2 | Unary Arithmetic & Bitwise | `+`, `-`, `bnot` | Right-to-left |
+| 3 | Type & Casting | `as`, `as?`, `as!`, `unas`, `is`, `is not`, `^` | Left-to-right |
+| 4 | Multiplicative | `*`, `/`, `%` | Left-to-right |
+| 5 | Additive | `+`, `-` | Left-to-right |
+| 6 | Shift | `bsl`, `bsr` | Left-to-right |
+| 7 | Bitwise | `band`, `bxor`, `bor` | Left-to-right |
+| 8 | Relational & Equality | `<`, `>`, `<=`, `>=`, `==`, `!=` | Left-to-right |
+| 9 | Logical Negation & Control | `not`, `try?`, `try!` | Right-to-left |
+| 10 | Logical AND | `and` | Left-to-right |
+| 11 | Logical OR | `or` | Left-to-right |
+| 12 | Coalescing | `??` | Right-to-left |
+| 13 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
 
 * MUST evaluate binary operators with equal precedence from left to right, except coalescing (`??`) and assignment operators which MUST evaluate from right to left.
 
