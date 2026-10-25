@@ -54,6 +54,9 @@ if not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST ignore all fields not marked with `$` during `==` and `!=` evaluation when at least one `$` modifier is present in the `Data` declaration.
 * MAY apply the `$` modifier to variant fields.
 * MUST compare both the active variant tag and the variant payload when evaluating equality on a variant field marked with `$`.
+* MUST NOT apply the `$` modifier to a `T weak` field.
+* MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `$` modifier.
+* MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their ARC Control Block identity without dereferencing the target payload (`true` if both reference the exact same live allocation with `strongCount > 0` or if both have `strongCount == 0`, and `false` otherwise).
 
 ```C#
 User 
@@ -78,6 +81,7 @@ isEqual := userA == userB;
 * MUST require both operands of derived arithmetic operations to be of the exact same `Data` type.
 * MUST evaluate derived arithmetic operations by applying the operator pairwise to corresponding `#` marked fields.
 * MUST populate unmarked fields in the resulting instance by copying the values directly from the left-hand operand.
+* MUST NOT apply the `#` modifier to a `T weak` field.
 
 ```C#
 Transform 

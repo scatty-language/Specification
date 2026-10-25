@@ -26,11 +26,11 @@ text: String = "Hello 🌍";
 
 byteChar: Char = text[6]; 
 
-runeText := text to RuneString;
+runeText := text as RuneString;
 
 scalar: Rune = runeText[6]; 
 
-backToString := runeText to String;
+backToString := runeText as String;
 ```
 
 ## Equality and Comparisons
@@ -87,12 +87,13 @@ score := 42;
 greeting := "Player \(name.Trim(" ")) scored \(score + 10) points!";
 ```
 
-### `~Formattable` and Formatting
+### Formatting
 
 * MUST require any expression interpolated via `\(...)` at runtime to satisfy the standard library `~Formattable` interface.
 * MUST provide intrinsic implementations of `~Formattable` for all primitive types, tuples, and collections.
 * MUST automatically synthesize a structural `~Formattable` implementation at compile time for any `Data` type that does not explicitly implement `~Formattable`, formatting its public fields or active variant name and payload.
 * MAY explicitly implement `~Formattable` on a `Data` type to override the default structural formatting.
+* MUST format `T weak` fields non-recursively without traversing the target instance's fields during compiler-synthesized `~Formattable` execution.
 
 ```C#
 ~Formattable 
