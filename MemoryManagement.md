@@ -113,6 +113,7 @@ ClearList(ref myList);
 * MUST NOT alias a memory location passed as a `ref` argument with any other parameter (either by `ref` or by value) during the exact same method invocation.
 * MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments, as they represent non-overlapping memory locations.
 * MUST NOT pass a parent instance (by value or `ref`) and any of its nested fields simultaneously within the same method invocation.
+* MUST NOT pass a `static` or `astatic` variable or field directly as a `ref` argument to a method parameter.
 
 ```C#
 ProcessValues(ref a: Int, ref b: Int) { }

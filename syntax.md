@@ -53,7 +53,7 @@ short_field
     ::= [ field_modifier ] ( identifier | "_" ) ":" type [ field_storage_modifier ] [ "=" expression ] [ ":::" decimal_literal ]
 
 field_storage_modifier
-    ::= "embed" | "static" | "globstatic"
+    ::= "embed" | "static" | "astatic" | "gstatic"
 
 field_decl
     ::= short_field ";"
@@ -104,7 +104,7 @@ var_decl
     ::= local_id [ ":" type [ static_modifier ] ] ( "=" | "=^" | ":=" ) ( expression | cascade_chain ) ";"
 
 static_modifier
-    ::= "static" | "globstatic"
+    ::= "static" | "astatic" | "gstatic"
 
 method_decl
     ::= identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
@@ -639,7 +639,7 @@ keyword
       | "if" | "else" | "for" | "in" | "by"
       | "match" | "fall" | "try" | "catch" | "throw"
       | "return" | "use" | "with" | "meta" | "ref" | "weak"
-      | "embed" | "static" | "globstatic"
+      | "embed" | "static" | "astatic" | "gstatic"
       | "where" | "zeroed" | "noinit" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"

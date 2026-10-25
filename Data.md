@@ -53,24 +53,33 @@ NetworkHeader
 ### Static Fields
 
 * MAY declare a thread-local static field using the `static` modifier after the field's type (`Identifier: Type static = Expression;`).
-* MAY declare a process-wide global static field using the `globstatic` modifier after the field's type (`Identifier: Type globstatic = Expression;`).
+* MAY declare an atomic process-wide global static field using the `astatic` modifier after the field's type (`Identifier: Type astatic = Expression;`).
+* MAY declare a raw unsynchronized process-wide global static field using the `gstatic` modifier after the field's type (`Identifier: Type gstatic = Expression;`).
 * MUST allocate `static` field memory in Thread-Local Storage (TLS) so each thread owns an isolated instance of the field.
-* MUST allocate `globstatic` field memory exactly once in the global static data segment shared across all threads in the process.
-* MAY access and mutate both `static` and `globstatic` fields in safe code without an `unsafe` block.
-* MUST NOT access `static` or `globstatic` fields via an instance reference (`@.Field` or `instance.Field`).
-* MUST access `static` and `globstatic` fields via the enclosing `Data` type namespace (`DataName.Field`).
-* MUST declare a default initialization expression for all `static` and `globstatic` fields.
+* MUST allocate `astatic` and `gstatic` field memory once in the global static data segment shared across all threads in the process.
+* MAY access and mutate `static` and `astatic` fields in safe code without an `unsafe` block.
+* MUST compile reads, writes, and compound assignments on scalar primitive `astatic` fields (up to 64 bits) as hardware atomic operations.
+* MUST synchronize reads and mutations on composite or Owning Type `astatic` fields via atomic reference retention and Copy-on-Write read-modify-write semantics.
+* MUST restrict all reads, mutations, and references to `gstatic` fields exclusively to `unsafe` blocks or `unsafe` methods.
+* MUST NOT pass a `static` or `astatic` field directly as a `ref` argument to a method parameter.
+* MUST unpack in-place field mutations and mutating method calls (`ref @`) on `static` and `astatic` fields into an isolated read-modify-write sequence.
+* MUST NOT access `static`, `astatic`, or `gstatic` fields via an instance reference (`@.Field` or `instance.Field`).
+* MUST access `static`, `astatic`, and `gstatic` fields via the enclosing `Data` type namespace (`DataName.Field`).
+* MUST declare a default initialization expression for all `static`, `astatic`, and `gstatic` fields.
 * MUST evaluate a `static` field's initialization expression once per thread prior to the field's first use on that thread.
-* MUST evaluate a `globstatic` field's initialization expression exactly once per process prior to the type's first use.
+* MUST evaluate an `astatic` or `gstatic` field's initialization expression exactly once per process prior to the type's first use.
 
 ```C#
 Application 
 {
-    // Thread-Local Storage (TLS): isolated per thread
+    // Thread-Local Storage (TLS): isolated per thread, safe
     ThreadRequests: Int static = 0;
 
-    // Process-wide global storage: shared across all threads
-    TotalInstances: Int globstatic = 0;
+    // Atomic process-wide storage: shared across threads, safe atomic access
+    TotalInstances: Int astatic = 0;
+
+    // Raw unsynchronized global storage: requires 'unsafe'
+    RawHandle: Usize gstatic = 0;
 
     Name: String;
     
@@ -78,6 +87,12 @@ Application
     {
         Application.ThreadRequests += 1;
         Application.TotalInstances += 1;
+
+        unsafe 
+        {
+            Application.RawHandle = 0xFF00;
+        }
+
         return Application { Name: name };
     }
 }

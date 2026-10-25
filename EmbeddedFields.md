@@ -5,7 +5,7 @@
 * MUST implicitly forward method and property accesses from the parent instance to the embedded field.
 * MUST automatically pass the embedded field by reference if the forwarded method requires a `ref` receiver.
 * MUST permit direct access to the embedded field via its declared identifier subject to standard visibility rules.
-* MUST NOT combine the `embed` modifier with `static` or `globstatic` on the same field.
+* MUST NOT combine the `embed` modifier with `static`, `astatic`, or `gstatic` on the same field.
 
 ## Embedded Variant Fields
 

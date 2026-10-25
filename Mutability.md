@@ -24,11 +24,15 @@ listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
 ## Static Variables
 
 * MAY declare a thread-local static variable within a method using the `static` modifier after the variable's explicit type (`local_id: Type static = Expression;`).
-* MAY declare a process-wide global static variable within a method using the `globstatic` modifier after the variable's explicit type (`local_id: Type globstatic = Expression;`).
-* MUST require an explicit type annotation when declaring a `static` or `globstatic` local variable.
+* MAY declare an atomic process-wide global static variable within a method using the `astatic` modifier after the variable's explicit type (`local_id: Type astatic = Expression;`).
+* MAY declare a raw unsynchronized process-wide global static variable within a method using the `gstatic` modifier after the variable's explicit type (`local_id: Type gstatic = Expression;`).
+* MUST require an explicit type annotation when declaring a `static`, `astatic`, or `gstatic` local variable.
 * MUST allocate `static` local variables within Thread-Local Storage (TLS) and evaluate their initialization expression once per thread upon initial execution of the declaration on that thread.
-* MUST allocate `globstatic` local variables within the global static data segment shared across all threads and evaluate their initialization expression exactly once upon the initial execution of the declaration in the process.
-* MAY read and mutate both `static` and `globstatic` local variables without an `unsafe` block.
+* MUST allocate `astatic` and `gstatic` local variables within the global static data segment shared across all threads and evaluate their initialization expression exactly once upon the initial execution of the declaration in the process.
+* MAY read and mutate `static` and `astatic` local variables in safe code without an `unsafe` block.
+* MUST compile reads, writes, and compound assignments on scalar primitive `astatic` local variables (up to 64 bits) as hardware atomic operations, and synchronize composite or Owning Type `astatic` local variables via atomic reference retention and Copy-on-Write read-modify-write semantics.
+* MUST restrict all reads, mutations, and references to `gstatic` local variables exclusively to `unsafe` blocks or `unsafe` methods.
+* MUST NOT pass a `static` or `astatic` local variable directly as a `ref` argument to a method parameter.
 
 ```C#
 GenerateThreadLocalId() -> Int 
@@ -41,14 +45,21 @@ GenerateThreadLocalId() -> Int
 
 RecordGlobalEvent() -> Int 
 {
-    totalEvents: Int globstatic = 0;
+    totalEvents: Int astatic = 0;
 
     totalEvents += 1;
     return totalEvents;
 }
 
-Console.WriteLine(GenerateThreadLocalId()); // Output: 1
-Console.WriteLine(GenerateThreadLocalId()); // Output: 2
+TouchRawState() 
+{
+    rawCounter: Int gstatic = 0;
+
+    unsafe 
+    {
+        rawCounter += 1;
+    }
+}
 ```
 
 ## Method Parameters
