@@ -37,7 +37,7 @@
 
 * MUST apply a type guard to a base type using the postfix `^` operator (`BaseType^Guard`).
 * MUST define the physical memory layout solely via the `BaseType`.
-* MUST evaluate the `^Guard` strictly as a compile-time or runtime invariant.
+* MUST evaluate the `^Guard` as a compile-time or runtime invariant.
 * MUST implicitly pass the `BaseType` as the primary target type argument to the applied type guard.
 * MAY apply a type guard directly to an instance method receiver (`@^Guard` or `ref @^Guard`).
 * MUST require the caller's target expression to be statically typed or narrowed to `BaseType^Guard` when invoking a method declared with an `@^Guard` or `ref @^Guard` receiver.
