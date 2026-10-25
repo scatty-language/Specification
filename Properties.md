@@ -6,6 +6,8 @@
 * MUST NOT mutate the `@` instance within the property body.
 * MUST treat a property as static if the `@` receiver is not referenced within its body.
 * MUST access static properties via the Data type's namespace.
+* MUST treat a property as static if the `@` receiver is not referenced within its body, unless the property satisfies an interface property contract declared on the enclosing `Data` type.
+* MUST treat any property that satisfies an interface property contract as an instance property even if `@` is not referenced within its body.
 
 ```C#
 Vector 
