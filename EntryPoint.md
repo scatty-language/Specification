@@ -42,7 +42,7 @@ Program
 {
     Run(args: [String]) throws -> Int 
     {
-        if args.Length == 0 
+        where args.Length == 0 
         {
             Console.WriteLine("Usage: app <config_path>");
             return 1;

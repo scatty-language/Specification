@@ -37,12 +37,10 @@ Filtration
     {
         result := [+ T].New();
 
-        for item in list 
+        item in list 
         {
-            if predicate.Invoke(item) 
-            {
-                result.Add(item);
-            }
+            where predicate.Invoke(item);
+            result.Add(item);
         }
 
         return result;

@@ -30,12 +30,12 @@ Response
 
 res := Response::Success { Timestamp: 12345 };
 
-if res is .Error(code) 
+where res is .Error(code) 
 {
     Console.WriteLine(code);
 }
 
-if res.Contains("Wow") 
+where res.Contains("Wow") 
 {
     Console.WriteLine("String method forwarded!");
 }

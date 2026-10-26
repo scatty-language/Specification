@@ -23,7 +23,7 @@ Logger
     LogMetrics(prefix: String, metrics: ...Int) 
     {
         // 'metrics' acts as a Static Array ([Int ::: N])
-        for m in metrics 
+        m in metrics 
         {
             Console.WriteLine(m);
         }

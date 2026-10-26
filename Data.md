@@ -116,7 +116,7 @@ Option<T>
 
     Unwrap(@) throws -> T 
     {
-        if @ is .Some(val) => return val;
+        where @ is .Some(val) => return val;
         throw Exception.New("Unwrapped None");
     }
 }
@@ -175,7 +175,7 @@ ProcessGreen(color as Color::Green);
 ProcessGreen(color as .Green);
 
 // Flow-sensitive type guard via 'is'
-if color is .Green 
+where color is .Green 
 {
     Console.WriteLine(color.X);
     ProcessGreen(color);
@@ -208,7 +208,7 @@ order := Order::Draft([+ String].New());
 order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
 
 // Valid after flow-sensitive narrowing via 'is'
-if order is .Draft 
+where order is .Draft 
 {
     order.AddItem("Pen");
 }

@@ -3,42 +3,48 @@
 ## Conditionals
 
 * MUST evaluate a `Condition` expression to `Bool`.
-* MUST interpret an unparenthesized `{` token in the header of an `if`, `for`, or `match` construct as the opening delimiter of the construct's body block.
-* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside an `if` condition, `for` header, or `match` subject.
+* MUST interpret an unparenthesized `{` token in the header of a `where`, `in`, or `match` construct as the opening delimiter of the construct's body block.
+* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside a `where` condition, `in` header, or `match` header.
+* MAY execute a conditional branch using `where Condition { ... }` or `where Condition => Statement;`, optionally followed by an `else` branch.
+* MAY declare a guard-exit statement using `where Condition else FallbackStatement;` without a positive branch body.
+* MUST require the `else` branch of a guard-exit statement (`where Condition else FallbackStatement;`) to unconditionally exit the enclosing scope via `return`, `throw`, `break`, or `continue`.
+* MAY declare a standalone filter gate (`where Condition;`) exclusively within the lexical body of an `in` pipeline block.
+* MUST reject a standalone `where Condition;` statement (lacking both a positive body and an `else` branch) outside of an `in` pipeline block at compile time.
 
 ```C#
 IsDebug :: true;
 
-// Valid: '{' opens the 'if' block
-if IsDebug 
-{
-    Console.WriteLine("Debug mode");
-}
+// Conditional execution with '=>' or block '{}'
+where IsDebug => Console.WriteLine("Debug mode");
 
-// Valid: struct initializer with '{ ... }' inside 'if' header is parenthesized
-if currentConfig == (Config { Port: 8080 }) 
+where currentConfig == (Config { Port: 8080 }) 
 {
     Console.WriteLine("Default port");
 }
+
+// Guard-exit statement: exits method immediately if condition fails
+where orders.Count > 0 else return 0;
 ```
 
 ### Conditional Binding
 
 * MUST evaluate the right-hand expression of a conditional binding (`:=`) to an Option type (`T?`) or a weak reference type (`T weak`).
-* MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and continue evaluating the condition or execute the controlled block if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
-* MUST short-circuit and skip execution of the controlled block if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and continue evaluating the condition if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
+* MUST short-circuit the condition and skip the positive branch (or execute the `else` branch) if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
 * MAY chain multiple conditional bindings, conditional assignments, and boolean expressions within a single `Condition` using the `and` operator.
 * MUST evaluate chained `and` clauses sequentially from left to right.
-* MUST bring any local identifier introduced by a conditional binding (`:=`) into scope for all subsequent clauses to its right within the same `and` chain and within the positive branch of the `if` or `for` statement.
-* MUST NOT access a local identifier introduced by a conditional binding within an `else` branch or outside the lexical scope of the positive branch.
+* MUST bring any local identifier introduced by a conditional binding (`:=`) into scope for all subsequent clauses to its right within the same `and` chain and within the positive branch of the `where` statement.
+* MUST bring any local identifier introduced by a conditional binding (`:=`) into the enclosing lexical scope for all subsequent statements when used in a guard-exit statement (`where user := maybeUser else return;`) or a stage filter (`where user := maybeUser;`).
+* MUST NOT access a local identifier introduced by a conditional binding within an `else` branch.
 * MUST NOT declare duplicate local identifiers across multiple conditional bindings within the same `Condition`.
 * MUST NOT apply the `not` operator to a conditional binding or combine a conditional binding with the `or` operator.
 
 ```C#
-maybeUser: User? = GetUser();
-
-if user := maybeUser and session := GetSession(user.Id) and user.IsActive 
+ProcessUser(id: Int) 
 {
+    // Guard-exit binding: 'user' and 'session' remain in scope for the rest of the method
+    where user := GetUser(id) and session := GetSession(user.Id) and user.IsActive else return;
+
     Console.WriteLine(user.Name);
     Console.WriteLine(session.Token);
 }
@@ -52,7 +58,7 @@ if user := maybeUser and session := GetSession(user.Id) and user.IsActive
 * MAY use the guarded assignment operator (`=^`) within a condition clause when the left-hand `AssignablePath` resolves to a mutable target of a guarded type (`T^Guard`) and the right-hand expression evaluates to the underlying base type `T`.
 * MUST evaluate `AssignablePath =^ Expression` within a condition clause as `AssignablePath = (Expression) as? T^Guard`.
 * MAY chain conditional assignments with boolean expressions and conditional bindings using the `and` operator.
-* MUST mutate the left-hand target with the unwrapped or validated payload and continue evaluating subsequent `and` clauses (or execute the controlled block) if the evaluation yields `Option::Some`.
+* MUST mutate the left-hand target with the unwrapped or validated payload and continue evaluating subsequent `and` clauses if the evaluation yields `Option::Some`.
 * MUST skip the assignment, short-circuit any remaining `and` clauses, and transfer execution to the `else` branch if the evaluation yields `Option::None`.
 * MUST NOT apply the `not` operator to a conditional assignment or combine a conditional assignment with the `or` operator.
 
@@ -64,12 +70,12 @@ SomeData
 
     UpdateFrom(ref @, rawAge: Int) 
     {
-        if @.Value = rawAge as? Int^Positive and @.Value < 120 
+        where @.Value = rawAge as? Int^Positive and @.Value < 120 
         {
             Console.WriteLine("Value successfully updated!");
         }
 
-        if @.SafeAge =^ rawAge - 1 
+        where @.SafeAge =^ rawAge - 1 
         {
             Console.WriteLine("SafeAge validated and updated!");
         }
@@ -80,101 +86,143 @@ SomeData
 ### Flow-Sensitive Type Narrowing
 
 * MUST implicitly narrow the static type of a local variable, parameter, receiver (`@`), or immutable field path when evaluated with the `is` or `is not` operator against a variant subtype (`.Variant` or `Data::Variant`), a type guard (`^Guard` or `Type^Guard`), or a weak interface member (`.Member`).
-* MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses to the right within the same `and` condition chain and throughout the positive branch of the `if` or `for` statement.
-* MUST apply negative type narrowing (`expr is not Target`) to the `else` branch of an `if` statement, refining `expr` to `Target` within the `else` scope.
-* MUST apply early-exit type narrowing to all subsequent statements in the enclosing lexical scope whenever an `if` branch testing a negated condition (`expr is not Target`) unconditionally terminates execution of the current scope via `return`, `throw`, `break`, or `continue`.
+* MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses to the right within the same `and` condition chain and throughout the positive branch of the `where` statement.
+* MUST apply negative type narrowing (`expr is not Target`) to the `else` branch of a `where` statement, refining `expr` to `Target` within the `else` scope.
+* MUST apply type narrowing to all subsequent statements in the enclosing lexical scope following a guard-exit statement (`where expr is Target else return;`), a stage filter (`where expr is Target;`), or a negated early-exit branch (`where expr is not Target => return;`).
 * MUST narrow an expression of a tagged `Data` type to the single remaining variant subtype (`Data::Variant`) in the `else` branch or following an unconditional early-exit branch if all other declared variants of that `Data` type are excluded by `is` or `is not` checks.
 * MUST immediately invalidate flow-sensitive type narrowing on a mutable variable or field at the point where it is reassigned, switched via `=::`, or passed as a `ref` argument to a method that may mutate its active variant or violate its type guard invariant.
 
 ```C#
-ProcessOrder(order: Order, rawAge: Int) throws 
+ProcessOrder(order: Order, rawAge: Int) 
 {
-    // Narrowing across an 'and' chain
-    if order is .Draft and order.Items.Count > 0 
-    {
-        Console.WriteLine(order.Items[0]);
-    }
-
-    // Early-exit narrowing via 'is not'
-    if rawAge is not Int^Positive => return;
-
-    // 'rawAge' is narrowed to 'Int^Positive' for the remainder of the method
+    // Guard-exit narrowing: 'rawAge' is narrowed to 'Int^Positive' below
+    where rawAge is Int^Positive else return;
     ProcessAge(rawAge);
 
-    // Complementary variant narrowing after early exit on a two-variant Data type ('Order::Draft' | 'Order::Submitted')
-    if order is .Draft => return;
-
-    // 'order' is narrowed to 'Order::Submitted'
-    Console.WriteLine(order.TransactionId);
+    // Guard-exit narrowing on variant: 'order' is narrowed to 'Order::Draft' below
+    where order is .Draft else return;
+    Console.WriteLine(order.Items.Count);
 }
 ```
 
-## Loops
+## Staged Iteration
 
-* MUST evaluate a single `Condition` expression as a `Bool` to perform conditional looping.
-* MUST bind the iteration element to a new local variable (or unpack a tuple element into local variables via a destructuring pattern `(a, b)`) when using the `in` operator.
-* MUST require the number of bindings in a loop destructuring pattern to match the exact element count of the iterated tuple, permitting `_` to discard individual elements.
-* MUST evaluate the upper bound of a range expression (`..`) as exclusive, omitting the right-hand boundary value from the iteration sequence.
-* MAY delegate the traversal strategy using the `by` modifier.
-* MUST resolve the identifier provided to the `by` modifier to a type implementing the `~Iterator` interface.
-* MAY use the `break` statement inside a `for` loop body to immediately terminate the innermost enclosing `for` loop.
-* MAY use the `continue` statement inside a `for` loop body to immediately skip the remainder of the current iteration and advance to the next iteration of the innermost enclosing `for` loop.
-* MUST NOT use `break` or `continue` outside the lexical body of a `for` loop (or across a lambda or `spawn` boundary).
+* MAY declare a staged iteration pipeline over a collection or range using `item in iterable { ... }` without a leading loop keyword.
+* MAY prefix the stage binding with `ref` (`ref item in collection { ... }`) to mutate collection elements in-place.
+* MAY unpack tuple elements in the stage header using a destructuring pattern (`(a, b) in iterable { ... }`), requiring the binding count to match the tuple element count and permitting `_` to discard elements.
+* MUST evaluate the upper bound of a range expression (`start..end` or `start..end..step`) as exclusive.
+* MAY delegate the execution schedule of a pipeline using the `by` modifier (`item in iterable by Schedule { ... }`), resolving the identifier to a type implementing the `~Iterator` interface.
+* MAY omit both the stage binding and the iterable (`in { ... }`) to declare an unbounded loop that executes repeatedly until terminated via `break`, `return`, or `throw`.
+* MAY use `break` inside an `in` block to immediately terminate the entire pipeline.
+* MAY use `continue` inside an `in` block to immediately skip the remainder of the current iteration and advance the innermost active stage.
+* MUST NOT use `break` or `continue` outside the lexical body of an `in` block or across a lambda or `spawn` boundary.
 
 ```C#
-// Conditional loop with break and continue
-for x < 100 
+// Range iteration (0 through 9)
+i in 0..10 
 {
+    Console.WriteLine(i);
+}
+
+// Reverse range with step (10 down to 1)
+i in 10..0..-1 
+{
+    Console.WriteLine(i);
+}
+
+// In-place mutation of collection elements
+ref enemy in enemies 
+{
+    where enemy.Hp > 0;
+    enemy.Hp -= 10;
+}
+
+// Unbounded conditional loop using 'in { ... }'
+in 
+{
+    where x < 100 else break;
     x += 10;
-    if x == 50 => continue;
-    if x > 80 => break;
+}
+```
+
+### Filter Stages and Flattened Inner Stages
+
+* MAY place one or more filter gates (`where Condition;`) at any point inside an `in` pipeline block.
+* MUST immediately skip all subsequent statements in the `in` block for the current element and advance the innermost active stage if a `where Condition;` gate evaluates to `false` or `Option::None`.
+* MUST bring variables bound via `:=` and type narrowings proven via `is` inside a `where Condition;` gate into scope for all subsequent statements below that gate within the `in` block.
+* MAY place one or more stage expansion statements (`inner in iterable;`) inside an `in` block to flatten nested collections without nested blocks.
+* MUST iterate over the expanded `iterable` for each upstream element that reaches the `inner in iterable;` stage, bringing `inner` into scope for all subsequent statements in the `in` block.
+
+```C#
+dept in company.Departments 
+{
+    where not dept.IsArchived;
+
+    // Flattens department employees into the current pipeline without nesting
+    emp in dept.Employees;
+    where emp.Role is .Engineer;
+
+    // Flattens employee tasks into the current pipeline
+    task in emp.Tasks;
+    where task.IsOverdue;
+
+    Console.WriteLine("\(dept.Name): \(emp.Name) -> \(task.Title)");
+}
+```
+
+### Output Stages and Multi-Sink Aggregation
+
+* MAY declare one or more named output sinks (`out local_id: Type Operator Expression [where Condition];`) inside a statement-level `in` pipeline block.
+* MUST hoist and introduce every new variable declared via a named `out` statement into the lexical scope immediately enclosing the `in` pipeline, making it accessible after the `in` block completes.
+* MUST initialize and update named `out` bindings according to the specified `out` operator:
+  * `<<=`: Initializes an empty collection (`List<T>`, `HashSet<T>`, or `HashMap<K, V>`) prior to the pipeline and appends/inserts the evaluated expression each time the `out` statement is reached.
+  * `+=`: Initializes the binding to the additive identity (`0` or `0.0`) prior to the pipeline (unless referencing an already declared variable) and adds the evaluated expression each time the `out` statement is reached.
+  * `*=`: Initializes the binding to the multiplicative identity (`1` or `1.0`) prior to the pipeline (unless referencing an already declared variable) and multiplies by the evaluated expression each time the `out` statement is reached.
+  * `min=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` (or updates an existing `T` variable) and retains the minimum value according to `~Comparable`.
+  * `max=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` (or updates an existing `T` variable) and retains the maximum value according to `~Comparable`.
+  * `=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` when reached.
+* MAY attach a trailing `where Condition` filter to an `out` statement to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
+* MAY evaluate an `in` pipeline as an expression using anonymous `out Expression [where Condition];` statements:
+  * If the expected expression type is a collection (`List<T>`, `Array<T>`, `HashSet<T>`, `HashMap<K, V>`), the pipeline MUST allocate the target collection, append/insert each emitted `out` value, and evaluate to that collection.
+  * If the expected expression type is `T?` (`Option<T>`), the pipeline MUST wrap the first emitted `out` value into `Option::Some`, immediately terminate the pipeline, and return it (or return `Option::None` if no element reaches `out`).
+* MUST NOT mix anonymous `out Expression;` statements and named `out local_id ...` statements within the same `in` pipeline block.
+
+```C#
+// 1. Statement pipeline with multiple simultaneous output sinks in a single pass
+order in orders by Parallel 
+{
+    where order is .Paid and order.Amount > 0.0f;
+
+    net := order.Amount * (1.0f - order.Discount);
+
+    out paidCount: Int          += 1;
+    out totalRevenue: Float     += net;
+    out peakOrder: Float?       max= net;
+    out vipOrders: List<Int>    <<= order.Id where net > 1000.0f;
 }
 
-// Conditional loop
-for x < 100 
-{
-    x += 10;
-}
+Console.WriteLine("Count: \(paidCount), Total: \(totalRevenue)");
 
-// Iterator loop over an exclusive range (iterates 0 through 9)
-for i in 0..10 
+// 2. Expression pipeline producing a List<String>
+activeEmails: List<String> = u in users 
 {
-    Console.WriteLine(i);
-}
+    where u.IsActive;
+    where profile := u.Profile;
+    out profile.Email;
+};
 
-// Iterator loop over a range with a step of 2 (0, 2, 4, 6, 8)
-for i in 0..10..+2
+// 3. Expression pipeline finding the first match (evaluates to 'User?' and stops on first hit)
+firstAdmin: User? = u in users 
 {
-    Console.WriteLine(i);
-}
-
-// Iterator loop over a reverse range (iterates 10 through 1)
-for i in 10..0..-1
-{
-    Console.WriteLine(i);
-}
-
-// Default iteration
-for item in list 
-{
-    Process(item);
-}
-
-// Tuple destructuring during map or pair iteration
-for (key, score) in scores 
-{
-    Console.WriteLine("\(key): \(score)");
-}
-
-// Custom iteration strategy
-for item in list by Parallel 
-{
-    Process(item);
-}
+    where u.Role is .Admin and u.IsOnline;
+    out u;
+};
 ```
 
 ## Pattern Matching
 
+* MAY omit the subject expression in a `match` construct (`match { ... }`) to evaluate a sequential table of boolean `Condition` arms.
+* MUST evaluate boolean arms in a subjectless `match { ... }` sequentially from top to bottom and execute the first arm whose condition evaluates to `true`, or the `_` fallback arm.
 * MUST exhaustively cover all possible variants of the evaluated expression, or provide a wildcard `_` fallback.
 * MAY bind the payload of a Variant Field to local identifiers using parentheses.
 * MUST implicitly refine the matched expression to the evaluated variant or type guard within the match arm if payload binding is omitted.

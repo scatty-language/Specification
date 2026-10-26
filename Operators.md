@@ -36,7 +36,7 @@ result := a + b as Float == c * d;
 * MUST short-circuit evaluation of `or` expressions by omitting evaluation of the right-hand operand when the left-hand operand evaluates to `true`.
 
 ```C#
-if not user.IsBanned and (user.Age > 18 or user.HasConsent) 
+where not user.IsBanned and (user.Age > 18 or user.HasConsent) 
 {
 
 }
@@ -170,7 +170,7 @@ playerC := playerA + playerB;
 
     At(@, key: TKey) -> TValue? 
     {
-        if res := try? @.Get(key) => return .Some(res);
+        where res := try? @.Get(key) => return .Some(res);
         return .None;
     }
 

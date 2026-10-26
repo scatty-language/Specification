@@ -203,8 +203,10 @@ statement
     ::= var_decl
       | const_decl
       | destructure_stmt
-      | if_statement
-      | for_loop
+      | where_stmt
+      | stage_expr
+      | stage_expand_stmt
+      | out_stmt
       | match_expr
       | try_catch_stmt
       | try_force_block
@@ -254,13 +256,16 @@ destructure_target
 expression_stmt
     ::= expression [ "strict" ] ";"
 
-if_statement
-    ::= "if" condition ( block | "=>" statement ) [ "else" if_tail ]
+where_stmt
+    ::= "where" condition ( block | "=>" statement ) [ "else" where_tail ]
+      | "where" condition "else" ( block | "=>" statement | statement )
+      | "where" condition ";"
 
-if_tail
-    ::= "if" condition ( block | "=>" statement )
+where_tail
+    ::= "where" condition ( block | "=>" statement ) [ "else" where_tail ]
       | block
       | "=>" statement
+      | statement
 
 condition
     ::= condition_clause { "and" condition_clause }
@@ -279,17 +284,28 @@ conditional_assignment
 assignable_path
     ::= [ "@" "." ] identifier { "." type_identifier }
 
-for_loop
-    ::= "for" ( condition | iteration ) block
+stage_expr
+    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] ( block | "=>" statement )
 
-iteration
-    ::= ( local_id | destructure_pattern ) "in" iterator [ "by" type_identifier ]
+stage_header
+    ::= [ "ref" ] local_id
+      | destructure_pattern
+
+stage_expand_stmt
+    ::= stage_header "in" iterator [ "by" type_identifier ] ";"
 
 iterator
     ::= range_expr | expression
 
 range_expr
     ::= expression ".." expression [ ".." expression ]
+
+out_stmt
+    ::= "out" local_id [ ":" type ] out_operator expression [ "where" condition ] ";"
+      | "out" expression [ "where" condition ] ";"
+
+out_operator
+    ::= "<<=" | "+=" | "*=" | "min=" | "max=" | "="
 
 try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
@@ -308,10 +324,11 @@ spawn_stmt
         [ "rollback" [ "by" expression ] ( block | "=>" statement ) ]
 
 match_expr
-    ::= "match" [ "!" | "?" ] expression "{" match_arm { match_arm } "}"
+    ::= "match" [ "!" | "?" ] [ expression ] "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { ( "or" | "," ) pattern } [ "where" expression ] ( block | "=>" expression [ ";" ] )
+    ::= pattern { ( "or" | "," ) pattern } [ "where" condition ] ( block | "=>" expression [ ";" ] )
+      | condition ( block | "=>" expression [ ";" ] )
 
 pattern
     ::= variant_pattern
@@ -430,6 +447,7 @@ primary_expr
       | contextual_expr
       | lambda_expr
       | match_expr
+      | stage_expr
       | concurrent_expr
       | try_force_construct
       | tuple_expr
@@ -648,7 +666,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "if" | "else" | "for" | "in" | "by" | "break" | "continue"
+      | "else" | "in" | "by" | "out" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw"
       | "return" | "use" | "with" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"

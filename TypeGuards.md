@@ -69,7 +69,7 @@ Account
 rawAcc := Account { Balance: 100 };
 rawAcc.Withdraw(50); // ERROR: 'rawAcc' is 'Account', not 'Account^Solvent'
 
-if rawAcc is Account^Solvent 
+where rawAcc is Account^Solvent 
 {
     rawAcc.Withdraw(50); // Valid: 'rawAcc' is narrowed to 'Account^Solvent'
 }
@@ -98,12 +98,12 @@ if rawAcc is Account^Solvent
 ```C#
 rawValue: Int = -10;
 
-if rawValue is Int^Positive 
+where rawValue is Int^Positive 
 {
     ProcessAge(rawValue);
 }
 
-// Throws CastException if rawValue <= 0
+// Throws 'CastException' if rawValue <= 0
 valid := rawValue as Int^Positive;
 
 // Aborts/Panics immediately if rawValue <= 0
@@ -112,7 +112,7 @@ forced := rawValue as! Int^Positive;
 // Unchecked cast: bypasses runtime validation
 uncheckedVal := rawValue unas Int^Positive;
 
-// Compile-time evaluated: '11 > 0' is proven at compile time -> ZERO runtime branches!
+// Compile-time evaluated: '11 > 0' is proven at compile time -> ZERO runtime branches
 ProcessAge(11 as ^);
 
 // Runtime contextual guard cast: 'Int^Positive' deduced from 'ProcessAge' parameter
@@ -148,7 +148,7 @@ match rawValue as? Int^Positive
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
 * MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`if target =^ expr`).
 * MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
-* MUST evaluate the governing `where` invariant at runtime in both Debug and Release modes (triggering a Fatal Panic in Debug mode or an immediate process Abort in Release mode upon failure) whenever the postfix `strict` modifier is applied, unless the invariant is statically proven at compile time.
+* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`where target =^ expr`).
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 
 ```C#

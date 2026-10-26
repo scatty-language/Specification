@@ -123,13 +123,13 @@ ProcessEntity(soa[0]);
 
 ```C#
 // Iteration dynamically gathers elements by value
-for entity in soa 
+entity in soa 
 {
     Console.WriteLine(entity.Id);
 }
 ```
 
-## Static and Fixed-Capacity Layouts (`:::`)
+## Static and Fixed-Capacity Layouts
 
 * MAY explicitly constrain the physical memory layout of a collection using the Physical Layout operator (`:::`) and a compile-time constant.
 * MUST allocate static arrays (`[Type ::: N]`) directly inline on the stack or physically embedded within an enclosing `Data` layout.
@@ -159,7 +159,7 @@ Matrix
 staticSoa := [% Entity ::: 16] { ... };
 ```
 
-## Associated Arrays (`->`, `->!`, `->?`)
+## Associated Arrays
 
 * MAY declare a fixed-size associated array keyed by the variants of a `Data` type using `[KeyType -> ValueType]`, `[KeyType ->! ValueType]`, or `[KeyType ->? ValueType]`.
 * MUST require `KeyType` to be a tagged `Data` type (not `::: none`) that declares variants without payload fields and declares zero shared instance fields.
@@ -182,7 +182,7 @@ weights: [Color -> Int] = { .Red = 10, .Green = 20, .Blue = 30 };
 blueWeight := weights[.Blue];
 ```
 
-### Exhaustive Associated Arrays (`[K -> V]`)
+### Exhaustive Associated Arrays
 
 * MUST initialize every variant of `KeyType` when instantiating `[KeyType -> ValueType]`, or provide a wildcard fallback entry (`_ = Expression`) to populate all omitted variants.
 * MUST NOT allocate a runtime validity bitmask for exhaustive associated arrays (`[KeyType -> ValueType]`).
@@ -196,7 +196,7 @@ rgbHex: [Color -> Int] = { .Red = 0xFF0000, .Green = 0x00FF00, .Blue = 0x0000FF 
 redOnly: [Color -> Int] = { .Red = 100, _ = 0 };
 ```
 
-### Non-Exhaustive Associated Arrays (`[K ->! V]` and `[K ->? V]`)
+### Non-Exhaustive Associated Arrays
 
 * MAY omit variants without a wildcard `_` fallback when initializing `[KeyType ->! ValueType]` or `[KeyType ->? ValueType]`.
 * MUST encapsulate a fixed-size validity bitmask of `VariantCount` bits alongside the `VariantCount` element slots for `[KeyType ->! ValueType]` and `[KeyType ->? ValueType]`.
@@ -217,12 +217,6 @@ strictPrices[.Green] = 200;
 // Non-exhaustive optional array
 safePrices: [Color ->? Int] = { .Red = 100, .Blue = 300 };
 
-if greenPrice := safePrices[.Green] 
-{
-    Console.WriteLine(greenPrice);
-} 
-else 
-{
-    Console.WriteLine("Green price is not configured");
-}
+where greenPrice := safePrices[.Green] => Console.WriteLine(greenPrice);
+else => Console.WriteLine("Green price is not configured");
 ```

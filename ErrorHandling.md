@@ -15,7 +15,7 @@
 ```C#
 TryCalculate(value: Int) throws 
 {
-    if value < 0 => throw Exception.New("Less than zero!");
+    where value < 0 => throw Exception.New("Less than zero!");
 }
 
 Calculate() 
@@ -65,7 +65,7 @@ Some() throws
 ```C#
 Process(value: Int) throws
 {
-    if value < 0 => throw Exception.New("Negative value");
+    where value < 0 => throw Exception.New("Negative value");
 }
 
 TryProcess() throws
@@ -100,7 +100,7 @@ TryProcess() throws
 ```C#
 FetchUser(id: Int) throws -> User 
 {
-    if id < 0 => throw Exception.New("Invalid ID");
+    where id < 0 => throw Exception.New("Invalid ID");
     return User.New(id);
 }
 
@@ -129,7 +129,7 @@ isAlive := try? Ping();
 ```C#
 ParseInt(val: String) throws -> Int 
 {
-    if val == "" => throw Exception.New("Empty String");
+    where val == "" => throw Exception.New("Empty String");
     return 0; 
 }
 

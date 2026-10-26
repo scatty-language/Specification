@@ -43,7 +43,7 @@ strA := "Scatty";
 strB := "Scatty";
 
 // Evaluates to true
-if strA == strB 
+where strA == strB 
 {
     Console.WriteLine("Exact match");
 }
@@ -57,12 +57,12 @@ if strA == strB
 ```C#
 text := "A🌍C";
 
-for c in text 
+c in text 
 {
     ProcessByte(c);
 }
 
-for r in text.Runes() 
+r in text.Runes() 
 {
     ProcessRune(r);
 }
