@@ -172,50 +172,73 @@ dept in company.Departments
 
 ### Output Stages and Multi-Sink Aggregation
 
-* MAY declare one or more named output sinks (`out local_id: Type Operator Expression [where Condition];`) inside a statement-level `in` pipeline block.
-* MUST hoist and introduce every new variable declared via a named `out` statement into the lexical scope immediately enclosing the `in` pipeline, making it accessible after the `in` block completes.
-* MUST initialize and update named `out` bindings according to the specified `out` operator:
-  * `<<=`: Initializes an empty collection (`List<T>`, `HashSet<T>`, or `HashMap<K, V>`) prior to the pipeline and appends/inserts the evaluated expression each time the `out` statement is reached.
-  * `+=`: Initializes the binding to the additive identity (`0` or `0.0`) prior to the pipeline (unless referencing an already declared variable) and adds the evaluated expression each time the `out` statement is reached.
-  * `*=`: Initializes the binding to the multiplicative identity (`1` or `1.0`) prior to the pipeline (unless referencing an already declared variable) and multiplies by the evaluated expression each time the `out` statement is reached.
-  * `min=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` (or updates an existing `T` variable) and retains the minimum value according to `~Comparable`.
-  * `max=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` (or updates an existing `T` variable) and retains the maximum value according to `~Comparable`.
-  * `=`: Initializes an `Option<T>` (`T?`) binding to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` when reached.
-* MAY attach a trailing `where Condition` filter to an `out` statement to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
-* MAY evaluate an `in` pipeline as an expression using anonymous `out Expression [where Condition];` statements:
-  * If the expected expression type is a collection (`List<T>`, `Array<T>`, `HashSet<T>`, `HashMap<K, V>`), the pipeline MUST allocate the target collection, append/insert each emitted `out` value, and evaluate to that collection.
-  * If the expected expression type is `T?` (`Option<T>`), the pipeline MUST wrap the first emitted `out` value into `Option::Some`, immediately terminate the pipeline, and return it (or return `Option::None` if no element reaches `out`).
-* MUST NOT mix anonymous `out Expression;` statements and named `out local_id ...` statements within the same `in` pipeline block.
+* MAY declare one or more named output sinks (`out [Reducer] local_id ...`) inside a statement-level `in` pipeline block.
+* MUST treat `count`, `sum`, `min`, `max`, `all`, `any`, `first`, and `last` as contextual reducer modifiers when placed immediately after the `out` keyword.
+* MUST hoist and introduce every variable declared via a named `out` statement into both:
+  * the remainder of the current `in` block immediately following the `out` statement, and
+  * the lexical scope immediately enclosing the `in` pipeline statement after the `in` block completes.
+* MAY read the current accumulated value of a named `out` binding in any subsequent statement or `where` gate positioned below that `out` statement within the same `in` block.
+* MUST NOT reassign or mutate a named `out` binding outside of its `out` statement while inside the lexical body of the `in` block.
+* MUST initialize and update named `out` bindings according to the specified reducer:
+  * `out count local_id` (inferred as `Int` if `: Type` is omitted): Initializes `local_id` to `0` prior to the pipeline and increments it by `1` each time the statement is reached.
+  * `out sum local_id := Expression` (inferred as the numeric type `T` of `Expression`): Initializes `local_id` to the additive identity (`0` or `0.0`) prior to the pipeline and adds the evaluated `Expression` each time the statement is reached.
+  * `out min local_id := Expression` (inferred as `T?` where `T` is the `~Comparable` type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and updates it to `Option::Some` containing the minimum evaluated value according to `~Comparable`.
+  * `out max local_id := Expression` (inferred as `T?` where `T` is the `~Comparable` type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and updates it to `Option::Some` containing the maximum evaluated value according to `~Comparable`.
+  * `out all local_id := Expression` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes `local_id` to `true` prior to the pipeline and updates it to `local_id and Expression` each time the statement is reached.
+  * `out any local_id := Expression` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes `local_id` to `false` prior to the pipeline and updates it to `local_id or Expression` each time the statement is reached.
+  * `out first local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` only upon the first element reaching the statement.
+  * `out last local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and overwrites it with `Option::Some(Expression)` each time the statement is reached.
+  * `out local_id: CollectionType = Expression` or `out local_id := Expression` (without a reducer modifier): Initializes an empty collection prior to the pipeline (defaulting to `[+ T]` when inferred via `:=`) and appends or inserts the evaluated `Expression` each time the statement is reached.
+* MAY attach a trailing `where Condition` filter to any `out` statement to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
+* MUST automatically short-circuit and terminate the `in` pipeline early if the `in` block contains no side-effecting statements and all declared `out` sinks have reached a terminal state (`out first` has captured a value, `out all` has evaluated to `false`, or `out any` has evaluated to `true`).
+* MAY evaluate an `in` pipeline as an expression using anonymous `out [Reducer] [Expression] [where Condition];` statements:
+  * If no reducer is specified and the expected type is a collection, the pipeline MUST allocate the target collection, append or insert each emitted `out` value, and evaluate to that collection.
+  * If a reducer (`count`, `sum`, `min`, `max`, `all`, `any`, `first`, `last`) is specified, the pipeline MUST evaluate to the reduced scalar or `Option` result.
+  * If no reducer is specified and the expected type is `T?` (`Option<T>`), the pipeline MUST wrap the first emitted `out` value into `Option::Some`, immediately terminate the pipeline, and return it (or return `Option::None` if no element reaches `out`).
+* MUST NOT mix anonymous `out` statements and named `out` statements within the same `in` pipeline block.
 
 ```C#
-// 1. Statement pipeline with multiple simultaneous output sinks in a single pass
+// 1. Multi-sink aggregation in a single pass with automatic type inference
 order in orders by Parallel 
 {
     where order is .Paid and order.Amount > 0.0f;
 
     net := order.Amount * (1.0f - order.Discount);
 
-    out paidCount: Int          += 1;
-    out totalRevenue: Float     += net;
-    out peakOrder: Float?       max= net;
-    out vipOrders: List<Int>    <<= order.Id where net > 1000.0f;
+    out count paidCount;
+    out sum   totalRevenue := net;
+    out max   peakOrder    := net;
+    out all   allVerified  := order.IsVerified;
+    out any   hasFraud     := order.Risk > 90;
+    out vipOrders: [+ Int] = order.Id where net > 1000.0f;
 }
 
-Console.WriteLine("Count: \(paidCount), Total: \(totalRevenue)");
+Console.WriteLine("Count: \(paidCount), Total: \(totalRevenue), Verified: \(allVerified)");
 
-// 2. Expression pipeline producing a List<String>
-activeEmails: List<String> = u in users 
+// 2. Reading an 'out' variable live inside the same pipeline (stateful accumulation)
+item in cargoItems 
+{
+    out sum currentWeight := item.Weight;
+
+    // Reads 'currentWeight' immediately: stops loading as soon as weight limit is exceeded
+    where currentWeight <= 50.0f else break;
+
+    out loadedItems := item;
+}
+
+// 3. Expression pipeline producing a collection
+activeEmails: [+ String] = u in users 
 {
     where u.IsActive;
     where profile := u.Profile;
     out profile.Email;
 };
 
-// 3. Expression pipeline finding the first match (evaluates to 'User?' and stops on first hit)
-firstAdmin: User? = u in users 
+// 4. Expression pipeline with a reducer
+totalPayroll := emp in employees 
 {
-    where u.Role is .Admin and u.IsOnline;
-    out u;
+    where emp.IsActive;
+    out sum emp.Salary;
 };
 ```
 

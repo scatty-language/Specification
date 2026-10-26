@@ -301,11 +301,12 @@ range_expr
     ::= expression ".." expression [ ".." expression ]
 
 out_stmt
-    ::= "out" local_id [ ":" type ] out_operator expression [ "where" condition ] ";"
-      | "out" expression [ "where" condition ] ";"
+    ::= "out" "count" [ local_id [ ":" type ] ] [ "where" condition ] ";"
+      | "out" [ out_reducer ] local_id ( ":" type "=" | ":=" ) expression [ "where" condition ] ";"
+      | "out" [ out_reducer ] expression [ "where" condition ] ";"
 
-out_operator
-    ::= "<<=" | "+=" | "*=" | "min=" | "max=" | "="
+out_reducer
+    ::= "sum" | "min" | "max" | "all" | "any" | "first" | "last"
 
 try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
