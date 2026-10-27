@@ -211,6 +211,7 @@ statement
       | match_expr
       | try_catch_stmt
       | try_force_block
+      | undo_stmt
       | concurrent_expr
       | spawn_stmt
       | break_stmt
@@ -238,6 +239,9 @@ cascade_stmt
 
 cascade_chain
     ::= postfix_expr ".." type_identifier method_invocation { ".." type_identifier method_invocation }
+
+undo_stmt
+    ::= "undo" ( block | "=>" statement )
 
 throw_stmt
     ::= "throw" [ expression ] ";"
@@ -675,7 +679,7 @@ alphanumeric
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
       | "must", "may" | "in" | "by" | "out" | "break" | "continue"
-      | "match" | "fall" | "try" | "catch" | "throw"
+      | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
