@@ -293,7 +293,7 @@ conditional_assignment
     ::= assignable_path ( "=" | "=^" ) prefix_control_expr
 
 assignable_path
-    ::= [ "@" "." ] identifier { "." type_identifier }
+    ::= [ "@" "." ] identifier { "." type_identifier | index_access }
 
 stage_expr
     ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] ( block | "=>" statement )
