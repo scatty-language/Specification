@@ -43,7 +43,7 @@ strA := "Scatty";
 strB := "Scatty";
 
 // Evaluates to true
-where strA == strB 
+may strA == strB 
 {
     Console.WriteLine("Exact match");
 }

@@ -63,7 +63,7 @@ Record : ~Castable<User>
     // Fallible implementation (retains 'throws')
     Cast(@) throws -> User 
     {
-        where @.RawId == "" => throw Exception.New("Empty ID");
+        may @.RawId == "" => throw Exception.New("Empty ID");
         
         parsedId := @.RawId as! Int; 
         
@@ -80,7 +80,7 @@ ProcessRecord() throws
 }
 
 // Safe inline unpacking using 'as?'
-where user := record as? User 
+may user := record as? User 
 {
     Console.WriteLine(user.Id);
 }

@@ -62,7 +62,7 @@ Console.WriteLine(list2.Count); // Output: 4
 * MAY access members of a `T weak` variable directly or pass it to a context expecting a strong `T`.
 * MUST atomically verify that `strongCount > 0` and temporarily retain a strong reference for the duration of the access when evaluating a `T weak` directly.
 * MUST immediately trigger the runtime Abort/Fatal Panic mechanism if a `T weak` is accessed directly after its target has been disposed (`strongCount == 0`).
-* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`where val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`must val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 * MAY apply the optional chaining (`?.`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
   * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
   * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if alive, or evaluates to `fallback` if disposed.
@@ -84,7 +84,7 @@ child := Node { Value: 2, Parent: parent, Children: [+ Node].New() };
 parent.Children.Add(child);
 
 // safe conditional promotion to a strong reference
-where strongParent := child.Parent
+may strongParent := child.Parent
 {
     Console.WriteLine(strongParent.Value); // Output: 1
 }
@@ -200,7 +200,7 @@ UpdateState() throws
     // 1. Evaluates 'state.Log + " -> Failed"' while '::Active' payload is still alive
     // 2. Disposes '::Active' payload ('file.Dispose()' is called and 'state.Log' is released)
     // 3. Writes tag '::Error' and moves the new 'LastLog' string into the payload
-    where state is .Active 
+    may state is .Active 
     {
         state =:: Error(state.Log + " -> Failed");
     }

@@ -15,7 +15,7 @@
 ```C#
 TryCalculate(value: Int) throws 
 {
-    where value < 0 => throw Exception.New("Less than zero!");
+    may value < 0 => throw Exception.New("Less than zero!");
 }
 
 Calculate() 
@@ -65,7 +65,7 @@ Some() throws
 ```C#
 Process(value: Int) throws
 {
-    where value < 0 => throw Exception.New("Negative value");
+    may value < 0 => throw Exception.New("Negative value");
 }
 
 TryProcess() throws
@@ -100,7 +100,7 @@ TryProcess() throws
 ```C#
 FetchUser(id: Int) throws -> User 
 {
-    where id < 0 => throw Exception.New("Invalid ID");
+    may id < 0 => throw Exception.New("Invalid ID");
     return User.New(id);
 }
 
@@ -129,7 +129,7 @@ isAlive := try? Ping();
 ```C#
 ParseInt(val: String) throws -> Int 
 {
-    where val == "" => throw Exception.New("Empty String");
+    may val == "" => throw Exception.New("Empty String");
     return 0; 
 }
 
@@ -151,9 +151,9 @@ ProcessData() throws
 ## Type Guard Filtering in Catch Blocks
 
 * MAY specify a Type Guart as the filter type on a `catch` arm (`catch e: Type^Guard`).
-* MUST evaluate the type guard's `where` expression against the active exception instance when the base type matches.
-* MUST intercept the exception and refine the local variable's type within the `catch` block if the `where` expression evaluates to `true`.
-* MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `where` expression evaluates to `false`.
+* MUST evaluate the type guard's `must` expression against the active exception instance when the base type matches.
+* MUST intercept the exception and refine the local variable's type within the `catch` block if the `must` expression evaluates to `true`.
+* MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `must` expression evaluates to `false`.
 
 ```C#
 HttpException : ~Exception 
@@ -162,8 +162,8 @@ HttpException : ~Exception
     Message: String;
 }
 
-^ClientError = HttpException where @.Code >= 400 and @.Code < 500;
-^ServerError = HttpException where @.Code >= 500 and @.Code < 600;
+^ClientError = HttpException must @.Code >= 400 and @.Code < 500;
+^ServerError = HttpException must @.Code >= 500 and @.Code < 600;
 
 ProcessRequest() throws 
 {

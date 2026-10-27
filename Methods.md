@@ -142,7 +142,7 @@ Some
     Value: Int;
 }
 
-^Valid = Some where @.Value > 0;
+^Valid = Some must @.Value > 0;
 
 +Some 
 {

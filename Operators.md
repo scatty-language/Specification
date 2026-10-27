@@ -36,7 +36,7 @@ result := a + b as Float == c * d;
 * MUST short-circuit evaluation of `or` expressions by omitting evaluation of the right-hand operand when the left-hand operand evaluates to `true`.
 
 ```C#
-where not user.IsBanned and (user.Age > 18 or user.HasConsent) 
+may not user.IsBanned and (user.Age > 18 or user.HasConsent) 
 {
 
 }
@@ -170,11 +170,11 @@ playerC := playerA + playerB;
 
     At(@, key: TKey) -> TValue? 
     {
-        where res := try? @.Get(key) => return .Some(res);
+        may res := try? @.Get(key) => return .Some(res);
         return .None;
     }
 
-    ^Mutable = @ where @ is .Set;
+    ^Mutable = @ must  is .Set;
 }
 ```
 

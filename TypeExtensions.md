@@ -25,14 +25,14 @@ MyData
 {
     Count: Int => @._count;
 
-    ^ValidData = MyData where @.Count > 0;
+    ^ValidData = MyData must @.Count > 0;
 
     PrintCount(@) => Console.WriteLine(@.Count);
 }
 
 +String 
 {
-    ^Email = String where @.Contains("@");
+    ^Email = String must @.Contains("@");
 
     Empty() -> String => "";
 }

@@ -217,6 +217,6 @@ strictPrices[.Green] = 200;
 // Non-exhaustive optional array
 safePrices: [Color ->? Int] = { .Red = 100, .Blue = 300 };
 
-where greenPrice := safePrices[.Green] => Console.WriteLine(greenPrice);
-else => Console.WriteLine("Green price is not configured");
+may greenPrice := safePrices[.Green] => Console.WriteLine(greenPrice);
+or => Console.WriteLine("Green price is not configured");
 ```

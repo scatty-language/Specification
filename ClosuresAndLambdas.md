@@ -39,7 +39,7 @@ Filtration
 
         item in list 
         {
-            where predicate.Invoke(item);
+            must predicate.Invoke(item);
             result.Add(item);
         }
 

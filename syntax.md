@@ -76,7 +76,7 @@ extension_decl
     ::= "+" type "{" { member } "}"
 
 guard_decl
-    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "where" expression ";"
+    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "must" expression ";"
 
 target_type
     ::= "@" | type
@@ -203,7 +203,8 @@ statement
     ::= var_decl
       | const_decl
       | destructure_stmt
-      | where_stmt
+      | must_stmt
+      | may_stmt
       | stage_expr
       | stage_expand_stmt
       | out_stmt
@@ -256,16 +257,22 @@ destructure_target
 expression_stmt
     ::= expression [ "strict" ] ";"
 
-where_stmt
-    ::= "where" condition ( block | "=>" statement ) [ "else" where_tail ]
-      | "where" condition "else" ( block | "=>" statement | statement )
-      | "where" condition ";"
+must_stmt
+    ::= "must" ( condition ";" | condition_block )
+      | "must" ( condition | condition_block ) "or" ( block | "=>" statement | statement )
+      | "must!" ( condition ";" | condition_block )
 
-where_tail
-    ::= "where" condition ( block | "=>" statement ) [ "else" where_tail ]
+may_stmt
+    ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
+
+may_tail
+    ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
       | block
       | "=>" statement
       | statement
+
+condition_block
+    ::= "{" condition ";" { condition ";" } "}"
 
 condition
     ::= condition_clause { "and" condition_clause }
@@ -301,9 +308,9 @@ range_expr
     ::= expression ".." expression [ ".." expression ]
 
 out_stmt
-    ::= "out" "count" [ local_id [ ":" type ] ] [ "where" condition ] ";"
-      | "out" [ out_reducer ] local_id ( ":" type "=" | ":=" ) expression [ "where" condition ] ";"
-      | "out" [ out_reducer ] expression [ "where" condition ] ";"
+    ::= "out" "count" [ local_id [ ":" type ] ] [ "must" condition ] ";"
+      | "out" [ out_reducer ] local_id ( ":" type "=" | ":=" ) expression [ "must" condition ] ";"
+      | "out" [ out_reducer ] expression [ "must" condition ] ";"
 
 out_reducer
     ::= "sum" | "min" | "max" | "all" | "any" | "first" | "last"
@@ -328,7 +335,7 @@ match_expr
     ::= "match" [ "!" | "?" ] [ expression ] "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { ( "or" | "," ) pattern } [ "where" condition ] ( block | "=>" expression [ ";" ] )
+    ::= pattern { ( "or" | "," ) pattern } [ "must" condition ] ( block | "=>" expression [ ";" ] )
       | condition ( block | "=>" expression [ ";" ] )
 
 pattern
@@ -667,11 +674,11 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "else" | "in" | "by" | "out" | "break" | "continue"
+      | "must", "may" | "in" | "by" | "out" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw"
       | "return" | "use" | "with" | "ref" | "weak"
       | "embed" | "static" | "astatic" | "gstatic"
-      | "where" | "zeroed" | "noinit" | "strict" | "none" | "fn"
+      | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
 
