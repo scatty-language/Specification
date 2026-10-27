@@ -187,12 +187,16 @@ playerC := playerA + playerB;
 
 ### Writing and In-Place Mutation by Index
 
-* MUST require the target type to implement the weak contract `Set(ref @, key: TKey, value: TValue)` (or be constrained by `~Indexable<TKey, TValue>^Mutable`) to support index assignment (`col[key] = value`).
-* MUST reject index assignment (`col[key] = value`) at compile time if the concrete type omits `Set`.
-* MUST automatically unpack compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), or mutating method calls (`col[key].Mutate()`) on non-contiguous `~Indexable` types implementing `Set` into a single-evaluation read-modify-write sequence:
+* MUST require the target type to implement the weak contract `Set(ref @, key: TKey, value: TValue)` (or be constrained by `~Indexable<TKey, TValue>^Mutable`) to support index assignment (`col[key] = value`) and indexed mutations.
+* MUST reject index assignment (`col[key] = value`) and indexed mutations at compile time if the concrete type omits `Set`.
+* MUST execute compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on built-in addressable collections (`[T]`, `[+ T]`, `[T ::: N]`, `[+ T ::: N]`, `[K $ V]`, `[K $ V ::: N]`, `[K -> V]`, `[K ->! V]`, and field projections of SoA collections `soa[i].Field`) directly in-place against the element's memory slot:
+  1. Detach the collection buffer via Copy-on-Write if the collection is an Owning Type with `strongCount > 1`.
+  2. Evaluate `key` once and resolve the target element's memory slot in a single lookup.
+  3. Apply the mutation or bind the `ref` parameter directly to the resolved memory slot without invoking `Get` or `Set` and without incrementing the element's `strongCount`.
+* MUST automatically unpack compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on custom `Data` types implementing `~Indexable<TKey, TValue>` with `Set` into a single-evaluation read-modify-write sequence:
   1. Evaluate `key` once into a temporary binding `_key`.
   2. Read `_temp := col.Get(_key)`.
-  3. Apply the field mutation, compound assignment, or `ref @` method call to `_temp`.
+  3. Apply the mutation or `ref` argument invocation to `_temp`.
   4. Write the modified value back via `col.Set(_key, _temp)`.
 
 ### Multi-Argument Indexing
@@ -206,11 +210,15 @@ UpdateHero(ref heroes: [String $ Hero], ref grid: Grid)
     // Safe optional lookup via '.At()' combined with optional chaining '?.' and '??'
     hp: Int = heroes.At("Arthas")?.Hp ?? 0;
 
-    // Automatic read-modify-write unpacking via Get + Set:
+    // Built-in collection: single lookup, direct in-place slot mutation (strongCount remains 1)
     heroes["Arthas"].Hp -= 10;
+    heroes["Arthas"].Inventory.Add("Frostmourne");
+
+    // Custom '~Indexable' type: unpacked into Get + mutate '_temp' + Set
+    grid[2, 3].Value += 1;
 
     // Multi-argument indexing packs '(2, 3)' into a tuple key
-    grid[2, 3] = 99;
+    grid[2, 3] = Cell { Value: 99 };
     cell := grid[2, 3];
 }
 ```

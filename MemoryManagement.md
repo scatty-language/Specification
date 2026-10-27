@@ -113,15 +113,20 @@ ClearList(ref myList);
 ### Law of Exclusivity
 
 * MUST NOT alias a memory location passed as a `ref` argument with any other parameter (either by `ref` or by value) during the exact same method invocation.
-* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments, as they represent non-overlapping memory locations.
+* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments.
 * MUST NOT pass a parent instance (by value or `ref`) and any of its nested fields simultaneously within the same method invocation.
+* MUST treat an in-place indexed borrow (`ref col[key]` or invoking a `ref @` method on `col[key]`) as an exclusive `ref` borrow of the entire `col` collection for the duration of the method invocation.
+* MUST NOT pass a collection (by value or `ref`) and any of its indexed elements simultaneously within the same method invocation.
+* MUST NOT pass two indexed elements of the same collection (`ref col[i]` and `ref col[j]`) simultaneously as `ref` arguments within the same method invocation.
 * MUST NOT pass a `static` or `astatic` variable or field directly as a `ref` argument to a method parameter.
 
 ```C#
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
+ProcessListAndItem(ref list: [+ Int], ref item: Int) { }
 
 vector := Vector { X: 0, Y: 0 };
+numbers := [+ Int] { 10, 20, 30 };
 
 // ERROR: 'vector' is passed by 'ref' and by value simultaneously
 Process(ref vector, vector); 
@@ -131,6 +136,12 @@ ProcessValues(ref vector.X, ref vector.Y);
 
 // ERROR: 'vector' memory overlaps with 'vector.X'
 ProcessMixed(ref vector, ref vector.X); 
+
+// ERROR: cannot borrow 'numbers' and its element 'numbers[0]' simultaneously
+ProcessListAndItem(ref numbers, ref numbers[0]);
+
+// ERROR: cannot borrow two indexed elements of 'numbers' simultaneously
+ProcessValues(ref numbers[0], ref numbers[1]);
 ```
 
 ## Resource Cleanup and Disposal
