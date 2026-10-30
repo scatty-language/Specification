@@ -21,7 +21,10 @@ data_decl
         ( "{" { member } "}" | "(" [ short_field_list ] ")" ";" )
 
 interfaces
-    ::= type_identifier { "," type_identifier }
+    ::= interface_type { "," interface_type }
+
+interface_type
+    ::= [ type_identifier "::" ] "~" type_identifier [ "<" type_args ">" ]
 
 tag_type
     ::= type | "none"
@@ -193,7 +196,7 @@ type_parameter
     ::= type_identifier [ ":" constraint_list ]
 
 constraint_list
-    ::= type_identifier { "," type_identifier }
+    ::= interface_type { "," interface_type }
 
 type_args
     ::= type { "," type }
