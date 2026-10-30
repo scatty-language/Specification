@@ -480,7 +480,8 @@ variant_update
     ::= "::" public_id [ variant_payload_init_body ]
 
 primary_expr
-    ::= literal
+    ::= "@"
+      | literal
       | contextual_expr
       | lambda_expr
       | match_expr
