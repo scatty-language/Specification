@@ -51,7 +51,7 @@ ProcessBatch(orders: List<Order>, userId: Int) -> Float
             order.OwnerId == user.Id;
         }
 
-        out sum total := order.Amount;
+        out sum order.Amount -> total;
     }
 
     return total;
@@ -100,7 +100,7 @@ item in items
     may item.IsRare => LogRareItem(item);
     must! item.Price >= 0.0f;
 
-    out sum total := item.Price;
+    out sum item.Price -> total;
 }
 ```
 
@@ -227,52 +227,80 @@ dept in company.Departments
 
 ### Output Stages and Multi-Sink Aggregation
 
-* MAY declare one or more named output sinks (`out [Reducer] local_id ...`) inside a statement-level `in` pipeline block.
+* MAY declare one or more named output sinks (`out count -> local_id [: Type]` or `out [Reducer] Expression -> local_id [: Type]`) inside a statement-level `in` pipeline block.
 * MUST treat `count`, `sum`, `min`, `max`, `all`, `any`, `first`, and `last` as contextual reducer modifiers when placed immediately after the `out` keyword.
-* MUST hoist and introduce every variable declared via a named `out` statement into both:
-  * the remainder of the current `in` block immediately following the `out` statement, and
-  * the lexical scope immediately enclosing the `in` pipeline statement after the `in` block completes.
-* MAY read the current accumulated value of a named `out` binding in any subsequent statement or `must` gate positioned below that `out` statement within the same `in` block.
-* MUST NOT reassign or mutate a named `out` binding outside of its `out` statement while inside the lexical body of the `in` block.
-* MUST initialize and update named `out` bindings according to the specified reducer:
-  * `out count local_id` (inferred as `Int` if `: Type` is omitted): Initializes `local_id` to `0` prior to the pipeline and increments it by `1` each time the statement is reached.
-  * `out sum local_id := Expression` (inferred as the numeric type `T` of `Expression`): Initializes `local_id` to the additive identity (`0` or `0.0`) prior to the pipeline and adds the evaluated `Expression` each time the statement is reached.
-  * `out min local_id := Expression` (inferred as `T?` where `T` is the `~Comparable` type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and updates it to `Option::Some` containing the minimum evaluated value according to `~Comparable`.
-  * `out max local_id := Expression` (inferred as `T?` where `T` is the `~Comparable` type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and updates it to `Option::Some` containing the maximum evaluated value according to `~Comparable`.
-  * `out all local_id := Expression` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes `local_id` to `true` prior to the pipeline and updates it to `local_id and Expression` each time the statement is reached.
-  * `out any local_id := Expression` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes `local_id` to `false` prior to the pipeline and updates it to `local_id or Expression` each time the statement is reached.
-  * `out first local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` only upon the first element reaching the statement.
-  * `out last local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and overwrites it with `Option::Some(Expression)` each time the statement is reached.
-  * `out local_id: CollectionType = Expression` or `out local_id := Expression` (without a reducer modifier): Initializes an empty collection prior to the pipeline (defaulting to `[T]` when inferred via `:=`) and appends or inserts the evaluated `Expression` each time the statement is reached.
-* MAY attach a trailing `must Condition` filter to any `out` statement to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
+* MUST resolve the target `local_id` of `-> local_id` according to the enclosing lexical scope prior to the `in` pipeline:
+  * New Hoisted Binding: If `local_id` is not declared in the enclosing scope prior to the `in` pipeline, the compiler MUST automatically initialize a new variable `local_id` prior to the pipeline and hoist it into both the remainder of the current `in` block (following the `out` statement) and the lexical scope immediately enclosing the `in` pipeline.
+  * Existing Outer Binding: If `local_id` is already declared as a mutable variable or `ref` parameter in an enclosing scope prior to the `in` pipeline, the `out` statement MUST accumulate directly into that existing binding without resetting its value at the start of the pipeline.
+* MUST NOT specify an explicit `: Type` annotation on `-> local_id` when `local_id` resolves to an existing outer binding.
+* MAY target the same `local_id` across multiple `out` statements within the same `in` pipeline (such as across distinct `may` or `match` branches), provided all targeting `out` statements use identical reducers and compatible types.
+* MUST require every newly hoisted `local_id` introduced via `out ... -> local_id` to be read at least once (either in a subsequent statement within the `in` block or in the enclosing scope after the `in` pipeline completes); an unreferenced hoisted output binding MUST be rejected with a compile-time error.
+* MAY read the current accumulated value of a named `out` binding in any subsequent statement or `must` gate positioned below that `out` statement within a sequential `in` block (without a `by` schedule modifier).
+* MUST NOT read a named `out` binding within the body of an `in` block that declares a `by` schedule modifier.
+* MUST NOT directly reassign or mutate a named `out` binding outside of `out` statements while inside the lexical body of the `in` block.
+* MUST initialize (for newly hoisted bindings) and update named `out` bindings according to the specified reducer:
+  * `out count -> local_id` (inferred as `Int` if `: Type` is omitted): Initializes a new `local_id` to `0` prior to the pipeline (or retains the current integer value of an existing `local_id`) and increments it by `1` each time the statement is reached.
+  * `out sum Expression -> local_id` (inferred as the numeric type `T` of `Expression`): Initializes a new `local_id` to the additive identity (`0` or `0.0`) prior to the pipeline (or retains the current value of an existing `local_id`) and adds the evaluated `Expression` each time the statement is reached.
+  * `out min Expression -> local_id` (where `Expression` has a `~Comparable` type `T`):
+    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and updates `local_id` to `Option::Some` containing the minimum evaluated value according to `~Comparable`.
+    * If `local_id` is an existing outer binding of non-optional type `T`, compares the evaluated `Expression` against the current value of `local_id` and updates `local_id` in-place to the smaller value.
+  * `out max Expression -> local_id` (where `Expression` has a `~Comparable` type `T`):
+    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and updates `local_id` to `Option::Some` containing the maximum evaluated value according to `~Comparable`.
+    * If `local_id` is an existing outer binding of non-optional type `T`, compares the evaluated `Expression` against the current value of `local_id` and updates `local_id` in-place to the larger value.
+  * `out all Expression -> local_id` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes a new `local_id` to `true` prior to the pipeline (or retains the current value of an existing `local_id`) and updates it to `local_id and Expression` each time the statement is reached.
+  * `out any Expression -> local_id` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes a new `local_id` to `false` prior to the pipeline (or retains the current value of an existing `local_id`) and updates it to `local_id or Expression` each time the statement is reached.
+  * `out first Expression -> local_id` (where `Expression` has type `T`):
+    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` only if `local_id` is currently `Option::None`.
+    * If `local_id` is an existing outer binding of non-optional type `T`, overwrites `local_id` with `Expression` only upon the first element reaching the statement in the current pipeline (retaining its pre-pipeline fallback value if no element reaches the statement).
+  * `out last Expression -> local_id` (where `Expression` has type `T`):
+    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and overwrites it with `Option::Some(Expression)` each time the statement is reached.
+    * If `local_id` is an existing outer binding of non-optional type `T`, overwrites `local_id` with `Expression` each time the statement is reached (retaining its pre-pipeline fallback value if no element reaches the statement).
+  * `out Expression -> local_id [: CollectionType]` (without a reducer modifier): Initializes an empty collection prior to the pipeline if `local_id` is a new hoisted binding (defaulting to `[T]` when `: CollectionType` is omitted), or retains the existing collection if `local_id` is an outer binding, and appends or inserts the evaluated `Expression` each time the statement is reached.
+* MAY attach a trailing `where Condition` filter to any `out` statement (`out ... where Condition;`) to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
 * MUST automatically short-circuit and terminate the `in` pipeline early if the `in` block contains no side-effecting statements and all declared `out` sinks have reached a terminal state (`out first` has captured a value, `out all` has evaluated to `false`, or `out any` has evaluated to `true`).
-* MAY evaluate an `in` pipeline as an expression using anonymous `out [Reducer] [Expression] [must Condition];` statements:
+* MAY evaluate an `in` pipeline as an expression using anonymous `out count [where Condition];` or `out [Reducer] Expression [where Condition];` statements (omitting `-> local_id`):
   * If no reducer is specified and the expected type is a collection, the pipeline MUST allocate the target collection, append or insert each emitted `out` value, and evaluate to that collection.
   * If a reducer (`count`, `sum`, `min`, `max`, `all`, `any`, `first`, `last`) is specified, the pipeline MUST evaluate to the reduced scalar or `Option` result.
   * If no reducer is specified and the expected type is `T?` (`Option<T>`), the pipeline MUST wrap the first emitted `out` value into `Option::Some`, immediately terminate the pipeline, and return it (or return `Option::None` if no element reaches `out`).
-* MUST NOT mix anonymous `out` statements and named `out` statements within the same `in` pipeline block.
+* MUST NOT mix anonymous `out` statements and named `out` statements (`-> local_id`) within the same `in` pipeline block.
 
 ```C#
+// 1. Hoisting new output bindings with '->' and filtering with 'where'
 order in orders by Parallel 
 {
     must order is .Paid and order.Amount > 0.0f;
 
     net := order.Amount * (1.0f - order.Discount);
 
-    out count paidCount;
-    out sum   totalRevenue := net;
-    out max   peakOrder    := net;
-    out all   allVerified  := order.IsVerified;
-    out any   hasFraud     := order.Risk > 90;
-    out vipOrders: [Int] = order.Id must net > 1000.0f;
+    out count               -> paidCount;
+    out sum net             -> totalRevenue;
+    out max net             -> peakOrder;
+    out all order.Verified  -> allVerified;
+    out any order.Risk > 90 -> hasFraud;
+    out order.Id            -> vipOrders: [Int] where net > 1000.0f;
 }
 
+// 2. Reading an accumulated 'out' binding mid-pipeline in a sequential loop
 item in cargoItems 
 {
-    out sum currentWeight := item.Weight;
+    out sum item.Weight -> currentWeight;
     must currentWeight <= 50.0f or break;
 
-    out loadedItems := item;
+    out item -> loadedItems;
+}
+
+// 3. Accumulating into pre-declared outer variables (seeded values and buffers)
+ baseRevenue := 500.0f;
+highestNet := 0.0f; // Non-optional Float seed
+allIds := [Int; 64].New();
+
+order in orders 
+{
+    must order is .Paid;
+
+    out sum order.Amount -> baseRevenue;
+    out max order.Amount -> highestNet;
+    out order.Id         -> allIds where order.Amount > 100.0f;
 }
 ```
 

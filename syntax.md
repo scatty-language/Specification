@@ -314,9 +314,8 @@ range_expr
     ::= expression ".." expression [ ".." expression ]
 
 out_stmt
-    ::= "out" "count" [ local_id [ ":" type ] ] [ "must" condition ] ";"
-      | "out" [ out_reducer ] local_id ( ":" type "=" | ":=" ) expression [ "must" condition ] ";"
-      | "out" [ out_reducer ] expression [ "must" condition ] ";"
+    ::= "out" "count" [ "->" local_id [ ":" type ] ] [ "where" condition ] ";"
+      | "out" [ out_reducer ] expression [ "->" local_id [ ":" type ] ] [ "where" condition ] ";"
 
 out_reducer
     ::= "sum" | "min" | "max" | "all" | "any" | "first" | "last"
@@ -704,7 +703,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "must" | "may" | "in" | "by" | "out" | "break" | "continue"
+      | "must" | "may" | "where" | "in" | "by" | "out" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
