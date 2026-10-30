@@ -30,7 +30,9 @@ listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
 * MUST allocate `static` local variables within Thread-Local Storage (TLS) and evaluate their initialization expression once per thread upon initial execution of the declaration on that thread.
 * MUST allocate `astatic` and `gstatic` local variables within the global static data segment shared across all threads and evaluate their initialization expression exactly once upon the initial execution of the declaration in the process.
 * MAY read and mutate `static` and `astatic` local variables in safe code without an `unsafe` block.
-* MUST compile reads, writes, and compound assignments on scalar primitive `astatic` local variables (up to 64 bits) as hardware atomic operations, and synchronize composite or Owning Type `astatic` local variables via atomic reference retention and Copy-on-Write read-modify-write semantics.
+* MUST compile reads, writes, and compound assignments on Trivial Type `astatic` local variables whose memory footprint is 64 bits or less as lock-free hardware atomic operations.
+* MUST synchronize reads, writes, field mutations, and mutating method calls (`ref @`) on Owning Type `astatic` local variables and Trivial Type `astatic` local variables exceeding 64 bits via an implicit per-variable atomic spinlock.
+* MUST hold the per-variable atomic spinlock for the entire read-modify-write sequence when executing a compound assignment, field mutation, variant switch (`=::`), or mutating method call (`ref @`) on a spinlock-backed `astatic` local variable, releasing any replaced Owning Type reference after unlocking the spinlock.
 * MUST restrict all reads, mutations, and references to `gstatic` local variables exclusively to `unsafe` blocks or `unsafe` methods.
 * MUST NOT pass a `static` or `astatic` local variable directly as a `ref` argument to a method parameter.
 
