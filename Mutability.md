@@ -16,7 +16,7 @@ pointB := pointA;
 pointB.X = 5;
 // 'pointA.X' remains 0
 
-listA := [+ Int].New();
+listA := [Int].New();
 listB := listA; // ARC retain (strongCount == 2)
 listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
 ```

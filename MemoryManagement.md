@@ -35,7 +35,7 @@ Console.WriteLine(one.X); // Output: 10
 * MUST ignore the weak reference count (`weakCount`) when determining uniqueness for Copy-on-Write. An instance with `strongCount == 1` and `weakCount > 0` MUST be mutated in-place so existing `weak` references remain attached to the mutated instance.
 
 ```C#
-list1 := [+ Int] { 1, 2, 3 };
+list1 := [Int] { 1, 2, 3 };
 
 // ARC retain: 'list1' and 'list2' temporarily share the same heap buffer (strongCount == 2)
 list2 := list1;
@@ -72,13 +72,13 @@ Node : ~Copyable
 {
     Value: Int;
     Parent: Node weak;
-    Children: [+ Node];
+    Children: [Node];
 
     Copy(@) -> @ => Node { Value: @.Value, Parent: @.Parent, Children: @.Children };
 }
 
-parent := Node { Value: 1, Parent: none, Children: [+ Node].New() };
-child := Node { Value: 2, Parent: parent, Children: [+ Node].New() };
+parent := Node { Value: 1, Parent: none, Children: [Node].New() };
+child := Node { Value: 2, Parent: parent, Children: [Node].New() };
 
 // strongCount of 'parent' is 1; 'child.Parent' is weak and does not trigger CoW
 parent.Children.Add(child);
@@ -100,13 +100,13 @@ Console.WriteLine(child.Parent.Value);
 * MUST preserve `strongCount == 1` when an unshared variable is passed by `ref`, avoiding unnecessary Copy-on-Write allocations inside the callee.
 
 ```C#
-ClearList(ref list: [+ Int]) 
+ClearList(ref list: [Int]) 
 {
     // Mutates in-place without triggering CoW if 'myList' has strongCount == 1
     list.Clear();
 }
 
-myList := [+ Int] { 10, 20 };
+myList := [Int] { 10, 20 };
 ClearList(ref myList); 
 ```
 
@@ -123,10 +123,10 @@ ClearList(ref myList);
 ```C#
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
-ProcessListAndItem(ref list: [+ Int], ref item: Int) { }
+ProcessListAndItem(ref list: [Int], ref item: Int) { }
 
 vector := Vector { X: 0, Y: 0 };
-numbers := [+ Int] { 10, 20, 30 };
+numbers := [Int] { 10, 20, 30 };
 
 // ERROR: 'vector' is passed by 'ref' and by value simultaneously
 Process(ref vector, vector); 
@@ -224,5 +224,4 @@ UpdateState() throws
 
 ### Associated Array Cleanup
 
-* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an exhaustive associated array (`[K -> V]`) containing Owning Type elements is destroyed.
-* MUST inspect the validity bitmask of a non-exhaustive associated array (`[K ->! V]` or `[K ->? V]`) containing Owning Type elements upon destruction, assignment overwrite, or copy, and retain or release the element slots whose corresponding bitmask bit is `1`.
+* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an associated array (`[K -> V]`) containing Owning Type elements (or `Option::Some` payloads in `[K -> V?]`) is destroyed.

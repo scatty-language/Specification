@@ -40,7 +40,7 @@ Calculate(value: Int) { }
 concurrent 
 {
     counter := 0;
-    data := [+ String].New();
+    data := [String].New();
     data.Add("Initial");
 
     spawn 

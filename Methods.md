@@ -10,11 +10,11 @@
 
 * MUST position a variadic parameter (`LocalId: ...Type`) as the final parameter in the method signature.
 * MUST NOT declare a default value for a variadic parameter.
-* MUST intrinsically evaluate the variadic parameter within the method body as a Static Array (`[Type ::: N]`), where `N` equals the exact number of passed arguments.
+* MUST intrinsically evaluate the variadic parameter within the method body as an `InlineArray<Type>` whose length equals the exact number of passed arguments.
 * MUST generate a unique, distinct function signature during monomorphization for every distinct argument count evaluated at call sites.
 * MUST supply arguments to a variadic parameter positionally.
 * MUST NOT use named arguments for variadic elements.
-* MUST intrinsically generate and pass an empty static array (`[Type ::: 0]`) if no arguments are provided to the variadic parameter.
+* MUST intrinsically generate and pass an empty inline array (`InlineArray<Type>.New(0)`) if no arguments are provided to the variadic parameter.
 
 ```C#
 Logger 
@@ -31,15 +31,15 @@ Logger
 }
 
 // Call Site 1: 3 variadic arguments
-// Compiler generates: LogMetrics_3(prefix: String, metrics: [Int ::: 3])
+// Compiler generates: LogMetrics_3(prefix: String, metrics: InlineArray<Int>)
 Logger.LogMetrics("A", 10, 20, 30);
 
 // Call Site 2: 2 variadic arguments
-// Compiler generates: LogMetrics_2(prefix: String, metrics: [Int ::: 2])
+// Compiler generates: LogMetrics_2(prefix: String, metrics: InlineArray<Int>)
 Logger.LogMetrics("B", 5, 10);
 
 // Call Site 3: 0 variadic arguments
-// Compiler generates: LogMetrics_0(prefix: String, metrics: [Int ::: 0])
+// Compiler generates: LogMetrics_0(prefix: String, metrics: InlineArray<Int>)
 Logger.LogMetrics("C");
 ```
 
@@ -280,7 +280,7 @@ GetId() -> Int
 Matrix 
 {
     // Footprint: 64 bytes (16 * 4 bytes)
-    Cells: [Float ::: 16]; 
+    Cells: InlineArray<Float> = .New(16); 
 }
 
 // 'mat' (> 8 bytes) is passed via a hidden read-only pointer under the hood;
@@ -293,7 +293,7 @@ InspectMatrix(mat: Matrix) -> Float
 // Guaranteed RVO: 'GetIdentity' writes directly into the caller's stack frame.
 GetIdentity() -> Matrix 
 {
-    return Matrix { Cells: [Float ::: 16] { 1.0f, _ = 0.0f } };
+    return Matrix { Cells: { 0 = 1.0f, _ = 0.0f } };
 }
 ```
 

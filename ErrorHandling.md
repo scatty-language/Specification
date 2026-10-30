@@ -209,8 +209,8 @@ HandleRequest() throws
 Account 
 {
     Balance: Int;
-    Users: [Int $ User];
-    Index: [String $ Int];
+    Users: [Int: User];
+    Index: [String: Int];
 
     RegisterAndCharge(ref @, user: User, fee: Int) throws 
     {

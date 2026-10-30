@@ -141,6 +141,7 @@ type
       | guarded_type
       | option_type
       | weak_type
+      | soa_type
       | type_path
 
 option_type
@@ -148,6 +149,9 @@ option_type
 
 weak_type
     ::= type "weak"
+
+soa_type
+    ::= type "soa"
 
 guarded_type
     ::= type "^" type_identifier [ "<" type_args ">" ]
@@ -160,14 +164,12 @@ primitive_type
       | "String" | "RuneString"
 
 collection_type
-    ::= "[" type ( "->" | "->!" | "->?" ) type "]"
-      | "[" [ map_key ] [ col_modifier ] type [ ":::" ( decimal_literal | identifier ) ] "]"
+    ::= "[" type "->" type "]"
+      | "[" ( type ":" | "$:" ) type [ ";" capacity_spec ] "]"
+      | "[" type [ ";" capacity_spec ] "]"
 
-map_key
-    ::= type "$"
-
-col_modifier
-    ::= "+" | "$" | "%" | "+%"
+capacity_spec
+    ::= decimal_literal | identifier
 
 tuple_type
     ::= "(" tuple_type_elem "," tuple_type_elem { "," tuple_type_elem } ")"
@@ -517,7 +519,7 @@ tuple_expr_elem
     ::= [ public_id ":" ] expression
 
 collection_init
-    ::= collection_type ( "{" [ collection_elem_list ] "}" | ".New(" [ argument_list ] ")" )
+    ::= collection_type [ "soa" ] ( "{" [ collection_elem_list ] "}" | ".New(" [ argument_list ] ")" )
       | "{" [ collection_elem_list ] "}"
 
 collection_elem_list
@@ -702,9 +704,9 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "must", "may" | "in" | "by" | "out" | "break" | "continue"
+      | "must" | "may" | "in" | "by" | "out" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
-      | "return" | "use" | "with" | "ref" | "weak"
+      | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"

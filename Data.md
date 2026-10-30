@@ -183,7 +183,7 @@ may color is .Green
 
 Order 
 {
-    ::Draft(Items: [+ String]);
+    ::Draft(Items: [String]);
     ::Submitted(TransactionId: Int);
 
     // Direct access to '::Draft' payload ('@.Items') without pattern matching
@@ -199,12 +199,12 @@ Order
 }
 
 // Explicitly typed as 'Order::Draft'
-draft: Order::Draft = .Draft([+ String].New());
+draft: Order::Draft = .Draft([String].New());
 draft.AddItem("Book");
 submitted: Order::Submitted = draft.Submit(1001);
 
 // Inferred as base type 'Order'
-order := Order::Draft([+ String].New());
+order := Order::Draft([String].New());
 order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
 
 // Valid after flow-sensitive narrowing via 'is'
@@ -294,7 +294,7 @@ RawBufferUnion ::: none
     unsafe 
     {
         ::ManagedText(String);
-        ::ManagedList([+ Int]);
+        ::ManagedList([Int]);
     }
 
     // Shared field outside the union remains safely tracked by ARC

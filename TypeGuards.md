@@ -140,7 +140,7 @@ match rawValue as? Int^Positive
 * MUST require guarded assignment operators (`instance.Field =^ val`, `instance.Field +=^ val`) when mutating any field of a variable governed by a type guard, which re-evaluates the enclosing `Data^Guard` invariant after updating the field.
 * MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any field of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
 * MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
-  * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [+ Int]^NonEmpty`), or
+  * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [Int]^NonEmpty`), or
   * Passing `instance` (or any of its fields) as a `ref` argument to a parameter typed as the unguarded base type.
 * MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` invariant checks when the invariant cannot be statically proven at compile time:
   * In Debug mode, the compiler MUST evaluate the governing `must` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
@@ -159,14 +159,14 @@ User
 }
 
 ^Adult = User must @.Age >= 18;
-^NonEmpty = [+ Int] must @.Count > 0;
+^NonEmpty = [Int] must @.Count > 0;
 
 ResetUser(ref u: User) 
 {
     u.Age = 5;
 }
 
-MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [+ Int]^NonEmpty) 
+MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [Int]^NonEmpty) 
 {
     // 1. Default guarded scalar mutation: checked in Debug, elided in default Release
     age -=^ 10;

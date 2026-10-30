@@ -243,7 +243,7 @@ dept in company.Departments
   * `out any local_id := Expression` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes `local_id` to `false` prior to the pipeline and updates it to `local_id or Expression` each time the statement is reached.
   * `out first local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` only upon the first element reaching the statement.
   * `out last local_id := Expression` (inferred as `T?` where `T` is the type of `Expression`): Initializes `local_id` to `Option::None` prior to the pipeline and overwrites it with `Option::Some(Expression)` each time the statement is reached.
-  * `out local_id: CollectionType = Expression` or `out local_id := Expression` (without a reducer modifier): Initializes an empty collection prior to the pipeline (defaulting to `[+ T]` when inferred via `:=`) and appends or inserts the evaluated `Expression` each time the statement is reached.
+  * `out local_id: CollectionType = Expression` or `out local_id := Expression` (without a reducer modifier): Initializes an empty collection prior to the pipeline (defaulting to `[T]` when inferred via `:=`) and appends or inserts the evaluated `Expression` each time the statement is reached.
 * MAY attach a trailing `must Condition` filter to any `out` statement to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
 * MUST automatically short-circuit and terminate the `in` pipeline early if the `in` block contains no side-effecting statements and all declared `out` sinks have reached a terminal state (`out first` has captured a value, `out all` has evaluated to `false`, or `out any` has evaluated to `true`).
 * MAY evaluate an `in` pipeline as an expression using anonymous `out [Reducer] [Expression] [must Condition];` statements:
@@ -264,7 +264,7 @@ order in orders by Parallel
     out max   peakOrder    := net;
     out all   allVerified  := order.IsVerified;
     out any   hasFraud     := order.Risk > 90;
-    out vipOrders: [+ Int] = order.Id must net > 1000.0f;
+    out vipOrders: [Int] = order.Id must net > 1000.0f;
 }
 
 item in cargoItems 

@@ -51,8 +51,8 @@ may res.Contains("Wow")
 ```C#
 Wrapper<T> 
 {
-    List: [+ T] embed;
-    ListB: [+ T] embed;
+    List: [T] embed;
+    ListB: [T] embed;
 
     WowCount: Int;
 
@@ -65,7 +65,7 @@ Wrapper<T>
     Capacity: Int => @.ListB.Capacity;
 }
 
-wrapper := Wrapper<Int> { List: [+ Int].New(), WowCount: 0, ListB: [+ Int].New() };
+wrapper := Wrapper<Int> { List: [Int].New(), WowCount: 0, ListB: [Int].New() };
 
 wrapper.List.Add(1);
 
