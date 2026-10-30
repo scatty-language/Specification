@@ -386,9 +386,6 @@ tuple_pattern
 guard_pattern
     ::= "^" type_identifier [ "<" type_args ">" ]
 
-pattern_binding_list
-    ::= local_id { "," local_id }
-
 expression
     ::= assignment_expr
 
