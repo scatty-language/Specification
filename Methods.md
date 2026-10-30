@@ -259,8 +259,9 @@ ProcessVector(pos.Add(a)..Add(b));
 ## Parameter Passing and Return Semantics
 
 * MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) within CPU registers if its evaluated memory footprint is less than or equal to the target architecture's native pointer size (`sizeof(Usize)`).
-* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`), avoiding eager memory copying at the call site.
-* MUST NOT increment or decrement the ARC `strongCount` of an Owning Type upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter.
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`), unless the argument evaluates a `static`, `astatic`, or `gstatic` variable or field.
+* MUST NOT increment or decrement the ARC `strongCount` of an Owning Type upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter, unless the argument evaluates a `static`, `astatic`, or `gstatic` variable or field.
+* MUST materialize an isolated copy (via bitwise copy for Trivial Types or ARC `strongCount` increment for Owning Types) at the call site prior to invocation whenever a `static`, `astatic`, or `gstatic` variable or field is passed by value.
 * MUST lazily materialize a local copy (via bitwise copy for Trivial Types or ARC retain and Copy-on-Write detachment for Owning Types) at the exact point of assignment or mutation if a standard (non-`ref`) parameter is mutated or stored within the method body.
 * MUST NOT declare or return references (`ref`) from methods.
 * MUST return all `Data` by value.
