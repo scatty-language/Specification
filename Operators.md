@@ -174,7 +174,7 @@ playerC := playerA + playerB;
         return .None;
     }
 
-    ^Mutable = @ must  is .Set;
+    ^Mutable = @ must @ is .Set;
 }
 ```
 
