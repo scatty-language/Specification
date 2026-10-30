@@ -52,15 +52,20 @@ Some() throws
 ## Throwing and Catching
 
 * MUST NOT allocate heap memory during the execution of a `throw` statement.
-* MUST move the evaluated exception `Data` value bitwise into the pre-allocated Thread-Local Storage (TLS) exception buffer, transferring ownership of any nested Owning Type fields (such as `Message: String`) without incrementing their reference counts.
+* MUST write the evaluated exception `Data` value bitwise into the pre-allocated Thread-Local Storage (TLS) exception buffer.
+* MUST transfer ownership of any nested Owning Type fields into the TLS exception buffer without incrementing their `strongCount` when the thrown expression is an rvalue.
+* MUST increment the `strongCount` of all nested Owning Type fields when the thrown expression is an lvalue.
 * MUST NOT allow `Data` types implementing `~Exception` to exceed the fixed 128-byte size limit of the TLS exception buffer.
 * MUST unwind the call stack until an execution frame containing a matching `catch` arm is reached.
 * MUST execute the first matching `catch` arm for an intercepted exception.
-* MUST move the exception data from the TLS exception buffer into the local variable declared by the matching `catch` arm and clear the TLS slot.
-* MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) prior to clearing the TLS exception buffer whenever an active exception is suppressed by a parameterless `catch` block, intercepted by `try?`, or overwritten by a new exception.
+* MUST move the exception data from the TLS exception buffer into a 128-byte frame-local exception slot and clear the TLS exception buffer upon entering a matching `catch` arm.
+* MUST bind the variable declared in a `catch` arm (`catch e: Type`) directly to the frame-local exception slot when `Type` is a concrete `Data` type.
+* MUST bind the variable declared in a `catch` arm (`catch e: ~Interface`) as an implicit `ref` reference to the frame-local exception slot when `Type` is an interface.
 * MAY omit the variable identifier and type in a `catch` arm to define a catch-all block.
 * MAY execute a parameterless `throw;` statement within a `catch` or `rollback` block to rethrow the active exception.
+* MUST move the exception data from the frame-local exception slot back into the TLS exception buffer when executing a parameterless `throw;` statement.
 * MUST NOT execute a parameterless `throw;` statement outside of a `catch` or `rollback` block.
+* MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) in the frame-local exception slot upon exiting a `catch` block without rethrowing, or in the TLS exception buffer when an active exception is intercepted by `try?`.
 
 ```C#
 Process(value: Int) throws
@@ -199,9 +204,10 @@ HandleRequest() throws
 * MUST execute activated `undo` statements if and only if execution exits the enclosing lexical block via an unhandled exception.
 * MUST NOT execute `undo` statements when execution exits the enclosing block normally or via `return`, `break`, `continue`, `fall`, or a non-throwing `must` gate.
 * MUST execute multiple activated `undo` statements within the same lexical block in reverse order of declaration (Last-In, First-Out).
-* MUST execute activated `undo` statements and local variable ARC / `~Disposable` cleanup in strict reverse declaration order, executing each `undo` statement prior to destroying any local variables declared above it in the same block.
+* MUST execute activated `undo` statements and local variable ARC / `~Disposable` cleanup in reverse declaration order, executing each `undo` statement prior to destroying any local variables declared above it in the same block.
 * MUST evaluate and mutate local variables, `ref` parameters, and `ref @` receivers within an `undo` body directly against the active stack frame's state at the moment of unwinding.
-* MUST automatically continue propagating the active exception in the TLS exception buffer after an `undo` statement completes.
+* MUST move the active exception from the TLS exception buffer into a 128-byte frame-local exception slot prior to executing an `undo` statement and clear the TLS exception buffer for the duration of the `undo` body.
+* MUST move the exception from the frame-local exception slot back into the TLS exception buffer upon completion of the `undo` statement to continue stack unwinding.
 * MUST NOT invoke a `throws` method within an `undo` body unless wrapped in `try?`, `try!`, or a `try` / `catch` construct that handles all exceptions within the `undo` scope.
 * MUST NOT execute a `throw`, `return`, `break`, `continue`, or `fall` statement that exits an `undo` body.
 
