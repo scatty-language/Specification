@@ -108,7 +108,7 @@ _socketBuffer
 }
 
 // File: Socket.windows.cat (Narrower Scope: {windows}, same BaseName 'Socket')
-+Socket 
+Socket with
 {
     Connect(ref @) 
     {

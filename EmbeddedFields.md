@@ -30,12 +30,12 @@ Response
 
 res := Response::Success { Timestamp: 12345 };
 
-if res is .Error(code) 
+may res is .Error(code) 
 {
     Console.WriteLine(code);
 }
 
-if res.Contains("Wow") 
+may res.Contains("Wow") 
 {
     Console.WriteLine("String method forwarded!");
 }
@@ -51,8 +51,8 @@ if res.Contains("Wow")
 ```C#
 Wrapper<T> 
 {
-    List: [+ T] embed;
-    ListB: [+ T] embed;
+    List: [T] embed;
+    ListB: [T] embed;
 
     WowCount: Int;
 
@@ -65,7 +65,7 @@ Wrapper<T>
     Capacity: Int => @.ListB.Capacity;
 }
 
-wrapper := Wrapper<Int> { List: [+ Int].New(), WowCount: 0, ListB: [+ Int].New() };
+wrapper := Wrapper<Int> { List: [Int].New(), WowCount: 0, ListB: [Int].New() };
 
 wrapper.List.Add(1);
 

@@ -15,7 +15,7 @@
 ```C#
 TryCalculate(value: Int) throws 
 {
-    if value < 0 => throw Exception.New("Less than zero!");
+    may value < 0 => throw Exception.New("Less than zero!");
 }
 
 Calculate() 
@@ -65,7 +65,7 @@ Some() throws
 ```C#
 Process(value: Int) throws
 {
-    if value < 0 => throw Exception.New("Negative value");
+    may value < 0 => throw Exception.New("Negative value");
 }
 
 TryProcess() throws
@@ -100,7 +100,7 @@ TryProcess() throws
 ```C#
 FetchUser(id: Int) throws -> User 
 {
-    if id < 0 => throw Exception.New("Invalid ID");
+    may id < 0 => throw Exception.New("Invalid ID");
     return User.New(id);
 }
 
@@ -129,7 +129,7 @@ isAlive := try? Ping();
 ```C#
 ParseInt(val: String) throws -> Int 
 {
-    if val == "" => throw Exception.New("Empty String");
+    may val == "" => throw Exception.New("Empty String");
     return 0; 
 }
 
@@ -151,9 +151,9 @@ ProcessData() throws
 ## Type Guard Filtering in Catch Blocks
 
 * MAY specify a Type Guart as the filter type on a `catch` arm (`catch e: Type^Guard`).
-* MUST evaluate the type guard's `where` expression against the active exception instance when the base type matches.
-* MUST intercept the exception and refine the local variable's type within the `catch` block if the `where` expression evaluates to `true`.
-* MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `where` expression evaluates to `false`.
+* MUST evaluate the type guard's `must` expression against the active exception instance when the base type matches.
+* MUST intercept the exception and refine the local variable's type within the `catch` block if the `must` expression evaluates to `true`.
+* MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `must` expression evaluates to `false`.
 
 ```C#
 HttpException : ~Exception 
@@ -162,8 +162,8 @@ HttpException : ~Exception
     Message: String;
 }
 
-^ClientError = HttpException where @.Code >= 400 and @.Code < 500;
-^ServerError = HttpException where @.Code >= 500 and @.Code < 600;
+^ClientError = HttpException must @.Code >= 400 and @.Code < 500;
+^ServerError = HttpException must @.Code >= 500 and @.Code < 600;
 
 ProcessRequest() throws 
 {
@@ -187,6 +187,51 @@ HandleRequest() throws
     catch e: ~Exception 
     {
         throw; 
+    }
+}
+```
+
+## `undo` Statement
+
+* MAY declare an `undo` statement (`undo => Statement;` or `undo { ... }`) within a block.
+* MUST reject an `undo` statement at compile time if no `throws` invocation or `throw` statement follows it within the same lexical block.
+* MUST activate an `undo` statement only after execution reaches its declaration point.
+* MUST execute activated `undo` statements if and only if execution exits the enclosing lexical block via an unhandled exception.
+* MUST NOT execute `undo` statements when execution exits the enclosing block normally or via `return`, `break`, `continue`, `fall`, or a non-throwing `must` gate.
+* MUST execute multiple activated `undo` statements within the same lexical block in reverse order of declaration (Last-In, First-Out).
+* MUST execute activated `undo` statements and local variable ARC / `~Disposable` cleanup in strict reverse declaration order, executing each `undo` statement prior to destroying any local variables declared above it in the same block.
+* MUST evaluate and mutate local variables, `ref` parameters, and `ref @` receivers within an `undo` body directly against the active stack frame's state at the moment of unwinding.
+* MUST automatically continue propagating the active exception in the TLS exception buffer after an `undo` statement completes.
+* MUST NOT invoke a `throws` method within an `undo` body unless wrapped in `try?`, `try!`, or a `try` / `catch` construct that handles all exceptions within the `undo` scope.
+* MUST NOT execute a `throw`, `return`, `break`, `continue`, or `fall` statement that exits an `undo` body.
+
+```C#
+Account 
+{
+    Balance: Int;
+    Users: [Int: User];
+    Index: [String: Int];
+
+    RegisterAndCharge(ref @, user: User, fee: Int) throws 
+    {
+        @.Users[user.Id] = user;
+        undo => @.Users.Remove(user.Id);
+
+        @.Index[user.Email] = user.Id;
+        undo 
+        {
+            @.Index.Remove(user.Email);
+            try? AuditLog.WriteRevert(user.Id);
+        }
+
+        @.Balance += fee;
+        undo => @.Balance -= fee;
+
+        // If 'SendConfirmation' throws, active 'undo' blocks execute in LIFO order:
+        // 1. '@.Balance -= fee'
+        // 2. '@.Index.Remove(user.Email)' and 'try? AuditLog.WriteRevert(user.Id)'
+        // 3. '@.Users.Remove(user.Id)'
+        SendConfirmation(user.Email);
     }
 }
 ```

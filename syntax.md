@@ -17,7 +17,7 @@ top_level_declaration
       | var_decl
 
 data_decl
-    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ ":::" tag_type ]
+    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ]
         ( "{" { member } "}" | "(" [ short_field_list ] ")" ";" )
 
 interfaces
@@ -38,19 +38,19 @@ unsafe_variant_block
     ::= "unsafe" "{" { variant_decl } "}"
 
 variant_decl
-    ::= [ "unsafe" ] "::" public_id [ "(" payload_field_list ")" ] [ "=" expression ] [ ":::" expression ] ";"
+    ::= [ "unsafe" ] "::" public_id [ "(" payload_field_list ")" ] [ "=" expression ] ";"
 
 payload_field_list
     ::= payload_field { "," payload_field }
 
 payload_field
-    ::= [ field_modifier ] [ type_identifier ":" ] type [ "=" expression ] [ ":::" decimal_literal ]
+    ::= [ type_identifier ":" ] type { field_modifier } [ "pack" decimal_literal ] [ "=" expression ]
 
 short_field_list
     ::= short_field { "," short_field }
 
 short_field
-    ::= [ field_modifier ] ( type_identifier | "_" ) ":" type [ field_storage_modifier ] [ "=" expression ] [ ":::" decimal_literal ]
+    ::= ( type_identifier | "_" ) ":" type { field_modifier } [ field_storage_modifier ] [ "pack" decimal_literal ] [ "=" expression ]
 
 field_storage_modifier
     ::= "embed" | "static" | "astatic" | "gstatic"
@@ -59,7 +59,7 @@ field_decl
     ::= short_field ";"
 
 field_modifier
-    ::= "$" | "#" | "#$"
+    ::= "equal" | "math"
 
 interface_decl
     ::= "~" type_identifier [ "<" type_params ">" ] "{" { interface_member } "}"
@@ -73,10 +73,10 @@ interface_prop_decl
     ::= type_identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
 
 extension_decl
-    ::= "+" type "{" { member } "}"
+    ::= type "with" "{" { member } "}"
 
 guard_decl
-    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "where" expression ";"
+    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "must" expression ";"
 
 target_type
     ::= "@" | type
@@ -141,6 +141,7 @@ type
       | guarded_type
       | option_type
       | weak_type
+      | soa_type
       | type_path
 
 option_type
@@ -148,6 +149,9 @@ option_type
 
 weak_type
     ::= type "weak"
+
+soa_type
+    ::= type "soa"
 
 guarded_type
     ::= type "^" type_identifier [ "<" type_args ">" ]
@@ -160,14 +164,12 @@ primitive_type
       | "String" | "RuneString"
 
 collection_type
-    ::= "[" type ( "->" | "->!" | "->?" ) type "]"
-      | "[" [ map_key ] [ col_modifier ] type [ ":::" ( decimal_literal | identifier ) ] "]"
+    ::= "[" type "->" type "]"
+      | "[" ( type ":" | "$:" ) type [ ";" capacity_spec ] "]"
+      | "[" type [ ";" capacity_spec ] "]"
 
-map_key
-    ::= type "$"
-
-col_modifier
-    ::= "+" | "$" | "%" | "+%"
+capacity_spec
+    ::= decimal_literal | identifier
 
 tuple_type
     ::= "(" tuple_type_elem "," tuple_type_elem { "," tuple_type_elem } ")"
@@ -176,7 +178,7 @@ tuple_type_elem
     ::= [ public_id ":" ] type
 
 method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ "->" type ]
+    ::= "fn" "(" [ method_type_list ] ")" [ "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }
@@ -203,11 +205,15 @@ statement
     ::= var_decl
       | const_decl
       | destructure_stmt
-      | if_statement
-      | for_loop
+      | must_stmt
+      | may_stmt
+      | stage_expr
+      | stage_expand_stmt
+      | out_stmt
       | match_expr
       | try_catch_stmt
       | try_force_block
+      | undo_stmt
       | concurrent_expr
       | spawn_stmt
       | break_stmt
@@ -236,6 +242,9 @@ cascade_stmt
 cascade_chain
     ::= postfix_expr ".." type_identifier method_invocation { ".." type_identifier method_invocation }
 
+undo_stmt
+    ::= "undo" ( block | "=>" statement )
+
 throw_stmt
     ::= "throw" [ expression ] ";"
 
@@ -254,13 +263,22 @@ destructure_target
 expression_stmt
     ::= expression [ "strict" ] ";"
 
-if_statement
-    ::= "if" condition ( block | "=>" statement ) [ "else" if_tail ]
+must_stmt
+    ::= "must" ( condition ";" | condition_block )
+      | "must" ( condition | condition_block ) "or" ( block | "=>" statement | statement )
+      | "must!" ( condition ";" | condition_block )
 
-if_tail
-    ::= "if" condition ( block | "=>" statement )
+may_stmt
+    ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
+
+may_tail
+    ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
       | block
       | "=>" statement
+      | statement
+
+condition_block
+    ::= "{" condition ";" { condition ";" } "}"
 
 condition
     ::= condition_clause { "and" condition_clause }
@@ -277,19 +295,31 @@ conditional_assignment
     ::= assignable_path ( "=" | "=^" ) prefix_control_expr
 
 assignable_path
-    ::= [ "@" "." ] identifier { "." type_identifier }
+    ::= [ "@" "." ] identifier { "." type_identifier | index_access }
 
-for_loop
-    ::= "for" ( condition | iteration ) block
+stage_expr
+    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] ( block | "=>" statement )
 
-iteration
-    ::= ( local_id | destructure_pattern ) "in" iterator [ "by" type_identifier ]
+stage_header
+    ::= [ "ref" ] local_id
+      | destructure_pattern
+
+stage_expand_stmt
+    ::= stage_header "in" iterator [ "by" type_identifier ] ";"
 
 iterator
     ::= range_expr | expression
 
 range_expr
     ::= expression ".." expression [ ".." expression ]
+
+out_stmt
+    ::= "out" "count" [ local_id [ ":" type ] ] [ "must" condition ] ";"
+      | "out" [ out_reducer ] local_id ( ":" type "=" | ":=" ) expression [ "must" condition ] ";"
+      | "out" [ out_reducer ] expression [ "must" condition ] ";"
+
+out_reducer
+    ::= "sum" | "min" | "max" | "all" | "any" | "first" | "last"
 
 try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
@@ -308,19 +338,44 @@ spawn_stmt
         [ "rollback" [ "by" expression ] ( block | "=>" statement ) ]
 
 match_expr
-    ::= "match" [ "!" | "?" ] expression "{" match_arm { match_arm } "}"
+    ::= "match" [ "!" | "?" ] [ expression ] "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { ( "or" | "," ) pattern } [ "where" expression ] ( block | "=>" expression [ ";" ] )
+    ::= pattern { "," pattern } [ "and" condition ] ( block | "=>" expression [ ";" ] )
+      | condition ( block | "=>" expression [ ";" ] )
 
 pattern
     ::= variant_pattern
+      | struct_pattern
+      | tuple_pattern
       | guard_pattern
       | literal
       | "_"
 
+sub_pattern
+    ::= local_id
+      | pattern
+
 variant_pattern
-    ::= "." type_identifier [ "(" pattern_binding_list ")" ]
+    ::= "." type_identifier [ "(" pattern_arg_list ")" ] [ struct_pattern ]
+
+pattern_arg_list
+    ::= pattern_arg { "," pattern_arg } [ "," ]
+
+pattern_arg
+    ::= [ type_identifier ":" ] sub_pattern
+
+struct_pattern
+    ::= "{" field_pattern_list "}"
+
+field_pattern_list
+    ::= field_pattern { "," field_pattern } [ "," ]
+
+field_pattern
+    ::= type_identifier ":" sub_pattern
+
+tuple_pattern
+    ::= "(" sub_pattern "," sub_pattern { "," sub_pattern } ")"
 
 guard_pattern
     ::= "^" type_identifier [ "<" type_args ">" ]
@@ -389,7 +444,7 @@ type_op_expr
 
 type_operator
     ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
-      | "is" [ "not" ] ( type | variant_pattern | guard_pattern )
+      | "is" [ "not" ] ( type | variant_pattern | struct_pattern | tuple_pattern | guard_pattern )
 
 unary_expr
     ::= { unary_operator } postfix_expr
@@ -430,6 +485,7 @@ primary_expr
       | contextual_expr
       | lambda_expr
       | match_expr
+      | stage_expr
       | concurrent_expr
       | try_force_construct
       | tuple_expr
@@ -463,7 +519,7 @@ tuple_expr_elem
     ::= [ public_id ":" ] expression
 
 collection_init
-    ::= collection_type ( "{" [ collection_elem_list ] "}" | ".New(" [ argument_list ] ")" )
+    ::= collection_type [ "soa" ] ( "{" [ collection_elem_list ] "}" | ".New(" [ argument_list ] ")" )
       | "{" [ collection_elem_list ] "}"
 
 collection_elem_list
@@ -648,11 +704,12 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "if" | "else" | "for" | "in" | "by" | "break" | "continue"
-      | "match" | "fall" | "try" | "catch" | "throw"
-      | "return" | "use" | "with" | "ref" | "weak"
+      | "must" | "may" | "in" | "by" | "out" | "break" | "continue"
+      | "match" | "fall" | "try" | "catch" | "throw" | "undo"
+      | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
-      | "where" | "zeroed" | "noinit" | "strict" | "none" | "fn"
+      | "equal" | "math" | "tag" | "pack"
+      | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
 

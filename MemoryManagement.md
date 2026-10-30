@@ -35,7 +35,7 @@ Console.WriteLine(one.X); // Output: 10
 * MUST ignore the weak reference count (`weakCount`) when determining uniqueness for Copy-on-Write. An instance with `strongCount == 1` and `weakCount > 0` MUST be mutated in-place so existing `weak` references remain attached to the mutated instance.
 
 ```C#
-list1 := [+ Int] { 1, 2, 3 };
+list1 := [Int] { 1, 2, 3 };
 
 // ARC retain: 'list1' and 'list2' temporarily share the same heap buffer (strongCount == 2)
 list2 := list1;
@@ -55,14 +55,14 @@ Console.WriteLine(list2.Count); // Output: 4
 * MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
 * MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
 * MAY initialize or reassign a `T weak` variable or field with the `none` literal to represent an unattached weak reference (`strongCount == 0`) without allocating an ARC Control Block.
-* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`if val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`may val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 
 ### Accessing and Unwrapping Weak References
 
 * MAY access members of a `T weak` variable directly or pass it to a context expecting a strong `T`.
 * MUST atomically verify that `strongCount > 0` and temporarily retain a strong reference for the duration of the access when evaluating a `T weak` directly.
 * MUST immediately trigger the runtime Abort/Fatal Panic mechanism if a `T weak` is accessed directly after its target has been disposed (`strongCount == 0`).
-* MAY safely test and promote a `T weak` reference to a strong `T` local variable using conditional binding (`if val := weakVar`), which executes the branch only if `strongCount > 0`.
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`must val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 * MAY apply the optional chaining (`?.`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
   * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
   * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if alive, or evaluates to `fallback` if disposed.
@@ -72,19 +72,19 @@ Node : ~Copyable
 {
     Value: Int;
     Parent: Node weak;
-    Children: [+ Node];
+    Children: [Node];
 
     Copy(@) -> @ => Node { Value: @.Value, Parent: @.Parent, Children: @.Children };
 }
 
-parent := Node { Value: 1, Parent: none, Children: [+ Node].New() };
-child := Node { Value: 2, Parent: parent, Children: [+ Node].New() };
+parent := Node { Value: 1, Parent: none, Children: [Node].New() };
+child := Node { Value: 2, Parent: parent, Children: [Node].New() };
 
 // strongCount of 'parent' is 1; 'child.Parent' is weak and does not trigger CoW
 parent.Children.Add(child);
 
 // safe conditional promotion to a strong reference
-if strongParent := child.Parent
+may strongParent := child.Parent
 {
     Console.WriteLine(strongParent.Value); // Output: 1
 }
@@ -100,28 +100,33 @@ Console.WriteLine(child.Parent.Value);
 * MUST preserve `strongCount == 1` when an unshared variable is passed by `ref`, avoiding unnecessary Copy-on-Write allocations inside the callee.
 
 ```C#
-ClearList(ref list: [+ Int]) 
+ClearList(ref list: [Int]) 
 {
     // Mutates in-place without triggering CoW if 'myList' has strongCount == 1
     list.Clear();
 }
 
-myList := [+ Int] { 10, 20 };
+myList := [Int] { 10, 20 };
 ClearList(ref myList); 
 ```
 
 ### Law of Exclusivity
 
 * MUST NOT alias a memory location passed as a `ref` argument with any other parameter (either by `ref` or by value) during the exact same method invocation.
-* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments, as they represent non-overlapping memory locations.
+* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments.
 * MUST NOT pass a parent instance (by value or `ref`) and any of its nested fields simultaneously within the same method invocation.
+* MUST treat an in-place indexed borrow (`ref col[key]` or invoking a `ref @` method on `col[key]`) as an exclusive `ref` borrow of the entire `col` collection for the duration of the method invocation.
+* MUST NOT pass a collection (by value or `ref`) and any of its indexed elements simultaneously within the same method invocation.
+* MUST NOT pass two indexed elements of the same collection (`ref col[i]` and `ref col[j]`) simultaneously as `ref` arguments within the same method invocation.
 * MUST NOT pass a `static` or `astatic` variable or field directly as a `ref` argument to a method parameter.
 
 ```C#
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
+ProcessListAndItem(ref list: [Int], ref item: Int) { }
 
 vector := Vector { X: 0, Y: 0 };
+numbers := [Int] { 10, 20, 30 };
 
 // ERROR: 'vector' is passed by 'ref' and by value simultaneously
 Process(ref vector, vector); 
@@ -131,6 +136,12 @@ ProcessValues(ref vector.X, ref vector.Y);
 
 // ERROR: 'vector' memory overlaps with 'vector.X'
 ProcessMixed(ref vector, ref vector.X); 
+
+// ERROR: cannot borrow 'numbers' and its element 'numbers[0]' simultaneously
+ProcessListAndItem(ref numbers, ref numbers[0]);
+
+// ERROR: cannot borrow two indexed elements of 'numbers' simultaneously
+ProcessValues(ref numbers[0], ref numbers[1]);
 ```
 
 ## Resource Cleanup and Disposal
@@ -145,7 +156,7 @@ ProcessMixed(ref vector, ref vector.X);
 * MUST execute the custom `Dispose(ref @)` method precisely when the instance's `strongCount` reaches `0`, prior to releasing any nested owning fields.
 * MUST NOT directly invoke the `Dispose` method from safe user code.
 * MUST also implement the `~Copyable` interface (`Copy(@) -> @`) on a custom `~Disposable` type if the type is mutated while shared (`strongCount > 1`). Otherwise, mutating a shared custom `~Disposable` type that does not implement `~Copyable` MUST be rejected or performed via unique ownership.
-* MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`%`) collection whose element type implements `~Disposable`.
+* MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`soa`) collection whose element type implements `~Disposable`.
 
 ```C#
 ~Disposable 
@@ -200,7 +211,7 @@ UpdateState() throws
     // 1. Evaluates 'state.Log + " -> Failed"' while '::Active' payload is still alive
     // 2. Disposes '::Active' payload ('file.Dispose()' is called and 'state.Log' is released)
     // 3. Writes tag '::Error' and moves the new 'LastLog' string into the payload
-    if state is .Active 
+    may state is .Active 
     {
         state =:: Error(state.Log + " -> Failed");
     }
@@ -213,5 +224,4 @@ UpdateState() throws
 
 ### Associated Array Cleanup
 
-* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an exhaustive associated array (`[K -> V]`) containing Owning Type elements is destroyed.
-* MUST inspect the validity bitmask of a non-exhaustive associated array (`[K ->! V]` or `[K ->? V]`) containing Owning Type elements upon destruction, assignment overwrite, or copy, and retain or release the element slots whose corresponding bitmask bit is `1`.
+* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an associated array (`[K -> V]`) containing Owning Type elements (or `Option::Some` payloads in `[K -> V?]`) is destroyed.

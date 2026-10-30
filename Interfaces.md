@@ -33,8 +33,8 @@ Score : ~Comparable
 
     Compare(@, other: @) -> Int 
     {
-        if @.Value > other.Value => return 1;
-        if @.Value < other.Value => return -1;
+        may @.Value > other.Value => return 1;
+        may @.Value < other.Value => return -1;
         return 0;
     }
 }
@@ -123,8 +123,8 @@ ProcessDynamic(ref item: ~Copyable) { }
 
 * MUST represent an unimplemented weak contract member as a null slot (`0x0`) within the interface's virtual method table (`vtable`) during dynamic dispatch.
 * MUST NOT invoke or read an unverified weak contract member directly (`box.Method()` or `box.Property`) on an unguarded dynamic interface container (`Box<~Interface>`), an interface reference (`ref item: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
-* MAY verify the presence of a weak contract member at runtime using the `is` operator (`if item is .Method` or `if item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch to allow direct invocation.
-* MAY declare type guards over an interface (`^Guard = ~Interface where @ is .Member` or `^Guard = @ where @ is .Member`) either inside the `~Interface` body or at the file top level.
+* MAY verify the presence of a weak contract member at runtime using the `is` operator (`must item is .Method` or `must item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch.
+* MAY declare type guards over an interface (`^Guard = ~Interface must @ is .Member` or `^Guard = @ must @ is .Member`) either inside the `~Interface` body or at the file top level.
 * MAY invoke a weak contract member conditionally using the `?` suffix (`item.Method?(args)` or `item.Property?`):
   * If the member returns a value of type `T`, the expression MUST evaluate to `T?` (`Option::Some` if implemented, or `Option::None` if unimplemented).
   * If the member returns void, the expression MUST execute the method if implemented or perform a no-op if unimplemented.
@@ -139,11 +139,11 @@ ProcessDynamic(ref item: ~Copyable) { }
     Length?: Long;
 
     // Interface type guard declared inside the interface
-    ^Writable = @ where @ is .Write;
+    ^Writable = @ must @ is .Write;
 }
 
 // Interface type guard declared outside at the file top level
-^SeekableStream = ~Stream where @ is .Seek and @ is .Length;
+^SeekableStream = ~Stream must @ is .Seek and @ is .Length;
 
 // Concrete type implementing only strong contracts and 'Length?'
 ReadOnlyMemoryStream : ~Stream 
@@ -158,18 +158,18 @@ ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<
 {
     // 1. Concrete type: statically known at compile time
     len := ro.Length; // Valid: 'Length' is implemented on 'ReadOnlyMemoryStream'
-    // ro.Write(buf); // COMPILE-TIME ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
+    ro.Write(buf); // ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
 
     // 2. Guarded interface: guaranteed to implement 'Write'
     writable.Write(buf);
 
     // 3. Unguarded dynamic interface: verified via 'is'
-    if dynStream is .Write 
+    may dynStream is .Write 
     {
         dynStream.Write(buf);
     }
 
-    if dynStream is ~Stream^SeekableStream 
+    may dynStream is ~Stream^SeekableStream 
     {
         dynStream.Seek(0);
     }

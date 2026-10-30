@@ -2,7 +2,7 @@
 
 * MUST be declared at the file's top level.
 * MUST evaluate default values prior to initializer execution.
-* MUST determine type equality via structural comparison of fields marked with identity modifier, or all fields if no fields marked with identity modifier exist.
+* MUST determine type equality via structural comparison of fields marked with the `equal` modifier, or all fields if no fields marked with `equal` exist.
 * MUST lay out fields sequentially in memory.
 * MAY apply memory padding to fields.
 * MUST occupy a minimum of 1 byte.
@@ -10,12 +10,12 @@
 ```C#
 Vector 
 {
-    $Id: Int;
-    #X: Int;
-    #Y: Int = 1;
+    Id: Int equal;
+    X: Int math;
+    Y: Int math = 1;
 }
 
-Vector($Id: Int, #X: Int, #Y: Int = 1);
+Vector(Id: Int equal, X: Int math, Y: Int math = 1);
 ```
 
 ## Padding and Bitfields
@@ -26,11 +26,11 @@ Vector($Id: Int, #X: Int, #Y: Int = 1);
 * MUST NOT be read, mutated, or accessed.
 * MUST NOT be required during structural initialization.
 * MUST NOT declare default values.
-* MUST NOT use declarative modifiers.
+* MUST NOT use declarative modifiers (`equal`, `math`).
 
 ### Bitfields
 
-* MAY define exact field bit-width using the Physical Layout operator.
+* MAY define exact field bit-width using the `pack` modifier (`Field: Type pack N;`).
 * MUST pack adjacent bitfields into the smallest contiguous memory boundary.
 * MUST apply only to scalar integer primitives and `Bool` fields.
 * MUST NOT be passed by reference.
@@ -44,9 +44,9 @@ NetworkHeader
     _: Byte;
     _: Byte;
     
-    IsSYN: Bool ::: 1;
-    IsACK: Bool ::: 1;
-    _: Byte     ::: 6;
+    IsSYN: Bool pack 1;
+    IsACK: Bool pack 1;
+    _: Byte     pack 6;
 }
 ```
 
@@ -116,7 +116,7 @@ Option<T>
 
     Unwrap(@) throws -> T 
     {
-        if @ is .Some(val) => return val;
+        may @ is .Some(val) => return val;
         throw Exception.New("Unwrapped None");
     }
 }
@@ -175,7 +175,7 @@ ProcessGreen(color as Color::Green);
 ProcessGreen(color as .Green);
 
 // Flow-sensitive type guard via 'is'
-if color is .Green 
+may color is .Green 
 {
     Console.WriteLine(color.X);
     ProcessGreen(color);
@@ -183,7 +183,7 @@ if color is .Green
 
 Order 
 {
-    ::Draft(Items: [+ String]);
+    ::Draft(Items: [String]);
     ::Submitted(TransactionId: Int);
 
     // Direct access to '::Draft' payload ('@.Items') without pattern matching
@@ -199,16 +199,16 @@ Order
 }
 
 // Explicitly typed as 'Order::Draft'
-draft: Order::Draft = .Draft([+ String].New());
+draft: Order::Draft = .Draft([String].New());
 draft.AddItem("Book");
 submitted: Order::Submitted = draft.Submit(1001);
 
 // Inferred as base type 'Order'
-order := Order::Draft([+ String].New());
+order := Order::Draft([String].New());
 order.AddItem("Pen"); // ERROR: 'order' has type 'Order', not 'Order::Draft'
 
 // Valid after flow-sensitive narrowing via 'is'
-if order is .Draft 
+may order is .Draft 
 {
     order.AddItem("Pen");
 }
@@ -253,18 +253,18 @@ anySession.Reset();
 ### Explicit Tags
 
 * MUST default the implicit variant tag type to `Int` with sequential values starting at `0`.
-* MAY explicitly define the tag type and individual tag values.
+* MAY explicitly define the tag type using the `tag` keyword (`Data tag Type`) and individual variant tag values using `=` (`::Variant = Expression;`).
 * MUST resolve the explicit tag type to a scalar integer primitive.
 * MUST evaluate explicit variant tag values as compile-time constants.
 * MUST assign an omitted variant tag the value of the preceding variant's tag plus `1`.
 
 ```C#
-HttpResponse : ~Formattable ::: Int 
+HttpResponse : ~Formattable tag Int 
 {
     // Variants
-    ::Success ::: 200;
-    ::NotFound ::: 404;
-    ::Error(Code: Int) ::: 500;
+    ::Success = 200;
+    ::NotFound = 404;
+    ::Error(Code: Int) = 500;
 
     RequestUrl: String;
 
@@ -274,27 +274,27 @@ HttpResponse : ~Formattable ::: Int
 
 ### Untagged Unions
 
-* MAY remove the discriminant tag by explicitly declaring `::: none`.
+* MAY remove the discriminant tag by explicitly declaring `tag none`.
 * MUST NOT use checked pattern matching or casting operators (`is`, `as`, `as?`, `as!`, `match`) on untagged unions.
 * MUST extract payloads or narrow an untagged union to a specific variant subtype using the unchecked cast operator (`unas`).
-* MUST enclose any variant declaration containing an Owning Type or `~Disposable` payload within an `unsafe` block or mark the variant declaration with the `unsafe` modifier when the enclosing `Data` type declares `::: none`.
-* MUST NOT automatically track, retain, or dispose Owning Type payloads inside an untagged union (`::: none`); shared fields declared outside the variants remain automatically managed via ARC.
+* MUST enclose any variant declaration containing an Owning Type or `~Disposable` payload within an `unsafe` block or mark the variant declaration with the `unsafe` modifier when the enclosing `Data` type declares `tag none`.
+* MUST NOT automatically track, retain, or dispose Owning Type payloads inside an untagged union (`tag none`); shared fields declared outside the variants remain automatically managed via ARC.
 
 ```C#
-FloatIntUnion ::: none 
+FloatIntUnion tag none 
 {
     ::FloatBits(Float);
     ::IntBits(Int);
 }
 
-RawBufferUnion ::: none 
+RawBufferUnion tag none 
 {
     ::RawPtr(Usize);
 
     unsafe 
     {
         ::ManagedText(String);
-        ::ManagedList([+ Int]);
+        ::ManagedList([Int]);
     }
 
     // Shared field outside the union remains safely tracked by ARC

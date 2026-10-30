@@ -1,22 +1,22 @@
 # Type Guards
 
-* MAY declare a type guard at the file's top level, within a `~Interface` declaration, or within a `+Type` extension block using the prefix `^` operator (`^Identifier = TargetType where Expression;`).
-* MUST evaluate the `where` clause expression to a pure, side-effect-free `Bool`.
+* MAY declare a type guard at the file's top level, within a `~Interface` declaration, or within a Type with extension block using the prefix `^` operator (`^Identifier = TargetType must Expression;`).
+* MUST evaluate the `must` clause expression to a pure, side-effect-free `Bool`.
 * MUST explicitly specify the base type being guarded immediately following the `=` token.
 * MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a type guard declaration.
-* MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `where` expression.
-* MUST evaluate `@` within the `where` expression as the immutable instance receiver.
+* MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `must` expression.
+* MUST evaluate `@` within the `must` expression as the immutable instance receiver.
 * MAY declare explicit generic parameters and assign a type parameter as the `TargetType`.
 * MAY omit the base type and use the contextual guard pattern (`is ^Guard` or `is ^Guard<TypeArgs>`) when the type guard is applicable to the left-hand expression's static type.
 
 ```C#
-^Positive = @ where @ > 0;
+^Positive = @ must @ > 0;
 
-^PositiveNumber<T: ~INumber> = T where @ > 0;
+^PositiveNumber<T: ~INumber> = T must @ > 0;
 
-^Email = String where @.Contains("@");
+^Email = String must @.Contains("@");
 
-^Writable = ~Stream where @ is .Write;
+^Writable = ~Stream must @ is .Write;
 ```
 
 ## Type Guard Inheritance and Composition
@@ -24,14 +24,14 @@
 * MAY inherit from other type guards using the `:` operator.
 * MUST implicitly forward the current type guard's base type to inherited parent type guards.
 * MAY provide explicit generic arguments to parent type guards using `<@>` or concrete type identifiers.
-* MUST evaluate all inherited parent `where` invariants in declaration order prior to evaluating the child type guard's own `where` expression.
+* MUST evaluate all inherited parent `must` invariants in declaration order prior to evaluating the child type guard's own `must` expression.
 
 ```C#
-^Positive = @ where @ > 0;
+^Positive = @ must @ > 0;
 
-^Big = @ : ^Positive where @ > 1000;
+^Big = @ : ^Positive must @ > 1000;
 
-^Complex = @ : ^Positive, ^AnotherComplex<@> where @ % 2 == 0;
+^Complex = @ : ^Positive, ^AnotherComplex<@> must @ % 2 == 0;
 ```
 
 ## Applying Type Guards
@@ -56,9 +56,9 @@ Account
     Balance: Int;
 }
 
-^Solvent = Account where @.Balance > 0;
+^Solvent = Account must @.Balance > 0;
 
-+Account 
+Account with
 {
     Withdraw(ref @^Solvent, amount: Int) 
     {
@@ -69,7 +69,7 @@ Account
 rawAcc := Account { Balance: 100 };
 rawAcc.Withdraw(50); // ERROR: 'rawAcc' is 'Account', not 'Account^Solvent'
 
-if rawAcc is Account^Solvent 
+may rawAcc is Account^Solvent 
 {
     rawAcc.Withdraw(50); // Valid: 'rawAcc' is narrowed to 'Account^Solvent'
 }
@@ -83,7 +83,7 @@ if rawAcc is Account^Solvent
 
 ### Operators
 
-* MUST evaluate the type guard's `where` invariant at compile time whenever the operand of `as`, `as?`, `as!`, or `=^` is a compile-time constant expression:
+* MUST evaluate the type guard's `must` invariant at compile time whenever the operand of `as`, `as?`, `as!`, or `=^` is a compile-time constant expression:
   * If the compile-time evaluation yields `true`, the compiler MUST elide all runtime validation branches.
   * If the compile-time evaluation yields `false`, the compiler MUST reject the expression with a compile-time error (or evaluate `as?` directly to `Option::None`).
 * MUST evaluate the invariant and implicitly narrow the type within conditional branches, `and` condition chains, and subsequent statements following an unconditional early-exit branch when using the `is` and `is not` operators.
@@ -98,12 +98,12 @@ if rawAcc is Account^Solvent
 ```C#
 rawValue: Int = -10;
 
-if rawValue is Int^Positive 
+may rawValue is Int^Positive 
 {
     ProcessAge(rawValue);
 }
 
-// Throws CastException if rawValue <= 0
+// Throws 'CastException' if rawValue <= 0
 valid := rawValue as Int^Positive;
 
 // Aborts/Panics immediately if rawValue <= 0
@@ -112,7 +112,7 @@ forced := rawValue as! Int^Positive;
 // Unchecked cast: bypasses runtime validation
 uncheckedVal := rawValue unas Int^Positive;
 
-// Compile-time evaluated: '11 > 0' is proven at compile time -> ZERO runtime branches!
+// Compile-time evaluated: '11 > 0' is proven at compile time -> ZERO runtime branches
 ProcessAge(11 as ^);
 
 // Runtime contextual guard cast: 'Int^Positive' deduced from 'ProcessAge' parameter
@@ -139,16 +139,16 @@ match rawValue as? Int^Positive
 * MUST NOT mutate an internal field of a guarded `Data` variable (`instance: Data^Guard`) using standard assignment operators (`instance.Field = val`).
 * MUST require guarded assignment operators (`instance.Field =^ val`, `instance.Field +=^ val`) when mutating any field of a variable governed by a type guard, which re-evaluates the enclosing `Data^Guard` invariant after updating the field.
 * MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any field of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
-* MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
-  * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [+ Int]^NonEmpty`), or
+* MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
+  * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [Int]^NonEmpty`), or
   * Passing `instance` (or any of its fields) as a `ref` argument to a parameter typed as the unguarded base type.
 * MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` invariant checks when the invariant cannot be statically proven at compile time:
-  * In Debug mode, the compiler MUST evaluate the governing `where` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
+  * In Debug mode, the compiler MUST evaluate the governing `must` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
-* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`if target =^ expr`).
+* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`may target =^ expr`).
 * MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
-* MUST evaluate the governing `where` invariant at runtime in both Debug and Release modes (triggering a Fatal Panic in Debug mode or an immediate process Abort in Release mode upon failure) whenever the postfix `strict` modifier is applied, unless the invariant is statically proven at compile time.
+* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`must target =^ expr`).
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 
 ```C#
@@ -158,15 +158,15 @@ User
     Age: Int;
 }
 
-^Adult = User where @.Age >= 18;
-^NonEmpty = [+ Int] where @.Count > 0;
+^Adult = User must @.Age >= 18;
+^NonEmpty = [Int] must @.Count > 0;
 
 ResetUser(ref u: User) 
 {
     u.Age = 5;
 }
 
-MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [+ Int]^NonEmpty) 
+MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [Int]^NonEmpty) 
 {
     // 1. Default guarded scalar mutation: checked in Debug, elided in default Release
     age -=^ 10;

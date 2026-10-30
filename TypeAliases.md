@@ -13,7 +13,7 @@
 * MUST map and forward all declared generic type parameters to the underlying aliased type.
 
 ```C#
-Chunk<T> = [+ [% [T] ::: 64]];
+Chunk<T> = [[[T]; 64] soa];
 
 ValidId = Int^Positive;
 
