@@ -498,6 +498,7 @@ primary_expr
       | tuple_expr
       | collection_init
       | struct_init_expr
+      | type_qualifier_expr
       | identifier
       | "(" expression ")"
 
@@ -525,9 +526,12 @@ tuple_expr
 tuple_expr_elem
     ::= [ public_id ":" ] expression
 
+type_qualifier_expr
+    ::= collection_type [ "soa" ]
+      | "(" type ")"
+
 collection_init
-    ::= collection_type [ "soa" ] ( "{" [ collection_elem_list ] "}" | ".New(" [ argument_list ] ")" )
-      | "{" [ collection_elem_list ] "}"
+    ::= [ collection_type [ "soa" ] ] "{" [ collection_elem_list ] "}"
 
 collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]
