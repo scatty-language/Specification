@@ -153,7 +153,9 @@ SomeData
 
 ### Flow-Sensitive Type Narrowing
 
-* MUST implicitly narrow the static type of a local variable, parameter, receiver (`@`), or immutable field path when evaluated with the `is` or `is not` operator against a variant subtype (`.Variant` or `Data::Variant`), a type guard (`^Guard` or `Type^Guard`), or a weak interface member (`.Member`).
+* MUST implicitly narrow the static type of a local variable, parameter, receiver (`@`), or immutable field path when evaluated with the `is` or `is not` operator against a variant subtype (`.Variant` or `Data::Variant`), a type guard (`^Guard` or `Type^Guard`), a structural pattern (`{ ... }`), a tuple pattern (`( ... )`), or a weak interface member (`.Member`).
+* MUST bring any local identifier (`local_id`) bound within an `expr is Pattern` clause into scope for all subsequent clauses to its right within an `and` chain, for all subsequent lines within a `must { ... }` or `must! { ... }` block, throughout the positive branch of a `may` statement, and for all subsequent statements in the enclosing lexical scope following a `must` or `must!` gate.
+* MUST NOT declare local variable bindings inside an `is not` expression or combine a binding `is` expression with the boolean `or` operator.
 * MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses within the same `and` chain or `must { ... }` / `must! { ... }` block, throughout the positive branch of a `may` statement, and to all statements in the enclosing scope following a `must` or `must!` gate.
 * MUST apply negative type narrowing (`expr is not Target`) to the `or` branch of a `may` statement, refining `expr` to `Target` within the `or` scope.
 * MUST apply type narrowing to all subsequent statements in the enclosing lexical scope whenever a `may` branch testing a negated condition (`may expr is not Target => return;`) unconditionally terminates execution of the current scope via `return`, `throw`, `break`, or `continue`.
@@ -279,21 +281,57 @@ item in cargoItems
 * MAY omit the subject expression in a `match` construct (`match { ... }`) to evaluate a sequential table of boolean `Condition` arms.
 * MUST evaluate boolean arms in a subjectless `match { ... }` sequentially from top to bottom and execute the first arm whose condition evaluates to `true`, or the `_` fallback arm.
 * MUST exhaustively cover all possible variants of the evaluated expression, or provide a wildcard `_` fallback.
-* MAY bind the payload of a Variant Field to local identifiers using parentheses.
-* MUST implicitly refine the matched expression to the evaluated variant or type guard within the match arm if payload binding is omitted.
+* MAY match the subject expression against variant patterns (`.Variant`), structural patterns (`{ Field: sub_pattern }`), tuple patterns (`(sub_pattern, sub_pattern)`), type guard patterns (`^Guard`), literals, or the wildcard `_`.
+* MAY nest patterns recursively within variant payload patterns, structural field patterns, and tuple patterns.
+* MAY bind any matched variant payload field, structural field, or tuple element to a local variable (`local_id`) or discard it using `_`.
+* MUST require a positional variant pattern (without explicit field identifiers) to match the exact payload field count of the variant, using `_` to discard unused fields.
+* MAY match variant payload fields by explicit field identifier (`FieldName: sub_pattern`) and omit remaining payload fields when named pattern arguments are used.
+* MAY match structural or shared fields of a `Data` type by field identifier using `{ FieldName: sub_pattern }`, either standalone or following a variant pattern (`.Variant(...) { FieldName: sub_pattern }`), and omit remaining fields.
+* MAY specify multiple comma-separated patterns (`pattern1, pattern2`) on a single match arm.
+* MUST require every pattern in a comma-separated pattern list (`pattern1, pattern2`) to bind the exact same set of `local_id` identifiers with identical static types if any local variable bindings are declared.
+* MUST implicitly refine the matched expression and any matched fields to the evaluated variant subtype or type guard within the match arm.
 * MUST evaluate every match arm to the exact same return type if the `match` construct is utilized as an expression.
 
-### Type Guard Patterns and Must Clauses
+```C#
+match response 
+{
+    // Positional variant pattern with literal and '_' discard
+    .Error(404, msg, _) => HandleNotFound(msg);
 
-* MAY specify a type guard pattern (`^Identifier` or `^Identifier<TypeArgs>`) as a match arm pattern when the type guard is applicable to the matched expression's type.
-* MUST evaluate the type guard's `must` invariant against the matched expression at runtime and execute the arm if the invariant evaluates to `true`.
-* MUST implicitly refine the type of the matched expression to `BaseType^Guard` within the body of a matching type guard arm.
-* MAY attach a `must Condition` guard clause to a match arm following its pattern list.
-* MUST evaluate the `must` guard expression to `Bool`.
-* MUST bring any payload variables bound by the arm's pattern into scope within the `must` guard expression.
-* MUST bind `@` within a match arm's `must` guard expression to the evaluated match subject.
-* MUST bypass the match arm and continue evaluating subsequent arms if the pattern matches but its `must` guard evaluates to `false`.
-* MUST NOT treat a match arm governed by a `^Guard` pattern or a `must` guard as exhaustive coverage for the underlying type or variant; an unguarded fallback arm or `_` wildcard MUST be provided in an exhaustive `match`.
+    // Named variant payload pattern (omits remaining payload fields) with nested guard
+    .Error(Code: ^ServerError, Message: msg) => HandleServerError(response.Code, msg);
+
+    // Nested variant pattern and shared structural field pattern
+    .Ok(.User(admin)) { Endpoint: "localhost" } => ProcessLocalAdmin(admin);
+
+    // Structural pattern matching shared fields across any variant
+    { Endpoint: "deprecated" } => RejectEndpoint();
+
+    // Multi-pattern arm binding the same 'id' identifier across both variants
+    .Created(id), .Updated(id) => LogChange(id);
+
+    _ => Console.WriteLine("Unhandled response");
+}
+
+match (request.Method, user.IsAuthenticated) 
+{
+    (.Get, _) => AllowRead();
+    (.Post, true), (.Put, true) => AllowWrite();
+    _ => DenyAccess();
+}
+```
+
+### Type Guard Patterns and `and` Clauses
+
+* MAY specify a type guard pattern (`^Identifier` or `^Identifier<TypeArgs>`) as a match arm pattern or nested sub-pattern when the type guard is applicable to the target type.
+* MUST evaluate the type guard's `must` invariant against the target value at runtime and match if the invariant evaluates to `true`.
+* MUST implicitly refine the static type of the matched expression or field to `BaseType^Guard` within the body of a matching arm.
+* MAY attach an `and Condition` clause to a match arm following its pattern list.
+* MUST evaluate the `and` condition to `Bool`.
+* MUST bring any variables bound by the arm's pattern into scope within the `and` condition.
+* MUST bind `@` within a match arm's `and` condition to the evaluated match subject.
+* MUST bypass the match arm and continue evaluating subsequent arms if the pattern matches but its `and` condition evaluates to `false`.
+* MUST NOT treat a match arm governed by a `^Guard` pattern, a nested literal or structural field pattern, or an `and` condition as exhaustive coverage for the underlying type or variant; an unguarded fallback arm or `_` wildcard MUST be provided in an exhaustive `match`.
 
 ```C#
 ^ClientError = Int must @ >= 400 and @ < 500;
@@ -309,9 +347,9 @@ match statusCode
 
 match shape 
 {
-    .Circle(r) must r > 100.0f => Console.WriteLine("Large Circle");
+    .Circle(r) and r > 100.0f => Console.WriteLine("Large Circle");
     .Circle(r) => Console.WriteLine("Standard Circle: \(r)");
-    .Rectangle(w, h) must w == h => Console.WriteLine("Square");
+    .Rectangle(w, h) and w == h => Console.WriteLine("Square");
     _ => Console.WriteLine("Other Shape");
 }
 ```
@@ -319,47 +357,10 @@ match shape
 ### Execution Flow and Explicit Fallthrough
 
 * MUST terminate execution of the `match` construct immediately after the first matching arm finishes (no implicit fallthrough).
-* MAY use the `fall` statement within a block-bodied match arm to immediately transfer execution to the body of the next sequential arm without evaluating its pattern or `must` guard.
+* MAY use the `fall` statement within a block-bodied match arm to immediately transfer execution to the body of the next sequential arm without evaluating its pattern or `and` condition.
 * MUST NOT use the `fall` statement if the `match` construct evaluates as an expression.
 * MUST NOT use the `fall` statement to transfer control into a match arm that declares payload variable bindings.
 * MUST NOT use the `fall` statement within the final match arm.
-
-```C#
-match statusCode 
-{
-    404 => Console.WriteLine("Not Found");
-    
-    // Cascading logic using 'fall'
-    401, 403 
-    {
-        Console.WriteLine("Access Denied");
-        fall; // Transfers control directly to the '_' block
-    }
-    
-    _ => Console.WriteLine("Logging error...");
-}
-
-match some.VariedField 
-{
-    .Wow 
-    {
-        Console.WriteLine("Wow!");
-        fall; // ERROR: Cannot fall into '.Hmm' because it binds 'x' and 'y'
-    }
-    
-    .Hmm(x, y) 
-    {
-        Console.WriteLine(x + y);
-    }
-}
-
-area := match shape.Type 
-{
-    .Circle(r) => Math.Pi * r * r;
-    .Rectangle(w, h) => (w * h) as Float;
-    _ => 0.0f;
-};
-```
 
 ### Non-Exhaustive Pattern Matching
 

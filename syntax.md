@@ -339,17 +339,41 @@ match_expr
     ::= "match" [ "!" | "?" ] [ expression ] "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { ( "or" | "," ) pattern } [ "must" condition ] ( block | "=>" expression [ ";" ] )
+    ::= pattern { "," pattern } [ "and" condition ] ( block | "=>" expression [ ";" ] )
       | condition ( block | "=>" expression [ ";" ] )
 
 pattern
     ::= variant_pattern
+      | struct_pattern
+      | tuple_pattern
       | guard_pattern
       | literal
       | "_"
 
+sub_pattern
+    ::= local_id
+      | pattern
+
 variant_pattern
-    ::= "." type_identifier [ "(" pattern_binding_list ")" ]
+    ::= "." type_identifier [ "(" pattern_arg_list ")" ] [ struct_pattern ]
+
+pattern_arg_list
+    ::= pattern_arg { "," pattern_arg } [ "," ]
+
+pattern_arg
+    ::= [ type_identifier ":" ] sub_pattern
+
+struct_pattern
+    ::= "{" field_pattern_list "}"
+
+field_pattern_list
+    ::= field_pattern { "," field_pattern } [ "," ]
+
+field_pattern
+    ::= type_identifier ":" sub_pattern
+
+tuple_pattern
+    ::= "(" sub_pattern "," sub_pattern { "," sub_pattern } ")"
 
 guard_pattern
     ::= "^" type_identifier [ "<" type_args ">" ]
@@ -418,7 +442,7 @@ type_op_expr
 
 type_operator
     ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
-      | "is" [ "not" ] ( type | variant_pattern | guard_pattern )
+      | "is" [ "not" ] ( type | variant_pattern | struct_pattern | tuple_pattern | guard_pattern )
 
 unary_expr
     ::= { unary_operator } postfix_expr
