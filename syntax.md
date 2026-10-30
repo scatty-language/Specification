@@ -347,8 +347,8 @@ match_expr
     ::= "match" [ "!" | "?" ] [ expression ] "{" match_arm { match_arm } "}"
 
 match_arm
-    ::= pattern { "," pattern } [ "and" condition ] ( block | "=>" expression [ ";" ] )
-      | condition ( block | "=>" expression [ ";" ] )
+    ::= pattern { "," pattern } [ "and" condition ] ( block | "=>" ( statement | expression [ ";" ] ) )
+      | condition ( block | "=>" ( statement | expression [ ";" ] ) )
 
 pattern
     ::= variant_pattern
