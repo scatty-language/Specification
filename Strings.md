@@ -94,7 +94,7 @@ greeting := "Player \(name.Trim(" ")) scored \(score + 10) points!";
 * MUST automatically synthesize a structural `~Formattable` implementation at compile time for any `Data` type that does not explicitly implement `~Formattable`, formatting its public fields or active variant name and payload.
 * MAY explicitly implement `~Formattable` on a `Data` type to override the default structural formatting.
 * MUST format `T weak` fields non-recursively without traversing the target instance's fields during compiler-synthesized `~Formattable` execution.
-* MUST NOT automatically synthesize a structural `~Formattable` implementation for an untagged union (`::: none`); an untagged union MUST explicitly implement `~Formattable` to participate in runtime string interpolation.
+* MUST NOT automatically synthesize a structural `~Formattable` implementation for an untagged union (`tag none`); an untagged union MUST explicitly implement `~Formattable` to participate in runtime string interpolation.
 
 ```C#
 ~Formattable 

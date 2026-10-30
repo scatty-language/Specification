@@ -1,13 +1,12 @@
 # Type Extensions
 
-* MUST declare a type extension block using the prefix `+` operator applied to the target type identifier (`+TargetType`).
+* MUST declare a type extension block using the `with` keyword applied to the target type (`TargetType with { ... }`).
 * MAY extend any `Data` type, including primitive types.
 * MAY declare instance methods, static methods, properties, and type guards within an extension block.
 * MUST NOT declare structural state fields within an extension block.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in the target type's primary definition.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in another extension block for the same target type.
 * MAY declare new overloads of an existing method name within an extension block provided their parameter signatures are distinct under Method Overloading rules.
-* MUST NOT declare members in an extension block whose signatures collide with or shadow members declared in the target type's primary definition or in another extension block for the same target type.
 
 ## Encapsulation and Access Rights
 
@@ -21,7 +20,7 @@ MyData
     Increment(ref @) => @._count = @._count + 1;
 }
 
-+MyData 
+MyData with 
 {
     Count: Int => @._count;
 
@@ -30,7 +29,7 @@ MyData
     PrintCount(@) => Console.WriteLine(@.Count);
 }
 
-+String 
+String with 
 {
     ^Email = String must @.Contains("@");
 

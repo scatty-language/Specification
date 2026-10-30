@@ -45,7 +45,7 @@ Console.WriteLine(testConfig.Port);    // Output: 9000
 * MUST copy and preserve all shared fields from the source instance that are not explicitly overwritten in the `CopyUpdateBody`.
 * MUST release or dispose any Owning Type payload fields belonging to the outgoing active variant if the `with` expression is optimized to mutate an rvalue or uniquely referenced instance (`strongCount == 1`) in-place.
 * MUST statically type the result of `instance with ::Variant(...)` as the narrowed variant subtype `Data::Variant` (which implicitly downgrades to the base `Data` type when bound via `:=`).
-* MUST NOT apply a variant update (`with ::Variant`) to an untagged union (`::: none`).
+* MUST NOT apply a variant update (`with ::Variant`) to an untagged union (`tag none`).
 
 ```C#
 Bill 

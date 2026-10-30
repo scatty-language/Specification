@@ -17,7 +17,7 @@ top_level_declaration
       | var_decl
 
 data_decl
-    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ ":::" tag_type ]
+    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ]
         ( "{" { member } "}" | "(" [ short_field_list ] ")" ";" )
 
 interfaces
@@ -38,19 +38,19 @@ unsafe_variant_block
     ::= "unsafe" "{" { variant_decl } "}"
 
 variant_decl
-    ::= [ "unsafe" ] "::" public_id [ "(" payload_field_list ")" ] [ "=" expression ] [ ":::" expression ] ";"
+    ::= [ "unsafe" ] "::" public_id [ "(" payload_field_list ")" ] [ "=" expression ] ";"
 
 payload_field_list
     ::= payload_field { "," payload_field }
 
 payload_field
-    ::= [ field_modifier ] [ type_identifier ":" ] type [ "=" expression ] [ ":::" decimal_literal ]
+    ::= [ type_identifier ":" ] type { field_modifier } [ "pack" decimal_literal ] [ "=" expression ]
 
 short_field_list
     ::= short_field { "," short_field }
 
 short_field
-    ::= [ field_modifier ] ( type_identifier | "_" ) ":" type [ field_storage_modifier ] [ "=" expression ] [ ":::" decimal_literal ]
+    ::= ( type_identifier | "_" ) ":" type { field_modifier } [ field_storage_modifier ] [ "pack" decimal_literal ] [ "=" expression ]
 
 field_storage_modifier
     ::= "embed" | "static" | "astatic" | "gstatic"
@@ -59,7 +59,7 @@ field_decl
     ::= short_field ";"
 
 field_modifier
-    ::= "$" | "#" | "#$"
+    ::= "equal" | "math"
 
 interface_decl
     ::= "~" type_identifier [ "<" type_params ">" ] "{" { interface_member } "}"
@@ -73,7 +73,7 @@ interface_prop_decl
     ::= type_identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )
 
 extension_decl
-    ::= "+" type "{" { member } "}"
+    ::= type "with" "{" { member } "}"
 
 guard_decl
     ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "must" expression ";"
@@ -708,6 +708,7 @@ keyword
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
+      | "equal" | "math" | "tag" | "pack"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"

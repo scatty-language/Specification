@@ -169,9 +169,9 @@ staticSoa: [Entity; 16] soa = { ... };
 ## Associated Arrays
 
 * MAY declare a fixed-size associated array keyed by the variants of a `Data` type using `[KeyType -> ValueType]`.
-* MUST require `KeyType` to be a tagged `Data` type (not `::: none`) that declares variants without payload fields and declares zero shared instance fields.
+* MUST require `KeyType` to be a tagged `Data` type (not `tag none`) that declares variants without payload fields and declares zero shared instance fields.
 * MUST allocate associated arrays inline on the stack or physically embedded within an enclosing `Data` layout with a fixed capacity equal to the exact count of variants declared in `KeyType`.
-* MUST map each variant of `KeyType` to its 0-based declaration ordinal (`0` through `VariantCount - 1`), regardless of whether `KeyType` declares explicit sparse or negative tag values (`:::`).
+* MUST map each variant of `KeyType` to its 0-based declaration ordinal (`0` through `VariantCount - 1`), regardless of whether `KeyType` declares explicit sparse or negative tag values (`(=)`).
 * MUST resolve constant variant keys (`.Variant`) to their corresponding 0-based ordinal at compile time with zero runtime lookup overhead.
 * MUST evaluate an index access (`array[key]`) on `[KeyType -> ValueType]` infallibly to `ValueType`.
 * MUST initialize every variant of `KeyType` when instantiating `[KeyType -> ValueType]` for a non-optional `ValueType`, or provide a wildcard fallback entry (`_ = Expression`) to populate all omitted variants.
@@ -180,9 +180,9 @@ staticSoa: [Entity; 16] soa = { ... };
 ```C#
 Color 
 {
-    ::Red   ::: 100;
-    ::Green ::: 200;
-    ::Blue  ::: 300;
+    ::Red   = 100;
+    ::Green = 200;
+    ::Blue  = 300;
 }
 
 // Physical capacity is 3 (ordinals 0, 1, 2), NOT 301
