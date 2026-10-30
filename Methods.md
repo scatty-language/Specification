@@ -299,12 +299,28 @@ GetIdentity() -> Matrix
 
 ## Method Type
 
-* MUST represent a function type (`fn`) as a stateless, raw function pointer.
+* MUST represent a function type (`fn`) as a stateless, raw function pointer (`Trivial Type`).
 * MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
+* MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType`).
+* MAY assign a non-throwing method or anonymous function to an `fn` type declared with `throws`.
+* MUST NOT assign a `throws` method or throwing anonymous function to an `fn` type that omits `throws`.
 * MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.
 * MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fn` signature.
 * MUST perform an indirect call when invoking an `fn` pointer.
 * MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
+
+### Anonymous Functions
+
+* MUST evaluate every anonymous function expression (`params => body`) to a stateless `fn` pointer.
+* MUST NOT reference or capture local variables, method parameters, or the `@` receiver from enclosing lexical scopes within an anonymous function body.
+* MAY access the anonymous function's own parameters, compile-time constants (`::`), and static members within an anonymous function body.
+* MAY infer parameter types and the return type of an anonymous function when the expected `fn` type is statically known from context.
+* MUST require explicit parameter type annotations on an anonymous function when bound via type inference (`:=`) without an expected `fn` type context.
+* MAY omit parentheses around the parameter identifier if an anonymous function declares a single non-`ref` parameter with an inferred type (`x => x * 2`).
+* MUST require parentheses around the parameter list if the anonymous function declares zero parameters, two or more parameters, a `ref` parameter modifier, or any explicit type annotations.
+* MAY declare an anonymous function body as either a single `Expression` or a `{ ... }` block.
+* MUST implicitly return the evaluated value of a single `Expression` body.
+* MUST require an explicit `return` statement to yield a value from a `{ ... }` block body.
 
 ```C#
 Vector 
@@ -326,20 +342,25 @@ Vector
 // 1. Pointing to a static method
 factory: fn() -> Vector = Vector.Create;
 
-// 2. Pointing to an instance method
-// The 'ref @' receiver is structurally treated as 'ref Vector'
+// 2. Pointing to an instance method ('ref @' maps to 'ref Vector')
 mover: fn(ref Vector, Int, Int) = Vector.Translate;
 
 vec := factory();
 mover(ref vec, 10, 10);
 
-// 3. Stateless lambda coercing to a raw function pointer
+// 3. Stateless anonymous functions coercing to 'fn' pointers
 mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
+doubleOp: fn(Int) -> Int = x => x * 2;
+inferredOp := (a: Int, b: Int) => 
+{
+    return a + b;
+};
 
-// Maps '@::Init' receiver to 'Bill::Init' first parameter
+// 4. Throwing function pointer
+parser: fn(String) throws -> Int = (raw: String) => raw as Int;
+
+// 5. Constrained receivers mapped to first parameter
 processor: fn(Bill::Init) -> Bill::Closed = Bill.Process;
-
-// Maps '@^Valid' receiver to 'Some^Valid' first parameter
 validator: fn(Some^Valid) = Some.Process;
 ```
 

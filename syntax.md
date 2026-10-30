@@ -176,7 +176,7 @@ tuple_type_elem
     ::= [ public_id ":" ] type
 
 method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ "->" type ]
+    ::= "fn" "(" [ method_type_list ] ")" [ "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }
