@@ -222,10 +222,14 @@ statement
       | return_stmt
       | throw_stmt
       | cascade_stmt
+      | unsafe_stmt
       | expression_stmt
 
 block
     ::= "{" { statement } "}"
+
+unsafe_stmt
+    ::= "unsafe" block
 
 break_stmt
     ::= "break" ";"
