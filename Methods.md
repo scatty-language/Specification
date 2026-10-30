@@ -22,7 +22,7 @@ Logger
     // Declares a variadic parameter for 'Int'
     LogMetrics(prefix: String, metrics: ...Int) 
     {
-        // 'metrics' acts as a Static Array ([Int ::: N])
+        // 'metrics' acts as a Inline Array
         m in metrics 
         {
             Console.WriteLine(m);

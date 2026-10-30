@@ -55,7 +55,7 @@ Console.WriteLine(list2.Count); // Output: 4
 * MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
 * MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
 * MAY initialize or reassign a `T weak` variable or field with the `none` literal to represent an unattached weak reference (`strongCount == 0`) without allocating an ARC Control Block.
-* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`if val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`may val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 
 ### Accessing and Unwrapping Weak References
 
@@ -156,7 +156,7 @@ ProcessValues(ref numbers[0], ref numbers[1]);
 * MUST execute the custom `Dispose(ref @)` method precisely when the instance's `strongCount` reaches `0`, prior to releasing any nested owning fields.
 * MUST NOT directly invoke the `Dispose` method from safe user code.
 * MUST also implement the `~Copyable` interface (`Copy(@) -> @`) on a custom `~Disposable` type if the type is mutated while shared (`strongCount > 1`). Otherwise, mutating a shared custom `~Disposable` type that does not implement `~Copyable` MUST be rejected or performed via unique ownership.
-* MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`%`) collection whose element type implements `~Disposable`.
+* MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`soa`) collection whose element type implements `~Disposable`.
 
 ```C#
 ~Disposable 
