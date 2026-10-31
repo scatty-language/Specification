@@ -21,7 +21,7 @@
 
 ## Type Guard Inheritance and Composition
 
-* MAY inherit from other type guards using the `:` operator.
+* MAY inherit from other type guards by placing `: ^ParentGuard` prior to the `=` token (`^Identifier : ^Parent = TargetType must Expression;`).
 * MUST implicitly forward the current type guard's base type to inherited parent type guards.
 * MAY provide explicit generic arguments to parent type guards using `<@>` or concrete type identifiers.
 * MUST evaluate all inherited parent `must` invariants in declaration order prior to evaluating the child type guard's own `must` expression.
@@ -29,9 +29,9 @@
 ```C#
 ^Positive = @ must @ > 0;
 
-^Big = @ : ^Positive must @ > 1000;
+^Big : ^Positive = @ must @ > 1000;
 
-^Complex = @ : ^Positive, ^AnotherComplex<@> must @ % 2 == 0;
+^Complex : ^Positive, ^AnotherComplex<@> = @ must @ % 2 == 0;
 ```
 
 ## Applying Type Guards

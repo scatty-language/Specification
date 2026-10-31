@@ -79,7 +79,7 @@ extension_decl
     ::= type "with" "{" { member } "}"
 
 guard_decl
-    ::= "^" type_identifier [ "<" type_params ">" ] "=" target_type [ ":" parent_list ] "must" expression ";"
+    ::= "^" type_identifier [ "<" type_params ">" ] [ ":" parent_list ] "=" target_type "must" expression ";"
 
 target_type
     ::= "@" | type
