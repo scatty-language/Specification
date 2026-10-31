@@ -1,6 +1,6 @@
 # Operators
 
-* MUST derive operator implementations on custom `Data` types exclusively via declarative field modifiers (`equal`, `math`) or interface implementations.
+* MUST derive operator implementations on custom `Data` types exclusively via declarative field modifiers (`equality`, `math`) or interface implementations.
 
 ## Operator Precedence
 
@@ -50,23 +50,23 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 
 ## Identity and Structural Equality
 
-* MUST compare all structural fields of a `Data` type for `==` and `!=` operations if no fields are marked with the `equal` modifier.
-* MUST restrict `==` and `!=` operations to fields marked with the `equal` modifier if one or more fields are marked with `equal`.
-* MUST ignore all fields not marked with `equal` during `==` and `!=` evaluation when at least one `equal` modifier is present in the `Data` declaration.
-* MAY apply the `equal` modifier to variant payload fields.
-* MUST compare both the active variant tag and the variant payload when evaluating equality on a variant field marked with `equal`.
-* MUST NOT apply the `equal` modifier to a `T weak` field.
-* MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `equal` modifier.
+* MUST compare all structural fields of a `Data` type for `==` and `!=` operations if no fields are marked with the `equality` modifier.
+* MUST restrict `==` and `!=` operations to fields marked with the `equality` modifier if one or more fields are marked with `equality`.
+* MUST ignore all fields not marked with `equality` during `==` and `!=` evaluation when at least one `equality` modifier is present in the `Data` declaration.
+* MAY apply the `equality` modifier to variant payload fields.
+* MUST compare both the active variant tag and the variant payload when evaluating equality on a variant field marked with `equality`.
+* MUST NOT apply the `equality` modifier to a `T weak` field.
+* MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `equality` modifier.
 * MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their ARC Control Block identity without dereferencing the target payload (`true` if both reference the exact same live allocation with `strongCount > 0` or if both have `strongCount == 0`, and `false` otherwise).
-* MUST NOT apply the `equal` modifier to variant payload fields of an untagged union (`tag none`).
-* MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equal` modifier.
+* MUST NOT apply the `equality` modifier to variant payload fields of an untagged union (`tag none`).
+* MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equality` modifier.
 
 ```C#
 User 
 {
-    Id: Int equal;
+    Id: Int equality;
     Role: String;
-    Status: UserStatus equal;
+    Status: UserStatus equality;
 }
 
 userA := User { Id: 1, Role: "Admin", Status: .Active };
@@ -77,7 +77,7 @@ isEqual := userA == userB;
 
 ## Mathematical Operations
 
-* MAY apply the `math` modifier to structural fields of a `Data` type, alone or combined with `equal`.
+* MAY apply the `math` modifier to structural fields of a `Data` type, alone or combined with `equality`.
 * MUST NOT apply the `math` modifier to variant payload fields.
 * MUST require fields marked with `math` to be of a type that supports native arithmetic operators.
 * MUST automatically derive `+`, `-`, `*`, `/`, `%` and their corresponding compound assignments (`+=`, `-=`, `*=`, `/=`, `%=`) for `Data` types declaring at least one field marked with `math`.
@@ -102,16 +102,16 @@ result := t1 + t2;
 
 ## Embedded Field Operator Delegation
 
-* MUST delegate `==` and `!=` operators to an embedded field (`Field: Type embed`) if the parent type declares zero `equal` fields and the embedded field type defines equality operators.
+* MUST delegate `==` and `!=` operators to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type defines equality operators.
 * MUST delegate arithmetic operators to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type defines arithmetic operators.
-* MUST shadow and override embedded field operators if the parent type explicitly declares any `equal` or `math` fields.
+* MUST shadow and override embedded field operators if the parent type explicitly declares any `equality` or `math` fields.
 * MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators and the parent type does not explicitly shadow them.
 
 ```C#
 PhysicsData 
 {
     Velocity: Float math;
-    Hash: Int equal;
+    Hash: Int equality;
 }
 
 Player 
@@ -123,7 +123,7 @@ Player
 Enemy 
 {
     Physics: PhysicsData embed;
-    Id: Int equal;
+    Id: Int equality;
 }
 
 playerA := Player { Physics: PhysicsData { Velocity: 5.0f, Hash: 1 }, Name: "A" };

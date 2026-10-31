@@ -2,7 +2,7 @@
 
 * MUST be declared at the file's top level.
 * MUST evaluate default values prior to initializer execution.
-* MUST determine type equality via structural comparison of fields marked with the `equal` modifier, or all fields if no fields marked with `equal` exist.
+* MUST determine type equality via structural comparison of fields marked with the `equality` modifier, or all fields if no fields marked with `equality` exist.
 * MUST lay out fields sequentially in memory.
 * MAY apply memory padding to fields.
 * MUST occupy a minimum of 1 byte.
@@ -10,12 +10,12 @@
 ```C#
 Vector 
 {
-    Id: Int equal;
+    Id: Int equality;
     X: Int math;
     Y: Int math = 1;
 }
 
-Vector(Id: Int equal, X: Int math, Y: Int math = 1);
+Vector(Id: Int equality, X: Int math, Y: Int math = 1);
 ```
 
 ## Padding and Bitfields
@@ -26,7 +26,7 @@ Vector(Id: Int equal, X: Int math, Y: Int math = 1);
 * MUST NOT be read, mutated, or accessed.
 * MUST NOT be required during structural initialization.
 * MUST NOT declare default values.
-* MUST NOT use declarative modifiers (`equal`, `math`).
+* MUST NOT use declarative modifiers (`equality`, `math`).
 
 ### Bitfields
 

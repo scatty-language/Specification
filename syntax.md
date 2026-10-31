@@ -62,7 +62,7 @@ field_decl
     ::= short_field ";"
 
 field_modifier
-    ::= "equal" | "math"
+    ::= "equality" | "math"
 
 interface_decl
     ::= "~" type_identifier [ "<" type_params ">" ] "{" { interface_member } "}"
@@ -716,7 +716,7 @@ keyword
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
-      | "equal" | "math" | "tag" | "pack"
+      | "equality" | "math" | "tag" | "pack"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
