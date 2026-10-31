@@ -88,7 +88,10 @@ parent_list
     ::= guard_parent { "," guard_parent }
 
 guard_parent
-    ::= "^" type_identifier [ "<" type_args ">" ]
+    ::= "^" type_identifier [ "<" guard_type_args ">" ]
+
+guard_type_args
+    ::= target_type { "," target_type }
 
 type_alias_decl
     ::= type_identifier [ "<" type_params ">" ] "=" type ";"
