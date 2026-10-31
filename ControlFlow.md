@@ -259,9 +259,8 @@ dept in company.Departments
 * MAY attach a trailing `where Condition` filter to any `out` statement (`out ... where Condition;`) to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
 * MUST automatically short-circuit and terminate the `in` pipeline early if the `in` block contains no side-effecting statements and all declared `out` sinks have reached a terminal state (`out first` has captured a value, `out all` has evaluated to `false`, or `out any` has evaluated to `true`).
 * MAY evaluate an `in` pipeline as an expression using anonymous `out count [where Condition];` or `out [Reducer] Expression [where Condition];` statements (omitting `-> local_id`):
-  * If no reducer is specified and the expected type is a collection, the pipeline MUST allocate the target collection, append or insert each emitted `out` value, and evaluate to that collection.
+  * If no reducer is specified, the pipeline MUST allocate a collection (matching the expected collection type, or defaulting to `[T]` when the type is inferred via `:=`), append or insert each emitted `out` value, and evaluate to that collection.
   * If a reducer (`count`, `sum`, `min`, `max`, `all`, `any`, `first`, `last`) is specified, the pipeline MUST evaluate to the reduced scalar or `Option` result.
-  * If no reducer is specified and the expected type is `T?` (`Option<T>`), the pipeline MUST wrap the first emitted `out` value into `Option::Some`, immediately terminate the pipeline, and return it (or return `Option::None` if no element reaches `out`).
 * MUST NOT mix anonymous `out` statements and named `out` statements (`-> local_id`) within the same `in` pipeline block.
 
 ```C#
