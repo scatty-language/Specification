@@ -101,6 +101,17 @@ t2 := Transform { Name: "Offset", X: 5.0f, Y: 5.0f };
 result := t1 + t2; 
 ```
 
+### Arithmetic Overflow and Division by Zero
+
+* MUST require both operands of binary arithmetic operators (`+`, `-`, `*`, `/`, `%`) on primitive numeric types to evaluate to the exact same numeric type.
+* MUST reject at compile time any constant integer expression that overflows the target type's representable range or divides/modulos by `0`.
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics in both Debug and Release modes when an integer division (`/`) or remainder (`%`) operation is evaluated with a divisor of `0` at runtime.
+* MUST evaluate floating-point (`Float` and `Double`) division by `0.0` according to IEEE 754 semantics, yielding `+Infinity`, `-Infinity`, or `NaN` without panicking.
+* MUST enforce the following build-mode semantics for runtime integer arithmetic overflow (`+`, `-`, `*`, unary `-`, and signed `MinValue / -1`):
+  * In Debug mode, the compiler MUST detect signed and unsigned integer overflow at runtime and immediately trigger a Fatal Panic.
+  * In Release mode, the compiler MUST wrap integer overflow using two's complement modular arithmetic by default (with `MinValue % -1` evaluating to `0`).
+  * Implementations MUST provide a compiler configuration flag that retains runtime integer overflow checks in Release mode, triggering an immediate process Abort upon overflow.
+
 ## Embedded Field Operator Delegation
 
 * MUST delegate `==` and `!=` operators to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type defines equality operators.

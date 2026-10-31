@@ -34,8 +34,9 @@
 
 * MAY use underscores (`_`) anywhere between digits as visual separators.
 * MUST type an unsuffixed integer literal as the expected integer primitive type (`Int`, `Uint`, `Long`, `Ulong`, `Size`, `Usize`, or `Byte`) when the target type is statically known from context.
-* MUST reject an unsuffixed integer literal at compile time if its value falls outside the representable range of the expected integer type.
-* MUST infer an unsuffixed integer literal as `Int` when the target type is inferred (`:=`) without an expected integer type context, and reject the literal at compile time if its value exceeds 32 signed bits.
+* MUST reject an integer literal at compile time if its value falls outside the representable range of its resolved integer type.
+* MUST infer an unsuffixed integer literal as `Int` when the target type is inferred (`:=`) without an expected integer type context, and reject the literal at compile time if its value falls outside the 32-bit signed range (`-2_147_483_648` to `2_147_483_647`).
+* MUST evaluate a unary negation operator (`-`) immediately preceding an `integer_literal` together with the literal as a single negative constant value during range validation and type inference (permitting `-2_147_483_648` for `Int` and `-9_223_372_036_854_775_808L` for `Long`).
 * MUST explicitly type suffixed integer literals as follows: `u` for `Uint`, `L` for `Long`, and `uL` for `Ulong`.
 
 ```C#
