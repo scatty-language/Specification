@@ -63,9 +63,9 @@ concurrent
 * MUST evaluate all value-yielding `spawn` statements within the same `concurrent` block to the exact same type `T`.
 * MUST implicitly return the evaluated value of a single-expression `spawn` body (`spawn => Expression;`).
 * MUST require an explicit `return Expression;` statement to yield a value from a block-bodied `spawn` task (`spawn { ... }`).
-* MUST scope any `return` statement inside a `spawn` or `rollback` block strictly to that task's body; a `spawn` block MUST NOT return directly from the enclosing method.
+* MUST scope any `return` statement inside a `spawn` or `rollback` block to that task's body; a `spawn` block MUST NOT return directly from the enclosing method.
 * MUST require every `catch` arm attached to a value-yielding `spawn` statement to either yield a fallback value of type `T` or rethrow an exception.
-* MUST collect and order the evaluated results in the returned `[T]` array strictly according to the sequential order in which the tasks were spawned.
+* MUST collect and order the evaluated results in the returned `[T]` array according to the sequential order in which the tasks were spawned.
 
 ```C#
 results: [Int] = concurrent 
