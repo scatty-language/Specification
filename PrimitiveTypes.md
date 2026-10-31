@@ -33,26 +33,30 @@
 ### Integer Literals
 
 * MAY use underscores (`_`) anywhere between digits as visual separators.
-* MUST infer an unsuffixed integer literal as `Int` if its value fits within 32 signed bits.
-* MUST NOT permit an unsuffixed integer literal that exceeds 32 signed bits.
-* MUST explicitly type suffixed integer literals as follows: `u` for `Uint`, `L` for `Long`, `uL` for `Ulong`, and `b` for `Byte`.
+* MUST type an unsuffixed integer literal as the expected integer primitive type (`Int`, `Uint`, `Long`, `Ulong`, `Size`, `Usize`, or `Byte`) when the target type is statically known from context.
+* MUST reject an unsuffixed integer literal at compile time if its value falls outside the representable range of the expected integer type.
+* MUST infer an unsuffixed integer literal as `Int` when the target type is inferred (`:=`) without an expected integer type context, and reject the literal at compile time if its value exceeds 32 signed bits.
+* MUST explicitly type suffixed integer literals as follows: `u` for `Uint`, `L` for `Long`, and `uL` for `Ulong`.
 
 ```C#
-a := 1_000_000;    // Int
-b := 0xFF_AA;      // Int
-c := 0b1010_0011b; // Byte
-d := 42L;          // Long
+a := 1_000_000;          // Inferred as 'Int'
+b := 0xFF_AA;            // Inferred as 'Int'
+c: Byte = 0b1010_0011;   // Contextually typed as 'Byte'
+fg: Byte = 6;            // Contextually typed as 'Byte'
+d := 42L;                // Explicitly typed as 'Long'
 ```
 
 ### Floating-Point Literals
 
-* MUST evaluate an unsuffixed floating-point literal as `Double` (64-bit).
+* MUST type an unsuffixed floating-point literal as `Float` (32-bit) or `Double` (64-bit) when the expected floating-point type is statically known from context.
+* MUST infer an unsuffixed floating-point literal as `Double` (64-bit) when the target type is inferred (`:=`) without an expected floating-point type context.
 * MUST explicitly type suffixed floating-point literals as follows: `f` for `Float` (32-bit), `d` for `Double` (64-bit).
 
 ```C#
-pi := 3.14159;     // Double
-mass := 5.972e24;  // Double
-gravity := 9.81f;  // Float
+pi := 3.14159;        // Inferred as 'Double'
+mass := 5.972e24;     // Inferred as 'Double'
+gravity := 9.81f;     // Explicitly typed as 'Float'
+scale: Float = 0.5;   // Contextually typed as 'Float'
 ```
 
 ### Logical Literals

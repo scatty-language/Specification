@@ -631,7 +631,7 @@ binary_literal
     ::= "0b" binary_digit { [ "_" ] binary_digit }
 
 int_suffix
-    ::= "u" | "L" | "uL" | "b"
+    ::= "u" | "L" | "uL"
 
 float_literal
     ::= decimal_literal "." decimal_literal [ exponent ] [ float_suffix ]
