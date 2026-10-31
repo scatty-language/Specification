@@ -78,9 +78,10 @@ Update(y: 10, ref vec, 5);
 
 * MUST declare the receiver (`@` or `ref @`) as the first parameter.
 * MUST treat an unqualified `@` receiver as an immutable reference to the caller's instance.
-* MUST NOT mutate any fields of `@`, pass `@` or its fields as `ref` arguments, or invoke `ref @` methods on `@` within a method declaring an immutable `@` receiver.
+* MUST NOT reassign `@`, switch its active variant via `=::`, mutate any of its fields, pass `@` or its fields as `ref` arguments, or invoke `ref @` methods on `@` within a method declaring an immutable `@` receiver.
 * MUST borrow the original instance from the caller for in-place receivers (`ref @`) and apply mutations directly to it.
-* MUST NOT reassign the `@` or `ref @` receiver binding itself.
+* MAY reassign `@` via `=` (or `=^` for a `ref @^Guard` receiver) or switch its active variant in-place via `=::` within a method declaring an unconstrained `ref @` receiver.
+* MUST NOT switch the active variant of `@` via `=::` or assign a different variant to `@` within a method declaring a variant-constrained receiver (`ref @::Variant`).
 * MUST NOT invoke a mutating instance method (`ref @`) on an unbound temporary rvalue expression as a standalone statement where the mutated copy is immediately discarded.
 
 ```C#
