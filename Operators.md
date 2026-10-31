@@ -20,9 +20,10 @@
 | 10 | Logical AND | `and` | Left-to-right |
 | 11 | Logical OR | `or` | Left-to-right |
 | 12 | Coalescing | `??` | Right-to-left |
-| 13 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
+| 13 | Conditional | `then ... :` | Right-to-left |
+| 14 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
 
-* MUST evaluate binary operators with equal precedence from left to right, except coalescing (`??`) and assignment operators which MUST evaluate from right to left.
+* MUST evaluate operators with equal precedence from left to right, except coalescing (`??`), conditional (`then ... :`), and assignment operators which MUST evaluate from right to left.
 
 ```C#
 result := a + b as Float == c * d; 
@@ -221,6 +222,25 @@ UpdateHero(ref heroes: [String: Hero], ref grid: Grid)
     grid[2, 3] = Cell { Value: 99 };
     cell := grid[2, 3];
 }
+```
+
+## Conditional Operator
+
+* MAY evaluate a conditional expression using the ternary syntax `condition then true_expr : false_expr`.
+* MUST require `condition` to evaluate to `Bool`.
+* MUST short-circuit evaluation by evaluating and returning `true_expr` (omitting `false_expr`) when `condition` evaluates to `true`.
+* MUST short-circuit evaluation by evaluating and returning `false_expr` (omitting `true_expr`) when `condition` evaluates to `false`.
+* MUST require `true_expr` and `false_expr` to evaluate to the exact same type `T`, except when one branch evaluates to `T` and the other evaluates to `T?` or `none`, in which case the expression MUST evaluate to `T?` (`Option<T>`) and implicitly wrap the `T` branch into `Option::Some`.
+* MUST associate chained conditional operators from right to left (`c1 then v1 : c2 then v2 : v3` evaluates as `c1 then v1 : (c2 then v2 : v3)`).
+
+```C#
+label := score >= 50 then "Pass" : "Fail";
+
+// Infers 'Char?' by combining 'Char' and 'none'
+cell := (x + y) % 11 == 0 then '.' : none;
+
+// Right-associative chaining
+tier := points >= 100 then "Gold" : points >= 50 then "Silver" : "Bronze";
 ```
 
 ## Optional Chaining, Force Unwrap, and Coalescing

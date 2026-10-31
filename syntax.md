@@ -393,7 +393,10 @@ expression
     ::= assignment_expr
 
 assignment_expr
-    ::= coalescing_expr [ assignment_operator assignment_expr ]
+    ::= conditional_expr [ assignment_operator assignment_expr ]
+
+conditional_expr
+    ::= coalescing_expr [ "then" expression ":" conditional_expr ]
 
 coalescing_expr
     ::= logical_or_expr [ "??" coalescing_expr ]
@@ -537,7 +540,7 @@ collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]
 
 collection_elem
-    ::= [ collection_elem_key "=" ] coalescing_expr
+    ::= [ collection_elem_key "=" ] conditional_expr
 
 collection_elem_key
     ::= logical_or_expr | "_"
@@ -715,7 +718,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "must" | "may" | "where" | "in" | "by" | "out" | "break" | "continue"
+      | "must" | "may" | "then" | "where" | "in" | "by" | "out" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
