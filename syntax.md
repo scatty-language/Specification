@@ -500,7 +500,7 @@ primary_expr
       | "(" expression ")"
 
 contextual_expr
-    ::= "." type_identifier [ "<" type_args ">" ] [ "(" [ argument_list ] ")" ] [ "{" [ initializer_list ] "}" ]
+    ::= "." type_identifier [ "<" type_args ">" ] [ variant_payload_init_body ] [ struct_init_body ] [ init_modifier ]
 
 lambda_expr
     ::= lambda_params "=>" ( expression | block )
