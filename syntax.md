@@ -47,13 +47,13 @@ payload_field_list
     ::= payload_field { "," payload_field }
 
 payload_field
-    ::= [ type_identifier ":" ] type { field_modifier } [ "pack" decimal_literal ] [ "=" expression ]
+    ::= [ type_identifier ":" ] type { field_modifier } [ "bitwidth" decimal_literal ] [ "=" expression ]
 
 short_field_list
     ::= short_field { "," short_field }
 
 short_field
-    ::= ( type_identifier | "_" ) ":" type { field_modifier } [ field_storage_modifier ] [ "pack" decimal_literal ] [ "=" expression ]
+    ::= ( type_identifier | "_" ) ":" type { field_modifier } [ field_storage_modifier ] [ "bitwidth" decimal_literal ] [ "=" expression ]
 
 field_storage_modifier
     ::= "embed" | "static" | "astatic" | "gstatic"
@@ -719,7 +719,7 @@ keyword
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
-      | "equality" | "math" | "tag" | "pack"
+      | "equality" | "math" | "tag" | "bitwidth"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"

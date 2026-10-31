@@ -30,7 +30,7 @@ Vector(Id: Int equality, X: Int math, Y: Int math = 1);
 
 ### Bitfields
 
-* MAY define exact field bit-width using the `pack` modifier (`Field: Type pack N;`).
+* MAY define exact field bit-width using the `bitwidth` modifier (`Field: Type bitwidth N;`).
 * MUST pack adjacent bitfields into the smallest contiguous memory boundary.
 * MUST apply only to scalar integer primitives and `Bool` fields.
 * MUST NOT be passed by reference.
@@ -44,9 +44,9 @@ NetworkHeader
     _: Byte;
     _: Byte;
     
-    IsSYN: Bool pack 1;
-    IsACK: Bool pack 1;
-    _: Byte     pack 6;
+    IsSYN: Bool bitwidth 1;
+    IsACK: Bool bitwidth 1;
+    _: Byte     bitwidth 6;
 }
 ```
 
