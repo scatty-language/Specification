@@ -56,9 +56,11 @@ Some() throws
 * MUST transfer ownership of any nested Owning Type fields into the TLS exception buffer without incrementing their `strongCount` when the thrown expression is an rvalue.
 * MUST increment the `strongCount` of all nested Owning Type fields when the thrown expression is an lvalue.
 * MUST NOT allow `Data` types implementing `~Exception` to exceed the fixed 128-byte size limit of the TLS exception buffer.
-* MUST unwind the call stack until an execution frame containing a matching `catch` arm is reached.
+* MUST propagate thrown exceptions via deterministic frame-return propagation without table-driven stack unwinding:
+  1. Upon executing `throw`, the active frame MUST write the exception into the 128-byte TLS exception buffer, set the active exception slot indicator (register or pointer to the TLS buffer), execute any activated frame-local `undo` statements and local ARC / `~Disposable` cleanup, and return to the caller with an uninitialized (`noinit`) return value payload.
+  2. Immediately following any `throws` invocation, the caller MUST inspect the active exception slot indicator: if clear (null), normal execution continues; if set, the caller MUST ignore the `noinit` return payload and either intercept the exception (`catch` or `try?`), trigger Abort/Panic (in a non-throwing context or `try!`), or execute its own activated `undo` statements and local ARC / `~Disposable` cleanup and return `noinit` to its caller.
 * MUST execute the first matching `catch` arm for an intercepted exception.
-* MUST move the exception data from the TLS exception buffer into a 128-byte frame-local exception slot and clear the TLS exception buffer upon entering a matching `catch` arm.
+* MUST move the exception data from the TLS exception buffer into a 128-byte frame-local exception slot and clear the active exception slot indicator and TLS exception buffer upon entering a matching `catch` arm.
 * MUST bind the variable declared in a `catch` arm (`catch e: Type`) directly to the frame-local exception slot when `Type` is a concrete `Data` type.
 * MUST bind the variable declared in a `catch` arm (`catch e: ~Interface`) as an implicit `ref` reference to the frame-local exception slot when `Type` is an interface.
 * MAY omit the variable identifier and type in a `catch` arm to define a catch-all block.
@@ -205,9 +207,9 @@ HandleRequest() throws
 * MUST NOT execute `undo` statements when execution exits the enclosing block normally or via `return`, `break`, `continue`, `fall`, or a non-throwing `must` gate.
 * MUST execute multiple activated `undo` statements within the same lexical block in reverse order of declaration (Last-In, First-Out).
 * MUST execute activated `undo` statements and local variable ARC / `~Disposable` cleanup in reverse declaration order, executing each `undo` statement prior to destroying any local variables declared above it in the same block.
-* MUST evaluate and mutate local variables, `ref` parameters, and `ref @` receivers within an `undo` body directly against the active stack frame's state at the moment of unwinding.
-* MUST move the active exception from the TLS exception buffer into a 128-byte frame-local exception slot prior to executing an `undo` statement and clear the TLS exception buffer for the duration of the `undo` body.
-* MUST move the exception from the frame-local exception slot back into the TLS exception buffer upon completion of the `undo` statement to continue stack unwinding.
+* MUST evaluate and mutate local variables, `ref` parameters, and `ref @` receivers within an `undo` body directly against the active stack frame's state during exception propagation prior to frame return.
+* MUST move the active exception from the TLS exception buffer into a 128-byte frame-local exception slot prior to executing an `undo` statement and clear the active exception slot indicator and TLS exception buffer for the duration of the `undo` body.
+* MUST move the exception from the frame-local exception slot back into the TLS exception buffer and restore the active exception slot indicator upon completion of the `undo` statement to continue exception propagation.
 * MUST NOT invoke a `throws` method within an `undo` body unless wrapped in `try?`, `try!`, or a `try` / `catch` construct that handles all exceptions within the `undo` scope.
 * MUST NOT execute a `throw`, `return`, `break`, `continue`, or `fall` statement that exits an `undo` body.
 

@@ -142,8 +142,8 @@ match rawValue as? Int^Positive
 * MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
   * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [Int]^NonEmpty`), or
   * Passing `instance` (or any of its fields) as a `ref` argument to a parameter typed as the unguarded base type.
-* MUST also re-evaluate the `must` invariant of the guarded variable during stack unwinding if a mutating (`ref @`) method or a method accepting `instance` (or any of its fields) as an unguarded `ref` argument is declared with `throws` and throws an exception.
-* MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` invariant checks (including on stack unwinding paths) when the invariant cannot be statically proven at compile time:
+* MUST also re-evaluate the `must` invariant of the guarded variable on the error-return path if a mutating (`ref @`) method or a method accepting `instance` (or any of its fields) as an unguarded `ref` argument is declared with `throws` and returns an active exception.
+* MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
   * In Debug mode, the compiler MUST evaluate the governing `must` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
