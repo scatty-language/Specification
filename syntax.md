@@ -14,7 +14,6 @@ top_level_declaration
       | guard_decl
       | type_alias_decl
       | const_decl
-      | var_decl
 
 data_decl
     ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ]
