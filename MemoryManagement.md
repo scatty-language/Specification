@@ -50,22 +50,22 @@ Console.WriteLine(list2.Count); // Output: 4
 
 ## Weak References
 
-* MUST apply the `weak` type modifier exclusively to Owning Types. Applying `weak` to a Trivial Type or primitive is FORBIDDEN.
+* MUST apply the `weak` type modifier exclusively to Owning Types.
+* MUST NOT apply the `weak` type modifier to a Trivial Type or primitive.
 * MUST atomically increment the target's weak reference count (`weakCount`) without incrementing its strong reference count (`strongCount`) when assigning an Owning Type to a `T weak` target.
 * MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
 * MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
 * MAY initialize or reassign a `T weak` variable or field with the `none` literal to represent an unattached weak reference (`strongCount == 0`) without allocating an ARC Control Block.
-* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`may val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
 
 ### Accessing and Unwrapping Weak References
 
-* MAY access members of a `T weak` variable directly or pass it to a context expecting a strong `T`.
-* MUST atomically verify that `strongCount > 0` and temporarily retain a strong reference for the duration of the access when evaluating a `T weak` directly.
-* MUST immediately trigger the runtime Abort/Fatal Panic mechanism if a `T weak` is accessed directly after its target has been disposed (`strongCount == 0`).
-* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`must val := weakVar`), optional chaining (`?.`), coalescing (`??`), and force-unwrapping (`!`).
-* MAY apply the optional chaining (`?.`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
+* MUST NOT access members of a `T weak` expression directly via `.` or `[]`, or implicitly convert a `T weak` expression to a strong `T`.
+* MUST explicitly unwrap or promote a `T weak` expression using conditional binding (`:=`), optional chaining (`?.` or `?[...]`), postfix force-unwrap (`!`), or the coalescing operator (`??`).
+* MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`must val := weakVar`), optional chaining (`?.` or `?[...]`), coalescing (`??`), and force-unwrapping (`!`).
+* MAY apply the optional chaining (`?.` and `?[...]`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
   * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
-  * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if alive, or evaluates to `fallback` if disposed.
+  * `weakVar!` atomically promotes `weakVar` to a strong `T` if `strongCount > 0`, or immediately triggers runtime Abort or Fatal Panic mechanics if `strongCount == 0`.
+  * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if `strongCount > 0`, or evaluates to `fallback` if `strongCount == 0`.
 
 ```scatty
 Node : ~Copyable
@@ -83,13 +83,16 @@ child := Node { Value: 2, Parent: parent, Children: [Node].New() };
 // strongCount of 'parent' is 1; 'child.Parent' is weak and does not trigger CoW
 parent.Children.Add(child);
 
-// safe conditional promotion to a strong reference
+// Safe conditional promotion to a strong reference
 may strongParent := child.Parent
 {
     Console.WriteLine(strongParent.Value); // Output: 1
 }
 
-// direct access (auto-promotes if alive, panics/aborts if already disposed)
+// Explicit force-unwrap (promotes if alive, panics/aborts if disposed)
+Console.WriteLine(child.Parent!.Value);
+
+// ERROR: Cannot access members of a 'weak' reference directly without '!', '?.', or unwrapping
 Console.WriteLine(child.Parent.Value);
 ```
 
