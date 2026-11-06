@@ -16,7 +16,7 @@
 * MUST NOT use named arguments for variadic elements.
 * MUST intrinsically generate and pass an empty inline array (`InlineArray<Type>.New(0)`) if no arguments are provided to the variadic parameter.
 
-```C#
+```scatty
 Logger 
 {
     // Declares a variadic parameter for 'Int'
@@ -51,7 +51,7 @@ Logger.LogMetrics("C");
 * MUST intrinsically evaluate and assign the declared default value for any parameter remaining unassigned after all arguments are bound.
 * MUST explicitly include the `ref` modifier at the call site for any argument bound to a parameter declared with `ref`.
 
-```C#
+```scatty
 Process(amount: Int, offset: Int, isDryRun: Bool, force: Bool = false) { }
 
 // Fills in declaration order
@@ -84,7 +84,7 @@ Update(y: 10, ref vec, 5);
 * MUST NOT switch the active variant of `@` via `=::` or assign a different variant to `@` within a method declaring a variant-constrained receiver (`ref @::Variant`).
 * MUST NOT invoke a mutating instance method (`ref @`) on an unbound temporary rvalue expression as a standalone statement where the mutated copy is immediately discarded.
 
-```C#
+```Scatty
 Vector
 {
     X: Int;
@@ -126,7 +126,7 @@ Vector
 * MUST reject at compile time any invocation of a constrained-receiver method on an unnarrowed base type, an incompatible variant subtype, or an unguarded type.
 * MAY declare the return type of a method as `-> @::Variant` or `-> @^Guard` to synthesize the corresponding variant subtype or guarded type of the enclosing `Data` declaration.
 
-```C#
+```scatty
 Bill 
 {
     ::Init;
@@ -178,7 +178,7 @@ validSome.Process();
 * MAY omit the type identifier qualifier when invoking a static method from within the lexical scope of its enclosing type.
 * MAY declare the return type of a static method as `-> @` to synthesize the explicit return type of the enclosing `Data` declaration.
 
-```C#
+```scatty
 Vector 
 {
     // Static method returning the explicitly named type
@@ -218,7 +218,7 @@ zero := Vector.CreateZero();
 * MUST require the target receiver of a standalone (unassigned) cascade statement to be a mutable lvalue if any method in the cascade chain requires an in-place receiver (`ref @`).
 * MUST desugar a cascade chain bound to a variable, assignment target, or `return` statement by initializing the target with the evaluated receiver expression first and subsequently executing each method in the chain on that target.
 
-```C#
+```scatty
 Vector 
 {
     X: Int;
@@ -271,7 +271,7 @@ ProcessVector(pos.Add(a)..Add(b));
 * MUST implicitly pass a hidden pointer to a pre-allocated stack block from the caller during RVO.
 * MUST construct and write the returned value directly into the caller's pre-allocated memory during RVO, guaranteeing zero physical memory copying overhead.
 
-```C#
+```scatty
 // Footprint: 4 bytes (<= 8-byte pointer).
 // Returned in a CPU register.
 GetId() -> Int 
@@ -324,7 +324,7 @@ GetIdentity() -> Matrix
 * MUST implicitly return the evaluated value of a single `Expression` body.
 * MUST require an explicit `return` statement to yield a value from a `{ ... }` block body.
 
-```C#
+```scatty
 Vector 
 {
     X: Int;
@@ -383,7 +383,7 @@ validator: fn(Some^Valid) = Some.Process;
 * MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
 * MAY implement multiple specializations of a generic interface on the same `Data` type, resolving invocations via standard Overload Resolution rules.
 
-```C#
+```scatty
 Processor 
 {
     // Valid overloads: distinct parameter types and 'ref' parameter modifier
@@ -414,7 +414,7 @@ Processor
 * MUST apply the same specificity hierarchy to the receiver type when resolving overloaded instance methods (an expression of type `Type^Guard` or `Data::Variant` matches a constrained receiver `@^Guard` or `@::Variant` at Priority 1 over an unconstrained receiver `@` at Priority 2).
 * MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` type annotation.
 
-```C#
+```scatty
 Validator 
 {
     // Priority 1 for 'Int^Positive'

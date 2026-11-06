@@ -12,7 +12,7 @@
 * MAY declare generic type parameters on a type alias.
 * MUST map and forward all declared generic type parameters to the underlying aliased type.
 
-```C#
+```scatty
 Chunk<T> = [[[T]; 64] soa];
 
 ValidId = Int^Positive;

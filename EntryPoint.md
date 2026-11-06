@@ -27,7 +27,7 @@
 * MUST trigger runtime Abort and Panic mechanics if an unhandled exception escapes a `throws` entry point.
 * MUST return a non-zero exit code to the operating system if execution terminates via an unhandled exception or process abort.
 
-```C#
+```scatty
 // Minimal Entry Point
 Program 
 {

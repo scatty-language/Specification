@@ -8,7 +8,7 @@
 * MUST automatically assign 1-based positional names (`Item1`, `Item2`, ...) to tuple elements declared without an explicit identifier.
 * MUST allow member access via explicitly declared element names or positional identifiers.
 
-```C#
+```scatty
 GetBounds() -> (Min: Int, Max: Int) 
 {
     return (Min: 0, Max: 100);
@@ -27,7 +27,7 @@ userName := user.Name;
 * MUST ignore element identifiers when evaluating tuple type equivalence or performing assignments.
 * MUST permit assignment between tuple instances if and only if their element counts and positional types match identically.
 
-```C#
+```scatty
 pointA: (X: Int, Y: Int) = (10, 20);
 pointB: (Width: Int, Height: Int) = (5, 5);
 unnamed: (Int, Int) = (0, 0);
@@ -45,7 +45,7 @@ unnamed = pointA;
 * MAY use the discard symbol `_` in place of a local identifier to omit an element binding during destructuring.
 * MUST NOT generate a variable or allow access to elements bound to `_`.
 
-```C#
+```scatty
 (min, max) := GetBounds();
 
 min = -10;

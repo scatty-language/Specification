@@ -26,7 +26,7 @@
 * MUST designate local variables, method parameters, and pattern-matching bindings.
 * MUST NOT use `PublicId`, `InternalId`, or `PrivateId` formats for local scope bindings.
 
-```C#
+```scatty
 DataName
 Engine_
 _cacheSize
@@ -45,7 +45,7 @@ user_age
 * MAY escape a reserved keyword to function as an identifier by enclosing it in backticks (`` ` ``).
 * MUST strip backticks during lexing; backticks MUST NOT form part of the compiled symbol name.
 
-```C#
+```scatty
 `match` := 10;
 Console.WriteLine(`match`);
 

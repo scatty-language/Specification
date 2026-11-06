@@ -15,7 +15,7 @@
 * MUST import public members of an explicitly depended-upon external package into the current file's namespace using the `use` directive.
 * MUST place all `use` directives at the file's top level, prior to any declarations.
 
-```C#
+```scatty
 // MANIFEST: package.toml (name = "Math")
 // File: /Math/Vector.cat
 Vector
@@ -55,7 +55,7 @@ features = ["steam", "telemetry"]
 * MUST permit a broader or universal source file (e.g., `Console.cat`) to reference a conditionally compiled declaration if and only if an identical declaration signature is provided across all branches of the corresponding mutually exclusive target or flag group declared in the package manifest (e.g., implemented in both `Console.windows.cat` and `Console.linux.cat`).
 * MUST reject compilation if a source file in a general or broader scope references a declaration that exists only in a narrower conditional scope without exhaustive coverage across the target group.
 
-```C#
+```scatty
 // File: Registry.windows.cat (Scope: {windows})
 Win32Registry_ 
 {
@@ -91,7 +91,7 @@ Console
 
 * MUST propagate private visibility (`_name`) downward from a broader conditional compilation file to all narrower conditional specialization files sharing the same `<BaseName>` (`<BaseName>.cat` -> `<BaseName>.windows.cat` -> `<BaseName>.windows.arm64.cat`) without requiring internal (`Name_`) visibility.
 
-```C#
+```scatty
 // File: Socket.cat (Universal Scope: {})
 Socket 
 {
@@ -151,7 +151,7 @@ Other
 
 * MUST NOT expose restricted (private or internal) types within a public member's signature.
 
-```C#
+```scatty
 // PACKAGE: Geometry
 // File: Shapes.cat
 Circle

@@ -9,7 +9,7 @@
 * MUST execute a bitwise copy upon assignment or pass-by-value of a Trivial Type.
 * MUST guarantee complete logical and physical independence between the original and the copied variable.
 
-```C#
+```scatty
 Vector(X: Int, Y: Int);
 
 one := Vector { X: 10, Y: 10 };
@@ -34,7 +34,7 @@ Console.WriteLine(one.X); // Output: 10
 * MUST automatically clone a deep copy of the underlying data, decrement the original instance's strong reference count, and apply the mutation to the newly allocated copy if the instance is shared (`strongCount > 1`).
 * MUST ignore the weak reference count (`weakCount`) when determining uniqueness for Copy-on-Write. An instance with `strongCount == 1` and `weakCount > 0` MUST be mutated in-place so existing `weak` references remain attached to the mutated instance.
 
-```C#
+```scatty
 list1 := [Int] { 1, 2, 3 };
 
 // ARC retain: 'list1' and 'list2' temporarily share the same heap buffer (strongCount == 2)
@@ -67,7 +67,7 @@ Console.WriteLine(list2.Count); // Output: 4
   * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
   * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if alive, or evaluates to `fallback` if disposed.
 
-```C#
+```scatty
 Node : ~Copyable
 {
     Value: Int;
@@ -99,7 +99,7 @@ Console.WriteLine(child.Parent.Value);
 * MUST explicitly declare the `ref` keyword at both the method parameter declaration and the invocation call site.
 * MUST preserve `strongCount == 1` when an unshared variable is passed by `ref`, avoiding unnecessary Copy-on-Write allocations inside the callee.
 
-```C#
+```scatty
 ClearList(ref list: [Int]) 
 {
     // Mutates in-place without triggering CoW if 'myList' has strongCount == 1
@@ -120,7 +120,7 @@ ClearList(ref myList);
 * MUST NOT pass two indexed elements of the same collection (`ref col[i]` and `ref col[j]`) simultaneously as `ref` arguments within the same method invocation.
 * MUST NOT pass a `static` or `astatic` variable or field directly as a `ref` argument to a method parameter.
 
-```C#
+```scatty
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
 ProcessListAndItem(ref list: [Int], ref item: Int) { }
@@ -158,7 +158,7 @@ ProcessValues(ref numbers[0], ref numbers[1]);
 * MUST also implement the `~Copyable` interface (`Copy(@) -> @`) on a custom `~Disposable` type if the type is mutated while shared (`strongCount > 1`). Otherwise, mutating a shared custom `~Disposable` type that does not implement `~Copyable` MUST be rejected or performed via unique ownership.
 * MUST implicitly gather the scattered fields of each element into a temporary stack instance to execute `Dispose(ref temp)` when destroying or removing elements from a Structure of Arrays (`soa`) collection whose element type implements `~Disposable`.
 
-```C#
+```scatty
 ~Disposable 
 {
     Dispose(ref @);
@@ -192,7 +192,7 @@ ProcessFile() throws
   2. Inspect the target instance's outgoing discriminant tag and release or dispose all Owning Type payload fields belonging to the outgoing active variant.
   3. Update the discriminant tag to the new variant and move the evaluated payload values from Step 1 into the variant payload storage.
 
-```C#
+```scatty
 ConnectionState 
 {
     ::Idle;

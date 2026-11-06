@@ -25,7 +25,7 @@
 
 * MUST evaluate operators with equal precedence from left to right, except coalescing (`??`), conditional (`then ... :`), and assignment operators which MUST evaluate from right to left.
 
-```C#
+```scatty
 result := a + b as Float == c * d; 
 ```
 
@@ -36,7 +36,7 @@ result := a + b as Float == c * d;
 * MUST short-circuit evaluation of `and` expressions by omitting evaluation of the right-hand operand when the left-hand operand evaluates to `false`.
 * MUST short-circuit evaluation of `or` expressions by omitting evaluation of the right-hand operand when the left-hand operand evaluates to `true`.
 
-```C#
+```scatty
 may not user.IsBanned and (user.Age > 18 or user.HasConsent) 
 {
 
@@ -62,7 +62,7 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST NOT apply the `equality` modifier to variant payload fields of an untagged union (`tag none`).
 * MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equality` modifier.
 
-```C#
+```scatty
 User 
 {
     Id: Int equality;
@@ -87,7 +87,7 @@ isEqual := userA == userB;
 * MUST populate unmarked fields in the resulting instance by copying the values directly from the left-hand operand.
 * MUST NOT apply the `math` modifier to a `T weak` field.
 
-```C#
+```scatty
 Transform 
 {
     Name: String;
@@ -119,7 +119,7 @@ result := t1 + t2;
 * MUST shadow and override embedded field operators if the parent type explicitly declares any `equality` or `math` fields.
 * MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators and the parent type does not explicitly shadow them.
 
-```C#
+```scatty
 PhysicsData 
 {
     Velocity: Float math;
@@ -157,7 +157,7 @@ playerC := playerA + playerB;
   * `a >= b` evaluates as `a.Compare(b) >= 0`
 * MUST require custom `Data` types to implement the `~Comparable` interface to perform ordered comparisons.
 
-```C#
+```scatty
 ~Comparable 
 {
     Compare(@, other: @) -> Int;
@@ -174,7 +174,7 @@ playerC := playerA + playerB;
 
 * MUST require a type to implement the standard library `~Indexable<TKey, TValue>` interface to support the index operator (`[]`).
 
-```C#
+```scatty
 ~Indexable<TKey, TValue> 
 {
     Get(@, key: TKey) throws -> TValue;
@@ -216,7 +216,7 @@ playerC := playerA + playerB;
 * MAY supply two or more comma-separated index expressions within brackets (`col[k1, k2, ...]`).
 * MUST implicitly pack multiple index arguments `(k1, k2, ...)` into a tuple of type `(T1, T2, ...)` and resolve the operation against `~Indexable<(T1, T2, ...), TValue>`.
 
-```C#
+```scatty
 UpdateHero(ref heroes: [String: Hero], ref grid: Grid) 
 {
     // Safe optional lookup via '.At()' combined with optional chaining '?.' and '??'
@@ -244,7 +244,7 @@ UpdateHero(ref heroes: [String: Hero], ref grid: Grid)
 * MUST require `true_expr` and `false_expr` to evaluate to the exact same type `T`, except when one branch evaluates to `T` and the other evaluates to `T?` or `none`, in which case the expression MUST evaluate to `T?` (`Option<T>`) and implicitly wrap the `T` branch into `Option::Some`.
 * MUST associate chained conditional operators from right to left (`c1 then v1 : c2 then v2 : v3` evaluates as `c1 then v1 : (c2 then v2 : v3)`).
 
-```C#
+```scatty
 label := score >= 50 then "Pass" : "Fail";
 
 // Infers 'Char?' by combining 'Char' and 'none'
@@ -267,7 +267,7 @@ tier := points >= 100 then "Gold" : points >= 50 then "Silver" : "Bronze";
 * MUST flatten the result of an optionally chained expression to `R?` (rather than `R??`) if the invoked member already returns an optional type `R?`.
 * MAY invoke a mutating (`ref @`) method via `?.` on a mutable `T?` lvalue variable, mutating the underlying `Some` payload in-place if present.
 
-```C#
+```scatty
 User 
 {
     Name: String;
@@ -296,7 +296,7 @@ maybeUser?.AddBonus(5);
 * MUST immediately trigger runtime Abort or Fatal Panic mechanics if `expr` evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
 * MAY chain member accesses or invocations directly after `!` (`expr!.Method()`).
 
-```C#
+```scatty
 optInt: Int? = .Some(10);
 
 // Unwraps directly to 'Int' (or Aborts/Panics if 'None')

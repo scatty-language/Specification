@@ -14,7 +14,7 @@
 * MUST transparently forward all methods and properties of the embedded variant field's specified base type to the parent instance.
 * MUST explicitly assign the embedded variant field using its identifier during structural instantiation of the parent type unless initialized via a forwarded variant constructor.
 
-```C#
+```scatty
 StatusMessage
 {
     Message: String embed = "Wow";
@@ -48,7 +48,7 @@ may res.Contains("Wow")
 * MUST reject compilation on ambiguous access if multiple embedded fields within the same `Data` type expose a member with the identical name.
 * MUST resolve ambiguity by explicitly declaring a shadowing method or property on the parent type that manually delegates to a specific embedded field.
 
-```C#
+```scatty
 Wrapper<T> 
 {
     List: [T] embed;
@@ -78,7 +78,7 @@ wrapper.List.Add(1);
 * MUST evaluate forwarded operators on the embedded field if the parent type does not explicitly shadow the operator.
 * MUST NOT implicitly typecast or subtype the parent `Data` type to the type of its embedded field.
 
-```C#
+```scatty
 Score 
 {
     Value: Int embed;

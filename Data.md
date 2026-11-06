@@ -7,7 +7,7 @@
 * MAY apply memory padding to fields.
 * MUST occupy a minimum of 1 byte.
 
-```C#
+```scatty
 Vector 
 {
     Id: Int equality;
@@ -35,7 +35,7 @@ Vector(Id: Int equality, X: Int math, Y: Int math = 1);
 * MUST apply only to scalar integer primitives and `Bool` fields.
 * MUST NOT be passed by reference.
 
-```C#
+```scatty
 NetworkHeader 
 {
     Version: Byte;
@@ -70,7 +70,7 @@ NetworkHeader
 * MUST evaluate a `static` field's initialization expression once per thread prior to the field's first use on that thread.
 * MUST evaluate an `astatic` or `gstatic` field's initialization expression exactly once per process prior to the type's first use.
 
-```C#
+```scatty
 Application 
 {
     // Thread-Local Storage (TLS): isolated per thread, safe
@@ -109,7 +109,7 @@ Application
 * MAY omit payload field identifiers.
 * MUST automatically assign 1-based positional identifiers (`Item1`, `Item2`, ...) to variant payload fields declared without an explicit identifier.
 
-```C#
+```scatty
 Option<T> 
 {
     ::None;
@@ -144,7 +144,7 @@ Option<T>
   * Forward the `ref` binding to another method or `fn` pointer that may mutate the active variant.
 * MUST reject at compile time passing a `Data::Variant` expression by `ref` to any `ref Data` method that mutates the active variant or to an indirect function pointer (`fn(ref Data)`).
 
-```C#
+```scatty
 Color 
 {
     ::Red(Radius: Float);
@@ -259,7 +259,7 @@ anySession.Reset();
 * MUST evaluate explicit variant tag values as compile-time constants.
 * MUST assign an omitted variant tag the value of the preceding variant's tag plus `1`.
 
-```C#
+```scatty
 HttpResponse : ~Formattable tag Int 
 {
     // Variants
@@ -281,7 +281,7 @@ HttpResponse : ~Formattable tag Int
 * MUST enclose any variant declaration containing an Owning Type or `~Disposable` payload within an `unsafe` block or mark the variant declaration with the `unsafe` modifier when the enclosing `Data` type declares `tag none`.
 * MUST NOT automatically track, retain, or dispose Owning Type payloads inside an untagged union (`tag none`); shared fields declared outside the variants remain automatically managed via ARC.
 
-```C#
+```scatty
 FloatIntUnion tag none 
 {
     ::FloatBits(Float);

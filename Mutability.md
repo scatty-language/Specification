@@ -7,7 +7,7 @@
 * MUST execute a bitwise copy upon assignment of Trivial Types.
 * MUST retain a shared reference via ARC upon assignment of Owning Types and automatically execute a Copy-on-Write (CoW) deep copy prior to any mutation if the underlying instance has a strong reference count greater than `1`.
 
-```C#
+```scatty
 x := 10;
 x = 20;
 
@@ -36,7 +36,7 @@ listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
 * MUST restrict all reads, mutations, and references to `gstatic` local variables exclusively to `unsafe` blocks or `unsafe` methods.
 * MUST NOT pass a `static` or `astatic` local variable directly as a `ref` argument to a method parameter.
 
-```C#
+```scatty
 GenerateThreadLocalId() -> Int 
 {
     counter: Int static = 0;
@@ -72,7 +72,7 @@ TouchRawState()
 * MUST materialize an isolated local copy (or trigger Copy-on-Write detachment for Owning Types) at the site of mutation when a standard parameter is modified inside the method.
 * MUST NOT reflect internal parameter mutations on the caller's original variable.
 
-```C#
+```scatty
 Process(val: Int, counter: Int) 
 {
     val = 5;
@@ -94,7 +94,7 @@ Process(myVal, myCounter);
 * MUST borrow the original instance from the caller for in-place receivers (`ref @`).
 * MUST apply mutations on an in-place receiver (`ref @`) directly to the caller's original instance.
 
-```C#
+```scatty
 Data 
 {
     X: Int;
@@ -118,7 +118,7 @@ Data
 * MAY omit the explicit type annotation (`: Type`) if the compiler can infer the type from the initialization expression.
 * MUST govern constant access rights via standard identifier visibility rules (`PublicId`, `InternalId`, or `PrivateId` for file-level and type-level constants, and `LocalId` for method-local constants).
 
-```C#
+```scatty
 Pi: Float :: 3.14159f;
 
 MaxUsers :: 100;

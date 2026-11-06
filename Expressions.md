@@ -19,7 +19,7 @@
 * MUST NOT use the leading-dot syntax in contexts where the target type is inferred (`:=`) without an explicit type expectation.
 * MUST reject any `.Member` expression that cannot resolve unambiguously to a single variant or static member on the expected type with a compile-time error.
 
-```C#
+```scatty
 Vector 
 {
     X: Int;

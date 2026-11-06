@@ -21,7 +21,7 @@
 * MAY explicitly transform between `String` and `RuneString` using the `as` operator.
 * MUST perform memory reallocation and UTF-8 decoding/encoding during `as` transformations between `String` and `RuneString`.
 
-```C#
+```scatty
 text: String = "Hello 🌍"; 
 
 byteChar: Char = text[6]; 
@@ -38,7 +38,7 @@ backToString := runeText as String;
 * MUST evaluate structural equality operators via a byte-for-byte comparison of the underlying buffer.
 * MUST support lexical sorting based on UTF-8 byte order via implementation of the `~Comparable` interface.
 
-```C#
+```scatty
 strA := "Scatty";
 strB := "Scatty";
 
@@ -54,7 +54,7 @@ may strA == strB
 * MUST iterate over raw 8-bit bytes (`Char`) when utilizing standard loops on a `String`.
 * MAY iterate dynamically over decoded Unicode scalars (`Rune`) without intermediate heap allocation via the `.Runes()` method.
 
-```C#
+```scatty
 text := "A🌍C";
 
 c in text 
@@ -75,7 +75,7 @@ r in text.Runes()
 * **MUST NOT** evaluate `\(...)` interpolation within raw string literals (`"""..."""`).
 * **MUST** evaluate an interpolated string literal at compile time if every embedded expression is a compile-time constant (`::` or literal), producing a static constant `String` without runtime allocation.
 
-```C#
+```scatty
 Version :: 2;
 // Compile-time constant folding
 AppTitle :: "Scatty App v\(Version)";
@@ -96,7 +96,7 @@ greeting := "Player \(name.Trim(" ")) scored \(score + 10) points!";
 * MUST format `T weak` fields non-recursively without traversing the target instance's fields during compiler-synthesized `~Formattable` execution.
 * MUST NOT automatically synthesize a structural `~Formattable` implementation for an untagged union (`tag none`); an untagged union MUST explicitly implement `~Formattable` to participate in runtime string interpolation.
 
-```C#
+```scatty
 ~Formattable 
 {
     Format(@, ref builder: StringBuilder);
@@ -117,7 +117,7 @@ greeting := "Player \(name.Trim(" ")) scored \(score + 10) points!";
   3. Invoke `.Format(ref builder)` on each interpolated expression, writing UTF-8 bytes directly into the `StringBuilder` buffer without allocating intermediate heap `String` instances.
   4. Transfer ownership of the `StringBuilder` buffer directly to the resulting `String` via `.Build()` without copying the buffer.
 
-```C#
+```scatty
 Vector(X: Int, Y: Int);
 
 vec := Vector { X: 10, Y: 20 };

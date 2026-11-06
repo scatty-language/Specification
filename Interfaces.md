@@ -16,7 +16,7 @@
 * MAY declare default methods with a body to provide shared behavior.
 * MAY shadow a default interface method by explicitly declaring a method with an identical signature in the implementing `Data` type.
 
-```C#
+```scatty
 ~Comparable 
 {
     Compare(@, other: @) -> Int;
@@ -48,7 +48,7 @@ Score : ~Comparable
 * MUST satisfy a contract property by declaring either a computed property OR a state field with an identical name and type in the implementing Data type.
 * MUST implicitly generate a transparent vtable getter to dynamically resolve the field or property when accessed via an interface reference.
 
-```C#
+```scatty
 ~Vectorable 
 {
     X: Int; 
@@ -75,7 +75,7 @@ Entity : ~Vectorable
 * MUST return an instance of the exact concrete type if a method signature declares a return type of `-> @`.
 * MUST explicitly type parameters as the interface to interact polymorphically with any type implementing the interface.
 
-```C#
+```scatty
 ~Equatable 
 {
     Equals(@, other: @) -> Bool;
@@ -97,7 +97,7 @@ Entity : ~Vectorable
 * MUST permit dynamic dispatch calls ONLY for methods that accept `@` or `ref @` and DO NOT return `@`.
 * MUST NOT permit dynamic dispatch calls for methods that return the concrete type (`@`).
 
-```C#
+```scatty
 Duplicate<T: ~Copyable>(item: T) 
 {
     newItem := item.Copy();
@@ -130,7 +130,7 @@ ProcessDynamic(ref item: ~Copyable) { }
   * If the member returns void, the expression MUST execute the method if implemented or perform a no-op if unimplemented.
 * MAY invoke a weak contract member forcibly using the `!` suffix (`item.Method!(args)` or `item.Property!`), which MUST immediately trigger runtime Abort or Fatal Panic mechanics if the concrete type does not implement the member.
 
-```C#
+```scatty
 ~Stream 
 {
     Read(ref @, buffer: [Byte]) throws -> Int;

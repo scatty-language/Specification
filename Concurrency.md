@@ -8,7 +8,7 @@
 * MAY delegate scheduling and execution resilience for a task using the `by` modifier on a `spawn` statement.
 * MUST resolve the expression supplied to the `by` modifier to a type implementing the `~SpawnStrategy` interface.
 
-```C#
+```scatty
 ProcessData(data: Int) { }
 
 concurrent
@@ -34,7 +34,7 @@ concurrent
 * MUST evaluate mutations to captured Owning Types according to Copy-on-Write (CoW) semantics, cloning an isolated task-local copy prior to mutation if `strongCount > 1`.
 * MUST NOT capture an Owning Type that implements `~Disposable` without implementing `~Copyable` across multiple `spawn` blocks, unless encapsulated in a thread-safe synchronization primitive.
 
-```C#
+```scatty
 Calculate(value: Int) { }
 
 concurrent 
@@ -67,7 +67,7 @@ concurrent
 * MUST require every `catch` arm attached to a value-yielding `spawn` statement to either yield a fallback value of type `T` or rethrow an exception.
 * MUST collect and order the evaluated results in the returned `[T]` array according to the sequential order in which the tasks were spawned.
 
-```C#
+```scatty
 results: [Int] = concurrent 
 {
     spawn => 10;
@@ -105,7 +105,7 @@ results: [Int] = concurrent
 * MAY declare a resilience strategy for a `rollback` block using the `by` modifier.
 * MUST resolve the expression supplied to a `rollback by` modifier to a type implementing the `~SpawnStrategy` interface.
 
-```C#
+```scatty
 use System::Concurrency;
 
 concurrent throws 

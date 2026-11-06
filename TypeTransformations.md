@@ -3,7 +3,7 @@
 * MUST implement the standard library `~Castable<T>` interface on a user-defined `Data` type to support custom type transformations via the `as`, `as?`, and `as!` operators.
 * MUST NOT apply the `unas` operator to any `~Castable<T>` transformation.
 
-```C#
+```scatty
 ~Castable<T> 
 {
     Cast(@) throws -> T;
@@ -35,7 +35,7 @@
 * MAY apply `as`, `as?`, or `as!` to transform a source type directly into a guarded target type (`Source as Target^Guard`) if the source type implements `~Castable<Target>`.
 * MUST execute the `~Castable<Target>` transformation prior to evaluating the `^Guard` invariant.
 
-```C#
+```scatty
 Vector : ~Castable<Point> 
 {
     X: Int;

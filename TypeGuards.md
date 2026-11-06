@@ -9,7 +9,7 @@
 * MAY declare explicit generic parameters and assign a type parameter as the `TargetType`.
 * MAY omit the base type and use the contextual guard pattern (`is ^Guard` or `is ^Guard<TypeArgs>`) when the type guard is applicable to the left-hand expression's static type.
 
-```C#
+```scatty
 ^Positive = @ must @ > 0;
 
 ^PositiveNumber<T: ~INumber> = T must @ > 0;
@@ -26,7 +26,7 @@
 * MAY provide explicit generic arguments to parent type guards using `<@>` or concrete type identifiers.
 * MUST evaluate all inherited parent `must` invariants in declaration order prior to evaluating the child type guard's own `must` expression.
 
-```C#
+```scatty
 ^Positive = @ must @ > 0;
 
 ^Big : ^Positive = @ must @ > 1000;
@@ -43,7 +43,7 @@
 * MAY apply a type guard directly to an instance method receiver (`@^Guard` or `ref @^Guard`).
 * MUST require the caller's target expression to be statically typed or narrowed to `BaseType^Guard` when invoking a method declared with an `@^Guard` or `ref @^Guard` receiver.
 
-```C#
+```scatty
 validAge: Int^Positive = 25 as ^;
 email: String^Email = "test@domain.com" as ^;
 
@@ -95,7 +95,7 @@ may rawAcc is Account^Solvent
 * MUST reject the contextual guard cast (`as ^`, `as? ^`, `as! ^`, `unas ^`) at compile time if the target context does not expect a guarded type or if the expected type is inferred (`:=`).
 * MAY use a type guard pattern (`^Guard`) directly within a `match` arm to validate the invariant and narrow the matched subject within the arm's scope.
 
-```C#
+```scatty
 rawValue: Int = -10;
 
 may rawValue is Int^Positive 
@@ -152,7 +152,7 @@ match rawValue as? Int^Positive
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 * MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`must`, `must!`, `may`, or `match`).
 
-```C#
+```scatty
 User 
 {
     Name: String;

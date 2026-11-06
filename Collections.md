@@ -7,7 +7,7 @@
 * MAY initialize collection elements positionally (`{ expr1, expr2 }`) or by explicit key/index mapping (`{ key = expr }`).
 * MAY provide a wildcard fallback entry (`_ = expr`) to initialize all remaining unmapped indices of a fixed-size array, inline array, or associated array.
 
-```C#
+```scatty
 // Contextual initialization without repeating '[Int]'
 numbers: [Int] = { 1, 2, 3, 4 };
 
@@ -21,7 +21,7 @@ lookup: [String; 32] = { 0 = "One", 20 = "Big", _ = "None" };
 * MUST allocate fixed-size heap arrays (`Array<Type>`) contiguously with an exact element count determined at runtime instantiation (`Array<Type>.New(count)`) and without dynamic capacity overhead.
 * MUST NOT resize or append elements to an `Array<Type>` instance after instantiation.
 
-```C#
+```scatty
 // Heap-allocated Dynamic List
 list: [Int] = [Int] { 1, 2, 3 };
 list.Add(4);
@@ -38,7 +38,7 @@ arr[0] = 10;
 * MUST throw an exception (or trigger Abort/Panic in a non-throwing method) upon accessing an unmapped key via the index operator (`map[key]`).
 * MAY use `.At(key)` to safely query a key and return `ValueType?` (`Option::Some` or `Option::None`) without throwing.
 
-```C#
+```scatty
 // A hashed set of Strings
 activeUsers: [$: String] = [$: String].New();
 activeUsers.Add("Alice");
@@ -56,7 +56,7 @@ scores["Alice"] = 100;
 * MUST NOT apply the `soa` modifier to non-collection types, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), associated arrays (`[KeyType -> ValueType]`), or collections of scalar primitives or interfaces.
 * MUST recursively flatten the base element type, nested embedded fields, structural fields, and array metadata into independent, parallel arrays.
 
-```C#
+```scatty
 Entity { Id: Int; PosX: Float; }
 
 // Fixed-size SoA Array
@@ -76,7 +76,7 @@ id := soaList[0].Id;
 * MUST implicitly scatter the fields of the assigned instance into the respective parallel arrays when writing to a whole indexed `soa` element (`soaCol[i] = instance`).
 * MUST implicitly gather the fields from the parallel arrays and construct a transient, stack-allocated instance of the `Data` type when reading a whole indexed `soa` element (`val := soaCol[i]`).
 
-```C#
+```scatty
 soaCol := ([Entity] soa).New();
 soaCol.Add(Entity { Id: 1, Position: Vector { X: 10, Y: 10 } });
 
@@ -96,7 +96,7 @@ snapshot := soaCol[0];
 * MAY pass an individual primitive field of an indexed `soa` element by reference (`ref soaCol[i].Id`).
 * MAY pass an indexed `soa` element by value.
 
-```C#
+```scatty
 MutateEntity(ref entity: Entity) { }
 MutateId(ref id: Int) { }
 ProcessEntity(entity: Entity) { }
@@ -121,7 +121,7 @@ ProcessEntity(soaCol[0]);
 * MUST copy the gathered instance by value (bitwise copy for Trivial Types, ARC retain for Owning Types).
 * MUST implicitly gather each element into a temporary stack instance and invoke `Dispose(ref temp)` prior to releasing nested owning fields whenever a `soa` collection containing a `~Disposable` element type is destroyed, cleared, or has an element removed or overwritten.
 
-```C#
+```scatty
 // Iteration dynamically gathers elements by value
 entity in soaCol 
 {
@@ -138,7 +138,7 @@ entity in soaCol
 * MUST allocate `InlineArray<Type>` directly inline on the stack or physically embedded within an enclosing `Data` layout.
 * MUST provide a default initialization expression (`Field: InlineArray<Type> = InlineArray<Type>.New(N);`) when declaring an `InlineArray<Type>` as a structural field of a `Data` type.
 
-```C#
+```scatty
 // Stack-allocated inline array of size 2
 x := InlineArray<Int>.New(2);
 x[0] = 0;
@@ -177,7 +177,7 @@ staticSoa: [Entity; 16] soa = { ... };
 * MUST initialize every variant of `KeyType` when instantiating `[KeyType -> ValueType]` for a non-optional `ValueType`, or provide a wildcard fallback entry (`_ = Expression`) to populate all omitted variants.
 * MAY omit variants without a wildcard `_` fallback when `ValueType` is an Option type (`[KeyType -> T?]`), implicitly initializing all omitted variant slots to `Option::None` (`none`).
 
-```C#
+```scatty
 Color 
 {
     ::Red   = 100;

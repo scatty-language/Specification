@@ -12,7 +12,7 @@
 * MUST NOT directly update transparently forwarded members of an Embedded Field.
 * MUST assign a new instance to the root identifier of an Embedded Field to mutate its state via `with`.
 
-```C#
+```scatty
 ServerConfig 
 {
     Host: String;
@@ -47,7 +47,7 @@ Console.WriteLine(testConfig.Port);    // Output: 9000
 * MUST statically type the result of `instance with ::Variant(...)` as the narrowed variant subtype `Data::Variant` (which implicitly downgrades to the base `Data` type when bound via `:=`).
 * MUST NOT apply a variant update (`with ::Variant`) to an untagged union (`tag none`).
 
-```C#
+```scatty
 Bill 
 {
     Id: Int;

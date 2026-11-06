@@ -12,7 +12,7 @@
 * MAY execute `throw Expression;` statements within methods declared with the `throws` modifier.
 * MUST propagate unhandled exceptions to the calling scope in methods declared with the `throws` modifier.
 
-```C#
+```scatty
 TryCalculate(value: Int) throws 
 {
     may value < 0 => throw Exception.New("Less than zero!");
@@ -69,7 +69,7 @@ Some() throws
 * MUST NOT execute a parameterless `throw;` statement outside of a `catch` or `rollback` block.
 * MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) in the frame-local exception slot upon exiting a `catch` block without rethrowing, or in the TLS exception buffer when an active exception is intercepted by `try?`.
 
-```C#
+```scatty
 Process(value: Int) throws
 {
     may value < 0 => throw Exception.New("Negative value");
@@ -104,7 +104,7 @@ TryProcess() throws
 * MUST yield `true` upon successful completion of a void-returning expression.
 * MUST intercept any thrown exception, clear the TLS exception buffer, and yield `false` if a void-returning expression throws.
 
-```C#
+```scatty
 FetchUser(id: Int) throws -> User 
 {
     may id < 0 => throw Exception.New("Invalid ID");
@@ -133,7 +133,7 @@ isAlive := try? Ping();
 * MAY invoke `throws` methods directly without individual `try` qualifiers within a `try! { ... }` block.
 * MUST trigger runtime Abort or Panic mechanics immediately if any statement within a `try! { ... }` block throws an exception.
 
-```C#
+```scatty
 ParseInt(val: String) throws -> Int 
 {
     may val == "" => throw Exception.New("Empty String");
@@ -162,7 +162,7 @@ ProcessData() throws
 * MUST intercept the exception and refine the local variable's type within the `catch` block if the `must` expression evaluates to `true`.
 * MUST bypass the `catch` arm and continue evaluating subsequent arms or propagate to the caller if the `must` expression evaluates to `false`.
 
-```C#
+```scatty
 HttpException : ~Exception 
 {
     Code: Int;
@@ -213,7 +213,7 @@ HandleRequest() throws
 * MUST NOT invoke a `throws` method within an `undo` body unless wrapped in `try?`, `try!`, or a `try` / `catch` construct that handles all exceptions within the `undo` scope.
 * MUST NOT execute a `throw`, `return`, `break`, `continue`, or `fall` statement that exits an `undo` body.
 
-```C#
+```scatty
 Account 
 {
     Balance: Int;

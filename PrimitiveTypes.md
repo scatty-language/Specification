@@ -39,7 +39,7 @@
 * MUST evaluate a unary negation operator (`-`) immediately preceding an `integer_literal` together with the literal as a single negative constant value during range validation and type inference (permitting `-2_147_483_648` for `Int` and `-9_223_372_036_854_775_808L` for `Long`).
 * MUST explicitly type suffixed integer literals as follows: `u` for `Uint`, `L` for `Long`, and `uL` for `Ulong`.
 
-```C#
+```scatty
 a := 1_000_000;          // Inferred as 'Int'
 b := 0xFF_AA;            // Inferred as 'Int'
 c: Byte = 0b1010_0011;   // Contextually typed as 'Byte'
@@ -53,7 +53,7 @@ d := 42L;                // Explicitly typed as 'Long'
 * MUST infer an unsuffixed floating-point literal as `Double` (64-bit) when the target type is inferred (`:=`) without an expected floating-point type context.
 * MUST explicitly type suffixed floating-point literals as follows: `f` for `Float` (32-bit), `d` for `Double` (64-bit).
 
-```C#
+```scatty
 pi := 3.14159;        // Inferred as 'Double'
 mass := 5.972e24;     // Inferred as 'Double'
 gravity := 9.81f;     // Explicitly typed as 'Float'
@@ -71,7 +71,7 @@ scale: Float = 0.5;   // Contextually typed as 'Float'
 * MUST infer a literal evaluating to a multi-byte Unicode code point as `Rune`.
 * MAY explicitly cast a 1-byte ASCII literal to a `Rune` type.
 
-```C#
+```scatty
 ascii := 'A';       // Char
 newline := '\n';    // Char
 cyrillic := 'Я';    // Rune (U+042F)
@@ -86,7 +86,7 @@ emoji := '🔥';      // Rune (U+1F525)
 * MAY embed interpolated expressions within a string literal using the `\(Expression)` syntax.
 * MUST fold an interpolated string literal into a single constant `String` literal at compile time if all embedded expressions evaluate to compile-time constants.
 
-```C#
+```scatty
 text := "Hello, Scatty!";
 
 MaxUsers :: 100;
@@ -105,7 +105,7 @@ Banner :: "Max capacity: \(MaxUsers)";
 * MUST NOT permit content lines to contain less leading whitespace than the column position of the closing `"""`.
 * MUST evaluate to the `String` type.
 
-```C#
+```scatty
 regex := """\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""";
 
 json := """
@@ -130,7 +130,7 @@ badString := """
 * MUST NOT assign `none` to non-optional, non-weak, non-pointer types.
 * MUST reject `none` at compile time when the target type is inferred (`:=`) without an explicit type context.
 
-```C#
+```scatty
 maybeId: Int? = none;
 weakNode: Node weak = none;
 ```

@@ -10,7 +10,7 @@
 * MUST bind `positional_field_init` to the first structurally declared field not yet assigned within the `struct_init_body`.
 * MUST dynamically shift the expected type order for subsequent positional arguments when a `named_field_init` is evaluated.
 
-```C#
+```scatty
 MyData(MyInt: Int, MyFloat: Float, MyBool: Bool);
 
 data1 := MyData { 0, 0.0, true };
@@ -36,7 +36,7 @@ data2 := MyData { MyFloat: 0.0, 0, true };
 * MUST leave the memory of any omitted field entirely uninitialized (containing arbitrary garbage data) when the `noinit` modifier is applied.
 * MUST confine the use of the `noinit` modifier to within an `unsafe` block.
 
-```C#
+```scatty
 response := HttpResponse { } zeroed;
 
 unsafe 
@@ -53,7 +53,7 @@ unsafe
 * MUST omit the `variant_payload_init_body` if the variant declares no payload fields.
 * MUST NOT assign a payload field via named assignment if its declaration omits an identifier.
 
-```C#
+```scatty
 HttpResponse
 {
     ::Success;
@@ -86,7 +86,7 @@ option2 := Option::Some(42);
 * MUST NOT apply the `=::` operator to a variable, field, or parameter that is statically typed or flow-narrowed to a specific variant subtype (`Data::Variant`).
 * MUST replace the entire `Data` instance—including all shared fields—when assigning a variant constructor using the standard assignment operator (`=`).
 
-```C#
+```scatty
 Session 
 {
     ::Disconnected;
@@ -114,7 +114,7 @@ session = Session::Failed("Timeout") { Host: "10.0.0.1" };
 * MUST NOT explicitly assign a value to a restricted (private or internal) field from outside its permitted lexical scope.
 * MUST NOT instantiate a Data type via `struct_init_body` from outside its permitted scope if it contains a restricted field lacking a default value.
 
-```C#
+```scatty
 // PACKAGE: Core
 Connection 
 {
@@ -129,7 +129,7 @@ Connection
 }
 ```
 
-```C#
+```scatty
 // PACKAGE: App
 use Core;
 

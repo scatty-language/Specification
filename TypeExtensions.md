@@ -13,7 +13,7 @@
 * MUST permit an extension block to access private and internal members of the target type if the extension is declared within the same package as the target type.
 * MUST restrict an extension block's access to public members of the target type if the target type is imported from an external package.
 
-```C#
+```scatty
 MyData 
 {
     _count: Int;
