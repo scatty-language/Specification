@@ -214,7 +214,6 @@ statement
       | may_stmt
       | stage_expr
       | stage_expand_stmt
-      | out_stmt
       | match_expr
       | try_catch_stmt
       | try_force_block
@@ -307,11 +306,17 @@ assignable_path
     ::= ( "@" | identifier ) { "." type_identifier | index_access }
 
 stage_expr
-    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] ( block | "=>" statement )
+    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] [ "->" stage_output_list ] ( block | "=>" statement ) [ "strict" ]
 
 stage_header
     ::= [ "ref" ] local_id
       | destructure_pattern
+
+stage_output_list
+    ::= stage_output { "," stage_output }
+
+stage_output
+    ::= local_id [ ":" type ] ( "=" | "=^" | ":=" ) expression
 
 stage_expand_stmt
     ::= stage_header "in" iterator [ "by" type_identifier ] ";"
@@ -321,13 +326,6 @@ iterator
 
 range_expr
     ::= expression ".." expression [ ".." expression ]
-
-out_stmt
-    ::= "out" "count" [ "->" local_id [ ":" type ] ] [ "where" condition ] ";"
-      | "out" [ out_reducer ] expression [ "->" local_id [ ":" type ] ] [ "where" condition ] ";"
-
-out_reducer
-    ::= "sum" | "min" | "max" | "all" | "any" | "first" | "last"
 
 try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
@@ -717,7 +715,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "must" | "may" | "then" | "where" | "in" | "by" | "out" | "break" | "continue"
+      | "must" | "may" | "then" | "in" | "by" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"

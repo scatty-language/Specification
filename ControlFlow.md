@@ -17,7 +17,7 @@
 * MUST evaluate multiple conditions inside a `must { ... }` block sequentially from top to bottom and short-circuit immediately upon the first condition that evaluates to `false` or `Option::None`.
 * MUST bring all local identifiers bound via `:=` and all type narrowings proven via `is` within a `must` gate into the enclosing lexical scope for all subsequent statements below the gate.
 
-```C#
+```scatty
 // 1. Standalone 'must' gate in a void method:
 // Automatically returns if 'user' is None or inactive
 SendNotification(userId: Int) 
@@ -32,7 +32,7 @@ SendNotification(userId: Int)
 }
 
 // 2. 'must ... or' gate in a value-returning method:
-ProcessBatch(orders: List<Order>, userId: Int) -> Float 
+ProcessBatch(orders: [Order], userId: Int) -> Float 
 {
     must 
     {
@@ -42,7 +42,7 @@ ProcessBatch(orders: List<Order>, userId: Int) -> Float
     } 
     or return 0.0f;
 
-    order in orders 
+    order in orders -> total := 0.0f
     {
         must 
         {
@@ -51,7 +51,7 @@ ProcessBatch(orders: List<Order>, userId: Int) -> Float
             order.OwnerId == user.Id;
         }
 
-        out sum order.Amount -> total;
+        total += order.Amount;
     }
 
     return total;
@@ -66,7 +66,7 @@ ProcessBatch(orders: List<Order>, userId: Int) -> Float
 * MUST reject a `must!` gate at compile time if any condition is a compile-time constant expression that evaluates to `false` or `Option::None`.
 * MUST bring all local identifiers bound via `:=` and all type narrowings proven via `is` within a `must!` gate into the enclosing lexical scope for all subsequent statements below the gate.
 
-```C#
+```scatty
 ExecuteCritical(rawUser: User?, rawAge: Int) 
 {
     must! 
@@ -87,20 +87,20 @@ ExecuteCritical(rawUser: User?, rawAge: Int)
 * MUST execute the positive branch of `may` if `Condition` evaluates to `true` (or `Option::Some`), or transfer control to the subsequent `or` branch (if present) if `Condition` evaluates to `false` (or `Option::None`).
 * MUST continue execution to the statement immediately following the `may` construct unless the executed branch explicitly exits the scope.
 
-```C#
+```scatty
 must x > 0;
 must x > 100;
 
 may x == 101 => Console.WriteLine("101!");
 or Console.WriteLine("Not 101");
 
-item in items 
+item in items -> total := 0.0f
 {
     must item.IsValid;
     may item.IsRare => LogRareItem(item);
     must! item.Price >= 0.0f;
 
-    out sum item.Price -> total;
+    total += item.Price;
 }
 ```
 
@@ -130,7 +130,7 @@ item in items
 * MUST skip the assignment and short-circuit remaining clauses if the evaluation yields `Option::None`.
 * MUST NOT apply the `not` operator to a conditional assignment or combine a conditional assignment with the boolean `or` operator.
 
-```C#
+```scatty
 SomeData 
 {
     Value: Int;
@@ -174,7 +174,7 @@ SomeData
 * MAY use `continue` inside an `in` block to immediately skip the remainder of the current iteration and advance the innermost active stage.
 * MUST NOT use `break` or `continue` outside the lexical body of an `in` block or across a lambda or `spawn` boundary.
 
-```C#
+```scatty
 // Range iteration (0 through 9)
 i in 0..10 
 {
@@ -210,7 +210,7 @@ in
 * MAY place one or more stage expansion statements (`inner in iterable;`) inside an `in` block to flatten nested collections without nested blocks.
 * MUST iterate over the expanded `iterable` for each upstream element that reaches the `inner in iterable;` stage, bringing `inner` into scope for all subsequent statements in the `in` block.
 
-```C#
+```scatty
 dept in company.Departments 
 {
     must not dept.IsArchived;
@@ -225,82 +225,69 @@ dept in company.Departments
 }
 ```
 
-### Output Stages and Multi-Sink Aggregation
+### Output Bindings
 
-* MAY declare one or more named output sinks (`out count -> local_id [: Type]` or `out [Reducer] Expression -> local_id [: Type]`) inside a statement-level `in` pipeline block.
-* MUST treat `count`, `sum`, `min`, `max`, `all`, `any`, `first`, and `last` as contextual reducer modifiers when placed immediately after the `out` keyword.
-* MUST resolve the target `local_id` of `-> local_id` according to the enclosing lexical scope prior to the `in` pipeline:
-  * New Hoisted Binding: If `local_id` is not declared in the enclosing scope prior to the `in` pipeline, the compiler MUST automatically initialize a new variable `local_id` prior to the pipeline and hoist it into both the remainder of the current `in` block (following the `out` statement) and the lexical scope immediately enclosing the `in` pipeline.
-  * Existing Outer Binding: If `local_id` is already declared as a mutable variable or `ref` parameter in an enclosing scope prior to the `in` pipeline, the `out` statement MUST accumulate directly into that existing binding without resetting its value at the start of the pipeline.
-* MUST NOT specify an explicit `: Type` annotation on `-> local_id` when `local_id` resolves to an existing outer binding.
-* MAY target the same `local_id` across multiple `out` statements within the same `in` pipeline (such as across distinct `may` or `match` branches), provided all targeting `out` statements use identical reducers and compatible types.
-* MUST require every newly hoisted `local_id` introduced via `out ... -> local_id` to be read at least once (either in a subsequent statement within the `in` block or in the enclosing scope after the `in` pipeline completes); an unreferenced hoisted output binding MUST be rejected with a compile-time error.
-* MAY read the current accumulated value of a named `out` binding in any subsequent statement or `must` gate positioned below that `out` statement within a sequential `in` block (without a `by` schedule modifier).
-* MUST NOT read a named `out` binding within the body of an `in` block that declares a `by` schedule modifier.
-* MUST NOT directly reassign or mutate a named `out` binding outside of `out` statements while inside the lexical body of the `in` block.
-* MUST initialize (for newly hoisted bindings) and update named `out` bindings according to the specified reducer:
-  * `out count -> local_id` (inferred as `Int` if `: Type` is omitted): Initializes a new `local_id` to `0` prior to the pipeline (or retains the current integer value of an existing `local_id`) and increments it by `1` each time the statement is reached.
-  * `out sum Expression -> local_id` (inferred as the numeric type `T` of `Expression`): Initializes a new `local_id` to the additive identity (`0` or `0.0`) prior to the pipeline (or retains the current value of an existing `local_id`) and adds the evaluated `Expression` each time the statement is reached.
-  * `out min Expression -> local_id` (where `Expression` has a `~Comparable` type `T`):
-    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and updates `local_id` to `Option::Some` containing the minimum evaluated value according to `~Comparable`.
-    * If `local_id` is an existing outer binding of non-optional type `T`, compares the evaluated `Expression` against the current value of `local_id` and updates `local_id` in-place to the smaller value.
-  * `out max Expression -> local_id` (where `Expression` has a `~Comparable` type `T`):
-    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and updates `local_id` to `Option::Some` containing the maximum evaluated value according to `~Comparable`.
-    * If `local_id` is an existing outer binding of non-optional type `T`, compares the evaluated `Expression` against the current value of `local_id` and updates `local_id` in-place to the larger value.
-  * `out all Expression -> local_id` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes a new `local_id` to `true` prior to the pipeline (or retains the current value of an existing `local_id`) and updates it to `local_id and Expression` each time the statement is reached.
-  * `out any Expression -> local_id` (requires `Expression` of type `Bool`; inferred as `Bool`): Initializes a new `local_id` to `false` prior to the pipeline (or retains the current value of an existing `local_id`) and updates it to `local_id or Expression` each time the statement is reached.
-  * `out first Expression -> local_id` (where `Expression` has type `T`):
-    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and assigns `Option::Some(Expression)` only if `local_id` is currently `Option::None`.
-    * If `local_id` is an existing outer binding of non-optional type `T`, overwrites `local_id` with `Expression` only upon the first element reaching the statement in the current pipeline (retaining its pre-pipeline fallback value if no element reaches the statement).
-  * `out last Expression -> local_id` (where `Expression` has type `T`):
-    * If `local_id` is a new hoisted binding (inferred as `T?`) or an existing outer binding of type `T?`, initializes a new `local_id` to `Option::None` prior to the pipeline and overwrites it with `Option::Some(Expression)` each time the statement is reached.
-    * If `local_id` is an existing outer binding of non-optional type `T`, overwrites `local_id` with `Expression` each time the statement is reached (retaining its pre-pipeline fallback value if no element reaches the statement).
-  * `out Expression -> local_id [: CollectionType]` (without a reducer modifier): Initializes an empty collection prior to the pipeline if `local_id` is a new hoisted binding (defaulting to `[T]` when `: CollectionType` is omitted), or retains the existing collection if `local_id` is an outer binding, and appends or inserts the evaluated `Expression` each time the statement is reached.
-* MAY attach a trailing `where Condition` filter to any `out` statement (`out ... where Condition;`) to conditionally gate that specific output sink without halting subsequent statements in the `in` block.
-* MUST automatically short-circuit and terminate the `in` pipeline early if the `in` block contains no side-effecting statements and all declared `out` sinks have reached a terminal state (`out first` has captured a value, `out all` has evaluated to `false`, or `out any` has evaluated to `true`).
-* MAY evaluate an `in` pipeline as an expression using anonymous `out count [where Condition];` or `out [Reducer] Expression [where Condition];` statements (omitting `-> local_id`):
-  * If no reducer is specified, the pipeline MUST allocate a collection (matching the expected collection type, or defaulting to `[T]` when the type is inferred via `:=`), append or insert each emitted `out` value, and evaluate to that collection.
-  * If a reducer (`count`, `sum`, `min`, `max`, `all`, `any`, `first`, `last`) is specified, the pipeline MUST evaluate to the reduced scalar or `Option` result.
-* MUST NOT mix anonymous `out` statements and named `out` statements (`-> local_id`) within the same `in` pipeline block.
+* MAY declare one or more comma-separated output bindings in the `in` header following the `->` token (`-> local_id := Expression` or `-> local_id: Type = Expression`).
+* MUST place the `->` output binding list after the `iterator` and optional `by` schedule clause, and immediately prior to the pipeline body (`{ ... }` or `=> Statement;`).
+* MUST NOT enclose the `->` output binding list in parentheses.
+* MUST evaluate each output binding's initialization expression once prior to executing the first iteration of the pipeline.
+* MUST NOT declare duplicate `local_id` identifiers within the same `->` output binding list.
+* MAY read, mutate, and reassign output bindings within the body of the `in` pipeline using standard statements and operators.
+* MAY annotate an output binding with a guarded type (`local_id: Type^Guard = Expression` or `local_id: Type^Guard =^ Expression`).
+* MUST treat a guarded output binding as its unguarded base type `Type` during initialization and throughout the execution of the `in` body, and evaluate the governing `^Guard` invariant once upon completion of the `in` pipeline according to the active build-mode validation rules (or in both Debug and Release modes if the `strict` modifier is applied to the `in` statement).
 
-```C#
-// 1. Hoisting new output bindings with '->' and filtering with 'where'
-order in orders by Parallel 
+#### Statement-Level Evaluation
+
+* MUST hoist all output bindings declared in the `->` clause of a statement-level `in` pipeline into the immediately enclosing lexical scope upon completion of the pipeline.
+* MUST NOT shadow an identifier already declared in the enclosing lexical scope when declaring an output binding on a statement-level `in` pipeline.
+* MUST require every hoisted output binding of a statement-level `in` pipeline to be read at least once in the enclosing lexical scope following the pipeline; an unreferenced hoisted output binding MUST be rejected at compile time.
+
+#### Expression-Level Evaluation
+
+* MUST declare at least one output binding via `->` when an `in` pipeline is evaluated as an expression.
+* MUST scope output bindings declared in an expression-level `in` pipeline strictly to the pipeline body; they MUST NOT be hoisted into the enclosing lexical scope.
+* MUST evaluate an expression-level `in` pipeline declaring a single output binding (`-> result := init`) directly to the final value and static type of that binding upon termination of the pipeline.
+* MUST evaluate an expression-level `in` pipeline declaring two or more output bindings (`-> out1 := init1, out2 := init2`) to a tuple containing the final values of the output bindings in their declaration order upon termination of the pipeline.
+
+```scatty
+// 1. Statement-level pipeline hoisting multiple output bindings into the enclosing scope
+order in orders -> paidCount := 0, totalRevenue := 0.0f, vipOrders := [Int].New()
 {
     must order is .Paid and order.Amount > 0.0f;
 
     net := order.Amount * (1.0f - order.Discount);
+    paidCount += 1;
+    totalRevenue += net;
 
-    out count               -> paidCount;
-    out sum net             -> totalRevenue;
-    out max net             -> peakOrder;
-    out all order.Verified  -> allVerified;
-    out any order.Risk > 90 -> hasFraud;
-    out order.Id            -> vipOrders: [Int] where net > 1000.0f;
+    may net > 1000.0f => vipOrders.Add(order.Id);
 }
 
-// 2. Reading an accumulated 'out' binding mid-pipeline in a sequential loop
-item in cargoItems 
+Console.WriteLine("Count: \(paidCount), Revenue: \(totalRevenue), VIPs: \(vipOrders.Count)");
+
+// 2. Early termination reading an output binding mid-pipeline
+item in cargoItems -> currentWeight := 0.0f, loadedItems: [Item] = {}
 {
-    out sum item.Weight -> currentWeight;
-    must currentWeight <= 50.0f or break;
+    must currentWeight + item.Weight <= 50.0f or break;
 
-    out item -> loadedItems;
+    currentWeight += item.Weight;
+    loadedItems.Add(item);
 }
 
-// 3. Accumulating into pre-declared outer variables (seeded values and buffers)
- baseRevenue := 500.0f;
-highestNet := 0.0f; // Non-optional Float seed
-allIds := [Int; 64].New();
+Console.WriteLine("Loaded \(loadedItems.Count) items (\(currentWeight) kg)");
 
-order in orders 
+// 3. Expression-level pipeline with a single output binding (evaluates to 'Float')
+netTotal := order in orders -> sum := 0.0f 
 {
     must order is .Paid;
+    sum += order.Amount;
+};
 
-    out sum order.Amount -> baseRevenue;
-    out max order.Amount -> highestNet;
-    out order.Id         -> allIds where order.Amount > 100.0f;
-}
+// 4. Expression-level pipeline with multiple output bindings (evaluates to '(Int, Int)')
+(minScore, maxScore) := s in scores -> minVal := Int.MaxValue, maxVal := Int.MinValue 
+{
+    may s < minVal => minVal = s;
+    may s > maxVal => maxVal = s;
+};
 ```
 
 ## Pattern Matching
@@ -319,7 +306,7 @@ order in orders
 * MUST implicitly refine the matched expression and any matched fields to the evaluated variant subtype or type guard within the match arm.
 * MUST evaluate every match arm to the exact same return type if the `match` construct is utilized as an expression.
 
-```C#
+```scatty
 match response 
 {
     // Positional variant pattern with literal and '_' discard
@@ -360,7 +347,7 @@ match (request.Method, user.IsAuthenticated)
 * MUST bypass the match arm and continue evaluating subsequent arms if the pattern matches but its `and` condition evaluates to `false`.
 * MUST NOT treat a match arm governed by a `^Guard` pattern, a nested literal or structural field pattern, or an `and` condition as exhaustive coverage for the underlying type or variant; an unguarded fallback arm or `_` wildcard MUST be provided in an exhaustive `match`.
 
-```C#
+```scatty
 ^ClientError = Int must @ >= 400 and @ < 500;
 ^ServerError = Int must @ >= 500 and @ < 600;
 
@@ -397,7 +384,7 @@ match shape
 * MUST implicitly wrap the evaluated value of a matching `match?` arm into `Option::Some`.
 * MUST yield `Option::None` if a `match?` expression fails to match any provided arm (or perform a no-op if `match?` is used as a void statement).
 
-```C#
+```scatty
 // 'match!' triggers Abort/Panic if 'shape.Type' is not a 'Circle'
 match! shape.Type  
 {
