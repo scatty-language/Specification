@@ -245,7 +245,7 @@ dept in company.Departments
 #### Expression-Level Evaluation
 
 * MUST declare at least one output binding via `->` when an `in` pipeline is evaluated as an expression.
-* MUST scope output bindings declared in an expression-level `in` pipeline strictly to the pipeline body; they MUST NOT be hoisted into the enclosing lexical scope.
+* MUST scope output bindings declared in an expression-level `in` pipeline to the pipeline body. They MUST NOT be hoisted into the enclosing lexical scope.
 * MUST evaluate an expression-level `in` pipeline declaring a single output binding (`-> result := init`) directly to the final value and static type of that binding upon termination of the pipeline.
 * MUST evaluate an expression-level `in` pipeline declaring two or more output bindings (`-> out1 := init1, out2 := init2`) to a tuple containing the final values of the output bindings in their declaration order upon termination of the pipeline.
 
@@ -298,8 +298,11 @@ netTotal := order in orders -> sum := 0.0f
 * MAY match the subject expression against variant patterns (`.Variant`), structural patterns (`{ Field: sub_pattern }`), tuple patterns (`(sub_pattern, sub_pattern)`), type guard patterns (`^Guard`), literals, or the wildcard `_`.
 * MAY nest patterns recursively within variant payload patterns, structural field patterns, and tuple patterns.
 * MAY bind any matched variant payload field, structural field, or tuple element to a local variable (`local_id`) or discard it using `_`.
-* MUST require a positional variant pattern (without explicit field identifiers) to match the exact payload field count of the variant, using `_` to discard unused fields.
-* MAY match variant payload fields by explicit field identifier (`FieldName: sub_pattern`) and omit remaining payload fields when named pattern arguments are used.
+* MAY mix named (`FieldName: sub_pattern`) and positional (`sub_pattern`) pattern arguments within a variant pattern (`.Variant(...)`).
+* MUST bind a named pattern argument (`FieldName: sub_pattern`) explicitly to the variant payload field with the specified identifier.
+* MUST bind a positional pattern argument (`sub_pattern`) to the first declared variant payload field not yet matched within the variant pattern, dynamically shifting the expected sequence when a named pattern argument is evaluated.
+* MUST require a variant pattern containing only positional pattern arguments to match the exact payload field count of the variant, using `_` to discard unused fields.
+* MAY omit remaining unmatched payload fields in a variant pattern when at least one named pattern argument is specified.
 * MAY match structural or shared fields of a `Data` type by field identifier using `{ FieldName: sub_pattern }`, either standalone or following a variant pattern (`.Variant(...) { FieldName: sub_pattern }`), and omit remaining fields.
 * MAY specify multiple comma-separated patterns (`pattern1, pattern2`) on a single match arm.
 * MUST require every pattern in a comma-separated pattern list (`pattern1, pattern2`) to bind the exact same set of `local_id` identifiers with identical static types if any local variable bindings are declared.
@@ -312,8 +315,10 @@ match response
     // Positional variant pattern with literal and '_' discard
     .Error(404, msg, _) => HandleNotFound(msg);
 
-    // Named variant payload pattern (omits remaining payload fields) with nested guard
-    .Error(Code: ^ServerError, Message: msg) => HandleServerError(response.Code, msg);
+    // Mixed named and positional variant pattern:
+    // 'Message' binds by name; positional '^ServerError' binds to first unmatched field ('Code');
+    // remaining payload fields are omitted
+    .Error(Message: msg, ^ServerError) => HandleServerError(response.Code, msg);
 
     // Nested variant pattern and shared structural field pattern
     .Ok(.User(admin)) { Endpoint: "localhost" } => ProcessLocalAdmin(admin);

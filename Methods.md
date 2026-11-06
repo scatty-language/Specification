@@ -49,13 +49,13 @@ Logger.LogMetrics("C");
 * MUST bind a positional argument (`Expression`) to the first structurally declared parameter not yet assigned within the current invocation.
 * MUST dynamically shift the expected sequence for subsequent positional arguments upon evaluating a named argument.
 * MUST intrinsically evaluate and assign the declared default value for any parameter remaining unassigned after all arguments are bound.
+* MUST NOT omit an argument for a parameter that lacks a declared default value.
 * MUST explicitly include the `ref` modifier at the call site for any argument bound to a parameter declared with `ref`.
 
 ```scatty
-Process(amount: Int, offset: Int, isDryRun: Bool, force: Bool = false) { }
+Process(amount: Int = 1, offset: Int, isDryRun: Bool, force: Bool = false) { }
 
-// Fills in declaration order
-// Required type order: 'Int', 'Int', 'Bool'
+// Fills in declaration order; 'force' takes its default value (false)
 Process(10, 0, true); 
 
 // 'isDryRun' is explicitly assigned
@@ -63,6 +63,9 @@ Process(10, 0, true);
 // Second positional '0' binds to the next unassigned parameter ('offset')
 // 'force' remains unassigned and implicitly takes its default value (false)
 Process(isDryRun: true, 10, 0);
+
+// 'offset' and 'isDryRun' are explicitly assigned; 'amount' and 'force' take their default values
+Process(offset: 0, isDryRun: true);
 
 Update(ref target: Vector, x: Int, y: Int) { }
 
@@ -379,7 +382,7 @@ validator: fn(Some^Valid) = Some.Process;
   * Return type (`-> ReturnType`),
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
   * Method modifiers (`throws` or `unsafe`).
-* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when trailing default parameters or empty variadic arguments are omitted.
+* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when default parameters or empty variadic arguments are omitted.
 * MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
 * MAY implement multiple specializations of a generic interface on the same `Data` type, resolving invocations via standard Overload Resolution rules.
 
