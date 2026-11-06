@@ -18,7 +18,7 @@
 * MUST align each structural field to a memory offset that is a multiple of the field's natural alignment, inserting padding bytes between fields where required.
 * MUST set the alignment of a `Data` type or tuple to the maximum alignment among its physical fields (minimum alignment of `1` byte).
 * MUST round the total byte size of a `Data` type or tuple up to the nearest multiple of its alignment (minimum size of `1` byte).
-* MUST pack adjacent bitfields (`Field: Type bits N;`) contiguously from the least significant bit to the most significant bit without intermediate byte padding until the underlying storage unit boundary is crossed.
+* MUST pack adjacent bitfields (`Field: Type bitwidth N;`) contiguously from the least significant bit to the most significant bit without intermediate byte padding until the underlying storage unit boundary is crossed.
 * MUST NOT allocate bytes in the instance layout for computed properties, constants (`::`), or `static`, `astatic`, and `gstatic` fields.
 
 ## Tagged Unions and Niche Optimization
