@@ -1,14 +1,14 @@
 # Strings
 
 * MUST guarantee valid UTF-8 encoding for all `String` instances.
-* MUST manage heap-allocated string buffers via ARC and Copy-on-Write as Owning Types.
-* MUST retain the underlying buffer upon assignment or pass-by-value without duplicating memory.
-* MUST automatically clone the underlying buffer via Copy-on-Write prior to any mutating operation if the buffer's strong reference count exceeds `1`.
+* MUST represent `String` and `RuneString` as inline `Data` types (not Owning Types) that encapsulate a heap-allocated array field (`Array<Char>` or `Array<Rune>`) managed as an Owning Type via ARC and Copy-on-Write.
+* MUST retain the underlying array field upon assignment or pass-by-value without duplicating heap memory.
+* MUST automatically clone the underlying array buffer via Copy-on-Write prior to any mutating operation if the array's strong reference count exceeds `1`.
 * MAY explicitly invoke `.Copy()` to force an eager physical duplication of the underlying memory buffer.
 
 ## `String`
 
-* MUST back the `String` type structurally with an array of 8-bit characters (`Char[]`).
+* MUST back the `String` type structurally with an inline Owning Type field of 8-bit characters (`Array<Char>`).
 * MUST return a single 8-bit `Char` upon indexing.
 * MUST yield 8-bit `Char` elements during standard iteration.
 * MUST enforce valid UTF-8 encoding during mutation operations.
@@ -16,7 +16,7 @@
 
 ## `RuneString`
 
-* MUST back the `RuneString` type structurally with an array of 32-bit Unicode scalars (`Rune[]`).
+* MUST back the `RuneString` type structurally with an inline Owning Type field of 32-bit Unicode scalars (`Array<Rune>`).
 * MUST return a single 32-bit `Rune` upon indexing.
 * MAY explicitly transform between `String` and `RuneString` using the `as` operator.
 * MUST perform memory reallocation and UTF-8 decoding/encoding during `as` transformations between `String` and `RuneString`.
@@ -70,10 +70,10 @@ r in text.Runes()
 
 ## String Interpolation
 
-* **MAY** embed arbitrary expressions inside a standard double-quoted string literal using the `\(Expression)` syntax.
-* **MUST** permit the full expression grammar within `\(...)`, including arithmetic operations, method invocations, and nested string literals.
-* **MUST NOT** evaluate `\(...)` interpolation within raw string literals (`"""..."""`).
-* **MUST** evaluate an interpolated string literal at compile time if every embedded expression is a compile-time constant (`::` or literal), producing a static constant `String` without runtime allocation.
+* MAY embed arbitrary expressions inside a standard double-quoted string literal using the `\(Expression)` syntax.
+* MUST permit the full expression grammar within `\(...)`, including arithmetic operations, method invocations, and nested string literals.
+* MUST NOT evaluate `\(...)` interpolation within raw string literals (`"""..."""`).
+* MUST evaluate an interpolated string literal at compile time if every embedded expression is a compile-time constant (`::` or literal), producing a static constant `String` without runtime allocation.
 
 ```scatty
 Version :: 2;

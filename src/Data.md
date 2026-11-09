@@ -281,8 +281,8 @@ HttpResponse : ~Formattable tag Int
 * MAY remove the discriminant tag by explicitly declaring `tag none`.
 * MUST NOT use checked pattern matching or casting operators (`is`, `as`, `as?`, `as!`, `match`) on untagged unions.
 * MUST extract payloads or narrow an untagged union to a specific variant subtype using the unchecked cast operator (`assume`).
-* MUST enclose any variant declaration containing an Owning Type or `~Disposable` payload within an `unsafe` block or mark the variant declaration with the `unsafe` modifier when the enclosing `Data` type declares `tag none`.
-* MUST NOT automatically track, retain, or dispose Owning Type payloads inside an untagged union (`tag none`); shared fields declared outside the variants remain automatically managed via ARC.
+* MUST enclose any variant declaration whose payload is an Owning Type (`~Disposable`) or an inline `Data` type that recursively contains an Owning Type or `weak` field within an `unsafe` block, or mark the variant declaration with the `unsafe` modifier, when the enclosing `Data` type declares `tag none`.
+* MUST NOT automatically track, retain, or dispose Owning Type payloads (or nested Owning Type fields) inside an untagged union (`tag none`). Shared fields declared outside the variants remain automatically managed via ARC.
 
 ```scatty
 FloatIntUnion tag none 

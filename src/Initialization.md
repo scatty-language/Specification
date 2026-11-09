@@ -69,7 +69,7 @@ Account
 // Valid in safe code: all fields are Trivial, Option ('None' == 0x0), or satisfied by 0 ('0 >= 0')
 stats := PacketStats { } zeroed;
 
-// ERROR: 'HttpResponse' contains non-optional Owning Type ('String') and 'fn' pointer
+// ERROR: 'HttpResponse' contains a nested non-optional Owning Type ('Array<Char>' inside 'String') and 'fn' pointer
 badResponse := HttpResponse { } zeroed;
 
 // ERROR: 'Account.Id' has guard '^Positive' which evaluates to false for 0 at compile time
