@@ -9,7 +9,7 @@
 | Level | Category | Operators | Associativity |
 | :--- | :--- | :--- | :--- |
 | 1 | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]`, `with` | Left-to-right |
-| 2 | Unary Arithmetic & Bitwise | `+`, `-`, `bnot` | Right-to-left |
+| 2 | Unary & Introspection | `+`, `-`, `bnot`, `sizeof`, `alignof`, `offsetof`, `nameof`, `tagof` | Right-to-left |
 | 3 | Type & Casting | `as`, `as?`, `as!`, `unas`, `is`, `is not`, `^` | Left-to-right |
 | 4 | Multiplicative | `*`, `/`, `%` | Left-to-right |
 | 5 | Additive | `+`, `-` | Left-to-right |
@@ -311,3 +311,142 @@ result: Int = optInt!.Max(5);
 * MAY apply the binary coalescing operator (`left ?? right`) where `left` is an Option type (`T?`) or a weak reference type (`T weak`), and `right` evaluates to `T` (or `T?` for chained coalescing).
 * MUST evaluate `left` first and short-circuit (omitting evaluation of `right`) if `left` yields `Option::Some(val)` (or a live `T weak`), returning `val` of type `T`.
 * MUST evaluate and return `right` if and only if `left` yields `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`).
+
+## Introspection Operators
+
+### `sizeof` and `alignof`
+
+* MUST apply `sizeof` and `alignof` exclusively to a `Type` or to the self-type token `@` (`sizeof Type`, `sizeof @`, `alignof Type`, `alignof @`).
+* MUST NOT apply `sizeof` or `alignof` to value expressions or variable identifiers.
+* MUST restrict `sizeof @` and `alignof @` to the lexical scope of a `Data` declaration, `~Interface` declaration, `with` extension block, or `^Guard` declaration.
+* MUST evaluate `sizeof` at compile time to the total byte footprint of the target type, including all internal and trailing alignment padding.
+* MUST evaluate `alignof` at compile time to the required byte alignment boundary of the target type.
+* MUST infer the result of `sizeof` and `alignof` as `Int` when the target type is inferred (`:=`) without an expected integer type context.
+* MUST contextually type the result of `sizeof` and `alignof` to the expected scalar integer primitive type (`Int`, `Uint`, `Long`, `Ulong`, `Size`, `Usize`, or `Byte`) when the target type is statically known from context, rejecting the expression at compile time if the computed value exceeds the representable range of the expected type.
+* MUST evaluate `sizeof` and `alignof` on an Owning Type (`~Disposable`) to the byte size and byte alignment of its inline pointer representation (`sizeof Usize` and `alignof Usize`).
+* MUST evaluate `sizeof` and `alignof` on a variant subtype (`Data::Variant`) or a guarded type (`Type^Guard`) to the exact byte size and byte alignment of the underlying base `Data` type.
+* MUST resolve `sizeof` and `alignof` applied to a generic type parameter (`sizeof T`, `alignof T`) at compile time during monomorphization for each concrete type argument.
+* MUST reject applying `sizeof` or `alignof` directly to a bare `~Interface` type at compile time.
+
+```scatty
+Vector(X: Int, Y: Int);
+
+// Inferred as 'Int' by default (evaluates to 8 and 4)
+vecSize := sizeof Vector;
+vecAlign := alignof Vector;
+
+// Contextually typed as 'Usize'
+rawBytes: Usize = sizeof Vector;
+
+// Owning Type ('String' implements '~Disposable'): evaluates to pointer size (8 on 64-bit)
+strSlotSize := sizeof String;
+
+// Polymorphic container: evaluates to 2 * sizeof Usize (16 on 64-bit)
+boxSize := sizeof Box<~Printable>;
+
+// ERROR: Cannot apply 'sizeof' to a variable or expression
+v := Vector { X: 1, Y: 2 };
+badSize := sizeof v;
+
+// ERROR: Bare interface has no concrete memory layout
+badInterfaceSize := sizeof ~Printable;
+```
+
+### `offsetof`
+
+* MUST apply `offsetof` to a static field path rooted in a concrete `Data` type, variant subtype (`Data::Variant`), or `@` (`offsetof Type.Field`, `offsetof Data::Variant.PayloadField`, `offsetof @.Field`).
+* MUST permit chained field paths (`offsetof Type.FieldA.FieldB`) if and only if every intermediate field is an inline non-`~Disposable` `Data` type.
+* MUST evaluate `offsetof` at compile time to the byte offset of the target field from byte `0` of the root `Data` instance.
+* MUST infer the result of `offsetof` as `Int` by default and contextually type it to any expected scalar integer primitive type following the same rules as `sizeof` and `alignof`.
+* MUST NOT apply `offsetof` to:
+  * Bitfields (`bitwidth N`),
+  * Anonymous padding fields (`_`),
+  * Computed properties, methods, or compile-time constants (`::`),
+  * `static`, `astatic`, or `gstatic` fields,
+  * Fields accessed through an intermediate Owning Type (`~Disposable`), `weak` reference, or `soa` collection, or
+  * Bare `~Interface` types.
+
+```scatty
+HttpResponse 
+{
+    Timestamp: Long;
+    ::Success;
+    ::Error(Code: Int, Message: String);
+
+    CodeOffset() -> Int => offsetof @::Error.Code;
+}
+
+tsOffset := offsetof HttpResponse.Timestamp;       // Evaluates to 0
+errCodeOffset := offsetof HttpResponse::Error.Code; // Byte offset of 'Code' inside payload union
+```
+
+### `tagof`
+
+* MAY apply `tagof` to an expression of a tagged `Data` type or variant subtype (`tagof instance`, `tagof @`), or to a variant type path (`tagof Data::Variant`).
+* MUST evaluate `tagof` to the declared discriminant tag type of the target `Data` type (`Int` by default, or the explicit scalar integer primitive `T` specified via `tag T`).
+* MUST evaluate `tagof Data::Variant` (and `tagof expr` when `expr` is a compile-time constant or statically narrowed to `Data::Variant`) at compile time as a constant expression yielding that variant's discriminant tag value.
+* MUST read and return the active discriminant tag value at runtime when `tagof` is applied to an unnarrowed runtime instance of a tagged `Data` type.
+* MUST evaluate `tagof` on a pointer-niche-optimized `Option<T>` (`T?`) instance to `0` when the value is `Option::None` and `1` when the value is `Option::Some`.
+* MUST reject applying `tagof` to an untagged union (`tag none`), a `Data` type that declares no variants, a primitive type, a tuple, or an `~Interface` at compile time.
+
+```scatty
+PacketType tag Byte 
+{
+    ::Ping = 1;
+    ::Data(Payload: [Byte]) = 2;
+    ::Ack  = 5;
+}
+
+// Compile-time constant evaluation on a variant path (typed as 'Byte', value 5)
+AckCode :: tagof PacketType::Ack;
+
+InspectPacket(pkt: PacketType) 
+{
+    // Runtime evaluation of the active discriminant tag (typed as 'Byte')
+    rawTag: Byte = tagof pkt;
+    Console.WriteLine("Packet tag: \(rawTag)");
+}
+```
+
+### `nameof`
+
+* MAY apply `nameof` to a type, interface, type guard, variant, local variable, parameter, constant, or member access chain (`nameof Target`).
+* MUST evaluate `nameof` at compile time to a constant `String` literal containing the unqualified lexical identifier of the final segment in `Target`.
+* MUST strip leading prefix sigils (`~` on interfaces, `^` on type guards, `::` on variants, and enclosing backticks `` ` `` on escaped keywords) from the resulting `String`.
+* MUST include formatted generic type arguments (`<...>`) in the resulting `String` when `Target` terminates with a generic type or generic method specialization (`nameof Cell<Int>` evaluates to `"Cell<Int>"`).
+* MUST substitute concrete monomorphized type arguments into the resulting `String` when `nameof` references an active generic parameter (`T`) or `@` within a generic type or method.
+* MUST validate that the target identifier or member chain resolves to a valid declaration in the current scope at compile time without evaluating any runtime expressions or triggering side effects.
+
+```scatty
+Cell<T> 
+{
+    Value: T;
+
+    TypeName(@) -> String => nameof @;
+}
+
+^Positive = Int must @ > 0;
+
+~Printable 
+{
+    Print(@);
+}
+
+Color 
+{
+    ::Red;
+    ::Green;
+}
+
+cell := Cell<Int> { Value: 42 };
+`match` := 10;
+
+a :: nameof Cell<Int>;       // "Cell<Int>"
+b :: nameof cell.Value;      // "Value"
+c :: nameof ~Printable;      // "Printable"
+d :: nameof ^Positive;       // "Positive"
+e :: nameof Int^Positive;    // "Positive"
+f :: nameof Color::Red;      // "Red"
+g :: nameof `match`;         // "match"
+h := cell.TypeName();        // "Cell<Int>"
+```

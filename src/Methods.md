@@ -262,8 +262,8 @@ ProcessVector(pos.Add(a)..Add(b));
 
 ## Parameter Passing and Return Semantics
 
-* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) within CPU registers if its evaluated memory footprint is less than or equal to the target architecture's native pointer size (`sizeof(Usize)`).
-* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden read-only pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`).
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) within CPU registers if its evaluated memory footprint is less than or equal to the target architecture's native pointer size (`sizeof Usize`).
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden read-only pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof Usize`).
 * MUST NOT increment or decrement the ARC `strongCount` of an Owning Type (or nested Owning Type fields) upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter, except when call-site value materialization is required.
 * MUST perform call-site value materialization prior to method invocation whenever a by-value argument or immutable `@` receiver expression:
   * Is rooted in a `static`, `astatic`, or `gstatic` variable or field (including any chained field access, property evaluation, or index lookup on that static storage), or

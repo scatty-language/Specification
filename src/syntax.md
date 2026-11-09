@@ -453,10 +453,37 @@ type_operator
       | "is" [ "not" ] ( type | variant_pattern | struct_pattern | tuple_pattern | guard_pattern )
 
 unary_expr
-    ::= { unary_operator } postfix_expr
+    ::= { unary_operator } ( introspection_expr | postfix_expr )
 
 unary_operator
     ::= "bnot" | "-" | "+"
+
+introspection_expr
+    ::= sizeof_expr
+      | alignof_expr
+      | offsetof_expr
+      | nameof_expr
+      | tagof_expr
+
+sizeof_expr
+    ::= "sizeof" ( "@" | type )
+
+alignof_expr
+    ::= "alignof" ( "@" | type )
+
+offsetof_expr
+    ::= "offsetof" ( "@" | type_path ) "." type_identifier { "." type_identifier }
+
+tagof_expr
+    ::= "tagof" unary_expr
+
+nameof_expr
+    ::= "nameof" nameof_target
+
+nameof_target
+    ::= "^" type_identifier [ "<" type_args ">" ]
+      | type_path [ "^" type_identifier [ "<" type_args ">" ] ] { "." type_identifier [ "<" type_args ">" ] }
+      | ( "@" | local_id | escaped_keyword ) { "." type_identifier [ "<" type_args ">" ] }
 
 postfix_expr
     ::= primary_expr { postfix_operation }
@@ -721,6 +748,7 @@ keyword
       | "embed" | "static" | "astatic" | "gstatic"
       | "equality" | "math" | "tag" | "bitwidth"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
+      | "sizeof" | "alignof" | "offsetof" | "nameof" | "tagof"
       | "as" | "unas" | "is" | "and" | "or" | "not"
       | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
 
