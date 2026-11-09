@@ -425,13 +425,13 @@ bitwise_expr
     ::= shift_expr { bitwise_operator shift_expr }
 
 bitwise_operator
-    ::= "band" | "bor" | "bxor"
+    ::= "bitand" | "bitor" | "bitxor"
 
 shift_expr
     ::= additive_expr { shift_operator additive_expr }
 
 shift_operator
-    ::= "bsl" | "bsr"
+    ::= "bitshl" | "bitshr"
 
 additive_expr
     ::= multiplicative_expr { additive_operator multiplicative_expr }
@@ -449,14 +449,14 @@ type_op_expr
     ::= unary_expr { type_operator }
 
 type_operator
-    ::= ( "as" | "as?" | "as!" | "unas" ) ( type | "." type_identifier | "^" )
+    ::= ( "as" | "as?" | "as!" | "assume" ) ( type | "." type_identifier | "^" )
       | "is" [ "not" ] ( type | variant_pattern | struct_pattern | tuple_pattern | guard_pattern )
 
 unary_expr
     ::= { unary_operator } ( introspection_expr | postfix_expr )
 
 unary_operator
-    ::= "bnot" | "-" | "+"
+    ::= "bitnot" | "-" | "+"
 
 introspection_expr
     ::= sizeof_expr
@@ -749,8 +749,8 @@ keyword
       | "equality" | "math" | "tag" | "bitwidth"
       | "zeroed" | "noinit" | "strict" | "none" | "fn"
       | "sizeof" | "alignof" | "offsetof" | "nameof" | "tagof"
-      | "as" | "unas" | "is" | "and" | "or" | "not"
-      | "band" | "bor" | "bxor" | "bnot" | "bsl" | "bsr"
+      | "as" | "assume" | "is" | "and" | "or" | "not"
+      | "bitand" | "bitor" | "bitxor" | "bitnot" | "bitshl" | "bitshr"
 
 source_char
     ::= (* Any valid UTF-8 character *)

@@ -9,12 +9,12 @@
 | Level | Category | Operators | Associativity |
 | :--- | :--- | :--- | :--- |
 | 1 | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]`, `with` | Left-to-right |
-| 2 | Unary & Introspection | `+`, `-`, `bnot`, `sizeof`, `alignof`, `offsetof`, `nameof`, `tagof` | Right-to-left |
-| 3 | Type & Casting | `as`, `as?`, `as!`, `unas`, `is`, `is not`, `^` | Left-to-right |
+| 2 | Unary & Introspection | `+`, `-`, `bitnot`, `sizeof`, `alignof`, `offsetof`, `nameof`, `tagof` | Right-to-left |
+| 3 | Type & Casting | `as`, `as?`, `as!`, `assume`, `is`, `is not`, `^` | Left-to-right |
 | 4 | Multiplicative | `*`, `/`, `%` | Left-to-right |
 | 5 | Additive | `+`, `-` | Left-to-right |
-| 6 | Shift | `bsl`, `bsr` | Left-to-right |
-| 7 | Bitwise | `band`, `bxor`, `bor` | Left-to-right |
+| 6 | Shift | `bitshl`, `bitshr` | Left-to-right |
+| 7 | Bitwise | `bitand`, `bitxor`, `bitor` | Left-to-right |
 | 8 | Relational & Equality | `<`, `>`, `<=`, `>=`, `==`, `!=` | Left-to-right |
 | 9 | Logical Negation & Control | `not`, `try?`, `try!` | Right-to-left |
 | 10 | Logical AND | `and` | Left-to-right |
@@ -45,9 +45,9 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 
 ## Bitwise Operators
 
-* MUST require operands of `band`, `bor`, `bxor`, `bnot`, `bsl`, and `bsr` to evaluate to scalar integer primitive types.
-* MUST perform an arithmetic right shift via `bsr` when applied to signed integer types, preserving the sign bit.
-* MUST perform a logical right shift via `bsr` when applied to unsigned integer types, shifting zero bits into the most significant positions.
+* MUST require operands of `bitand`, `bitor`, `bitxor`, `bitnot`, `bitshl`, and `bitshr` to evaluate to scalar integer primitive types.
+* MUST perform an arithmetic right shift via `bitshr` when applied to signed integer types, preserving the sign bit.
+* MUST perform a logical right shift via `bitshr` when applied to unsigned integer types, shifting zero bits into the most significant positions.
 
 ## Identity and Structural Equality
 

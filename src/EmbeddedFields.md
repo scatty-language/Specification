@@ -10,7 +10,7 @@
 ## Embedded Variant Fields
 
 * MUST NOT declare more than one embedded variant field within a single `Data` declaration.
-* MUST transparently forward state evaluations (`is`, `as`, `as?`, `as!`, `unas`, `match`) applied to the parent instance directly to the underlying active tag of the embedded variant field.
+* MUST transparently forward state evaluations (`is`, `as`, `as?`, `as!`, `assume`, `match`) applied to the parent instance directly to the underlying active tag of the embedded variant field.
 * MUST transparently forward all methods and properties of the embedded variant field's specified base type to the parent instance.
 * MUST explicitly assign the embedded variant field using its identifier during structural instantiation of the parent type unless initialized via a forwarded variant constructor.
 

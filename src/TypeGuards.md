@@ -79,7 +79,7 @@ may rawAcc is Account^Solvent
 
 * MAY implicitly downgrade a guarded type (`BaseType^Guard`) to its unguarded `BaseType` when passed by value.
 * MUST NOT implicitly cast an unguarded `BaseType` to a guarded type (`BaseType^Guard`).
-* MUST explicitly validate the invariant when casting from a base type to a guarded type, unless using `unas` or a guarded assignment operator (`=^`).
+* MUST explicitly validate the invariant when casting from a base type to a guarded type, unless using `assume` or a guarded assignment operator (`=^`).
 
 ### Operators
 
@@ -90,9 +90,9 @@ may rawAcc is Account^Solvent
 * MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and throw a `CastException` upon failure when using the `as` operator.
 * MUST validate the invariant at runtime and yield `Option<BaseType^Guard>` when using the `as?` operator.
 * MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and immediately trigger runtime Abort or Fatal Panic mechanics upon failure when using the `as!` operator.
-* MUST bypass runtime validation and force compiler acceptance when using the `unas` operator.
-* MAY substitute the explicit target type with the contextual guard symbol (`^`) following `as`, `as?`, `as!`, or `unas` when the expected guarded type is statically known from context (explicitly typed declarations, assignments, method parameter types, `return` statements, or structural field initializers).
-* MUST reject the contextual guard cast (`as ^`, `as? ^`, `as! ^`, `unas ^`) at compile time if the target context does not expect a guarded type or if the expected type is inferred (`:=`).
+* MUST bypass runtime validation and force compiler acceptance when using the `assume` operator.
+* MAY substitute the explicit target type with the contextual guard symbol (`^`) following `as`, `as?`, `as!`, or `assume` when the expected guarded type is statically known from context (explicitly typed declarations, assignments, method parameter types, `return` statements, or structural field initializers).
+* MUST reject the contextual guard cast (`as ^`, `as? ^`, `as! ^`, `assume ^`) at compile time if the target context does not expect a guarded type or if the expected type is inferred (`:=`).
 * MAY use a type guard pattern (`^Guard`) directly within a `match` arm to validate the invariant and narrow the matched subject within the arm's scope.
 
 ```scatty
@@ -110,7 +110,7 @@ valid := rawValue as Int^Positive;
 forced := rawValue as! Int^Positive;
 
 // Unchecked cast: bypasses runtime validation
-uncheckedVal := rawValue unas Int^Positive;
+uncheckedVal := rawValue assume Int^Positive;
 
 // Compile-time evaluated: '11 > 0' is proven at compile time -> ZERO runtime branches
 ProcessAge(11 as ^);

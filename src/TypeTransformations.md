@@ -1,7 +1,7 @@
 # Type Transformations
 
 * MUST implement the standard library `~Castable<T>` interface on a user-defined `Data` type to support custom type transformations via the `as`, `as?`, and `as!` operators.
-* MUST NOT apply the `unas` operator to any `~Castable<T>` transformation.
+* MUST NOT apply the `assume` operator to any `~Castable<T>` transformation.
 
 ```scatty
 ~Castable<T> 
