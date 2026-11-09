@@ -28,14 +28,13 @@
   2. Discriminant Tag: The active variant tag (`Int` by default, or the explicit scalar integer type specified via `tag Type`), aligned to the tag type's natural boundary.
   3. Variant Payload Union: A single shared memory region aligned to the maximum alignment of all declared variant payloads and sized to the maximum byte footprint of all declared variant payloads.
 * MUST omit the Discriminant Tag region (`0` bytes) when `tag none` is declared, placing the Variant Payload Union immediately after the Shared Fields region.
-* MUST apply pointer niche optimization to `Option<T>` (`T?`) whenever `T` is an Owning Type or a function pointer (`fn`):
-  * `Option<T>` MUST occupy exactly `sizeof(Usize)` bytes with no separate discriminant tag.
-  * `Option::None` (`none`) MUST be represented as a null pointer address (`0x0`).
-  * `Option::Some(val)` MUST be represented directly as the non-null pointer address of `val`.
+* MUST apply pointer niche optimization to `Option<T>` (`T?`) whenever `T` is an Owning Type, a function pointer (`fn`), or an inline `Data` type containing an Owning Type field at offset `0`:
+  * `Option::None` (`none`) MUST be represented by setting the pointer slot at offset `0` to `0x0` with no separate discriminant tag.
+  * `Option::Some(val)` MUST be represented directly by the non-null pointer address in the slot at offset `0`.
 
 ## ARC Control Block and Owning Types
 
-* MUST represent any Owning Type variable, parameter, or field as a single pointer (`sizeof(Usize)`) referencing a contiguous heap allocation that prefixes the instance payload with an 8-byte ARC Control Block header:
+* MUST represent any Owning Type (`~Disposable`) variable, parameter, or field as a single pointer (`sizeof(Usize)`) referencing a contiguous heap allocation that prefixes the instance payload with an 8-byte ARC Control Block header:
 
 | Offset (bytes) | Field | Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -43,7 +42,9 @@
 | `4` | `weakCount` | `Uint` (32-bit atomic) | Active weak reference count |
 | `8` | `payload` | `T` | Inline instance fields or collection header |
 
-* MUST represent a `T weak` variable, parameter, or field as a single pointer (`sizeof(Usize)`) referencing the target's ARC Control Block allocation, or `0x0` when unattached (`none`).
+* MUST represent a `T weak` variable, parameter, or field where `T` is an Owning Type (`~Disposable`) as a single pointer (`sizeof(Usize)`) referencing the target's ARC Control Block allocation, or `0x0` when unattached (`none`).
+* MUST lay out any `Data` type that does not implement `~Disposable` inline according to standard `Data` layout rules without an ARC Control Block header, even if it contains Owning Type or `weak` fields.
+* MUST lay out a `T weak` variable, parameter, or field where `T` is a non `~Disposable` `Data` type inline with the exact same byte size and field offsets as `T`, representing each recursively nested Owning Type field as a pointer (`sizeof(Usize)`) to its respective ARC Control Block allocation (or `0x0` when initialized to `none`).
 
 ## Dynamic Dispatch and Virtual Method Tables
 

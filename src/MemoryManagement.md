@@ -4,7 +4,7 @@
 
 ### Trivial Types
 
-* MUST classify a `Data` type as a Trivial Type if it consists entirely of primitives or other Trivial Types and does not implement `~Disposable`.
+* MUST classify a `Data` type as a Trivial Type if it does not implement `~Disposable` and contains no Owning Type or `weak` fields.
 * MUST allocate Trivial Types as contiguous memory blocks directly on the stack or inline within an enclosing `Data`.
 * MUST execute a bitwise copy upon assignment or pass-by-value of a Trivial Type.
 * MUST guarantee complete logical and physical independence between the original and the copied variable.
@@ -21,18 +21,21 @@ Console.WriteLine(one.X); // Output: 10
 
 ### Owning Types
 
-* MUST classify a `Data` type as an Owning Type if it is a built-in heap-backed type (`String`, `RuneString`, dynamic or heap-allocated collections), implements the `~Disposable` interface, or contains any Owning Type or `weak` fields.
-* MUST manage the underlying heap allocation of an Owning Type via an atomic ARC Control Block tracking a strong reference count and a weak reference count.
-* MUST atomically increment the strong reference count upon assignment or pass-by-value of an Owning Type without duplicating the underlying heap memory.
-* MUST atomically decrement the strong reference count of the previously held instance prior to overwriting an already initialized Owning Type variable.
-* MUST NOT poison the source variable upon assignment or pass-by-value, both variables remain valid and accessible.
+* MUST classify a `Data` type as an Owning Type if and only if it implements the `~Disposable` interface.
+* MUST manage the underlying heap allocation of an Owning Type via an atomic ARC Control Block tracking a strong reference count (`strongCount`) and a weak reference count (`weakCount`).
+* MUST atomically increment `strongCount` upon assignment or pass-by-value of an Owning Type without duplicating the underlying heap memory.
+* MUST atomically decrement `strongCount` of the previously held instance prior to overwriting an already initialized Owning Type variable.
+* MUST NOT poison the source variable upon assignment or pass-by-value; both variables remain valid and accessible.
+* MUST allocate a non-`~Disposable` `Data` type that contains Owning Type or `weak` fields inline on the stack or within an enclosing `Data` layout without its own ARC Control Block.
+* MUST copy trivial fields bitwise and atomically increment `strongCount` (or `weakCount`) of each nested Owning Type (or `weak`) field individually upon assignment or pass-by-value of a non-`~Disposable` `Data` type.
 
-### Copy-on-Write (CoW)
+### Copy-on-Write
 
 * MUST evaluate the strong reference count prior to executing any mutating operation (`ref @` method or field reassignment) on an Owning Type instance.
 * MUST execute the mutation directly in-place without allocating new memory if the instance is uniquely referenced (`strongCount == 1`).
 * MUST automatically clone a deep copy of the underlying data, decrement the original instance's strong reference count, and apply the mutation to the newly allocated copy if the instance is shared (`strongCount > 1`).
 * MUST ignore the weak reference count (`weakCount`) when determining uniqueness for Copy-on-Write. An instance with `strongCount == 1` and `weakCount > 0` MUST be mutated in-place so existing `weak` references remain attached to the mutated instance.
+* MUST evaluate Copy-on-Write exclusively on the individual mutated Owning Type field when mutating a non-`~Disposable` `Data` instance that contains Owning Type fields.
 
 ```scatty
 list1 := [Int] { 1, 2, 3 };
@@ -50,30 +53,35 @@ Console.WriteLine(list2.Count); // Output: 4
 
 ## Weak References
 
-* MUST apply the `weak` type modifier exclusively to Owning Types.
-* MUST NOT apply the `weak` type modifier to a Trivial Type or primitive.
-* MUST atomically increment the target's weak reference count (`weakCount`) without incrementing its strong reference count (`strongCount`) when assigning an Owning Type to a `T weak` target.
-* MUST allow the target's payload and `~Disposable` resources to be destroyed immediately when `strongCount` reaches `0`, even if `weakCount > 0`.
-* MUST keep the ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
+* MAY apply the `weak` type modifier to any Owning Type (`~Disposable`) or any `Data` type that recursively contains at least one Owning Type field.
+* MUST NOT apply the `weak` type modifier to scalar primitives or Trivial Types that contain no Owning Type fields.
+* MUST reject at compile time a direct inline self-referential `weak` field (`Field: Self weak`) on a `Data` type that does not implement `~Disposable`.
+* MUST recursively transform all nested Owning Type fields within `T` into weak references when the `weak` modifier is applied to a non-`~Disposable` `Data` type (`T weak`).
+* MUST atomically increment the weak reference count (`weakCount`) of the target Owning Type (or of every nested Owning Type field within an inline `Data` type) without incrementing `strongCount` when assigning an instance to a `T weak` target.
+* MUST allow an Owning Type's payload and `~Disposable` resources to be destroyed immediately when its `strongCount` reaches `0`, even if `weakCount > 0`.
+* MUST keep an Owning Type's ARC Control Block metadata allocated until both `strongCount` and `weakCount` reach `0`.
 * MAY initialize or reassign a `T weak` variable or field with the `none` literal to represent an unattached weak reference (`strongCount == 0`) without allocating an ARC Control Block.
 
 ### Accessing and Unwrapping Weak References
 
 * MUST NOT access members of a `T weak` expression directly via `.` or `[]`, or implicitly convert a `T weak` expression to a strong `T`.
 * MUST explicitly unwrap or promote a `T weak` expression using conditional binding (`:=`), optional chaining (`?.` or `?[...]`), postfix force-unwrap (`!`), or the coalescing operator (`??`).
+* MUST evaluate a `T weak` instance as live if and only if the target Owning Type (or every recursively nested Owning Type field within an inline `Data` type) has `strongCount > 0`.
+* MUST atomically increment `strongCount` for all underlying Owning Type references upon promoting a live `T weak` instance to a strong `T`, or release any partially retained references and evaluate as disposed if any nested Owning Type field has `strongCount == 0`.
 * MUST treat an unattached `none` weak reference identically to a disposed weak reference (`strongCount == 0`) during conditional binding (`must val := weakVar`), optional chaining (`?.` or `?[...]`), coalescing (`??`), and force-unwrapping (`!`).
 * MAY apply the optional chaining (`?.` and `?[...]`), postfix force-unwrap (`!`), and coalescing (`??`) operators directly to a `T weak` expression:
-  * `weakVar?.Member` atomically retains the target if `strongCount > 0` and evaluates to `MemberType?`, or yields `Option::None` without panicking if `strongCount == 0`.
-  * `weakVar!` atomically promotes `weakVar` to a strong `T` if `strongCount > 0`, or immediately triggers runtime Abort or Fatal Panic mechanics if `strongCount == 0`.
-  * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if `strongCount > 0`, or evaluates to `fallback` if `strongCount == 0`.
+  * `weakVar?.Member` atomically promotes the target to a strong `T` if live and evaluates to `MemberType?`, or yields `Option::None` without panicking if disposed (`strongCount == 0`).
+  * `weakVar!` atomically promotes `weakVar` to a strong `T` if live, or immediately triggers runtime Abort or Fatal Panic mechanics if disposed (`strongCount == 0`).
+  * `weakVar ?? fallback` atomically promotes `weakVar` to a strong `T` if live, or evaluates to `fallback` if disposed (`strongCount == 0`).
 
 ```scatty
-Node : ~Copyable
+Node : ~Disposable, ~Copyable
 {
     Value: Int;
     Parent: Node weak;
     Children: [Node];
 
+    Dispose(ref @) { }
     Copy(@) -> @ => Node { Value: @.Value, Parent: @.Parent, Children: @.Children };
 }
 
@@ -149,8 +157,8 @@ ProcessValues(ref numbers[0], ref numbers[1]);
 
 ## Resource Cleanup and Disposal
 
-* MUST automatically decrement the strong reference count of all local Owning Type variables when they exit their lexical scope.
-* MUST automatically destroy the instance and recursively decrement the strong reference counts of all nested owning fields precisely when the instance's `strongCount` reaches `0`.
+* MUST automatically decrement `strongCount` of all local Owning Type variables and all nested Owning Type fields of inline `Data` variables when they exit their lexical scope.
+* MUST automatically destroy an Owning Type instance and recursively decrement `strongCount` of all its nested Owning Type fields precisely when its `strongCount` reaches `0`.
 * MUST NOT require manual implementation of cleanup interfaces solely to propagate ARC cleanup of nested fields.
 
 ### Custom Disposal and `~Copyable`

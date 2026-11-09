@@ -29,10 +29,10 @@ concurrent
 * MUST capture variables referenced inside a `spawn` block by value.
 * MUST NOT capture outer variables by reference (`ref`) inside a `spawn` block.
 * MUST perform a bitwise copy when capturing Trivial Types into a `spawn` block.
-* MUST atomically increment the ARC strong reference count (`strongCount`) when capturing Owning Types into a `spawn` block.
+* MUST atomically increment the ARC strong reference count (`strongCount`) when capturing Owning Types (or nested Owning Type fields of inline `Data` types) into a `spawn` block.
 * MUST NOT invalidate or poison captured identifiers in the outer lexical scope or sibling `spawn` blocks.
-* MUST evaluate mutations to captured Owning Types according to Copy-on-Write (CoW) semantics, cloning an isolated task-local copy prior to mutation if `strongCount > 1`.
-* MUST NOT capture an Owning Type that implements `~Disposable` without implementing `~Copyable` across multiple `spawn` blocks, unless encapsulated in a thread-safe synchronization primitive.
+* MUST evaluate mutations to captured Owning Types (and nested Owning Type fields) according to Copy-on-Write (CoW) semantics, cloning an isolated task-local copy prior to mutation if `strongCount > 1`.
+* MUST NOT capture an Owning Type (or an inline `Data` type containing a nested Owning Type field) that does not implement `~Copyable` across multiple `spawn` blocks, unless encapsulated in a thread-safe synchronization primitive.
 
 ```scatty
 Calculate(value: Int) { }

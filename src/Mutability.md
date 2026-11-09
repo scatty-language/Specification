@@ -5,7 +5,8 @@
 * MAY reassign variables or mutate their fields freely when declared via `=` or `:=`.
 * MUST isolate mutations to the bound variable without affecting other variables.
 * MUST execute a bitwise copy upon assignment of Trivial Types.
-* MUST retain a shared reference via ARC upon assignment of Owning Types and automatically execute a Copy-on-Write (CoW) deep copy prior to any mutation if the underlying instance has a strong reference count greater than `1`.
+* MUST retain a shared reference via ARC upon assignment of Owning Types (`~Disposable`) and automatically execute a Copy-on-Write (CoW) deep copy prior to any mutation if the underlying instance has `strongCount > 1`.
+* MUST copy trivial fields bitwise and retain each nested Owning Type field via ARC upon assignment of a non-`~Disposable` `Data` type, evaluating Copy-on-Write individually on each mutated Owning Type field.
 
 ```scatty
 x := 10;
@@ -31,7 +32,8 @@ listB.Add(5);   // CoW detaches 'listB', 'listA' remains empty
 * MUST allocate `astatic` and `gstatic` local variables within the global static data segment shared across all threads and evaluate their initialization expression exactly once upon the initial execution of the declaration in the process.
 * MAY read and mutate `static` and `astatic` local variables in safe code without an `unsafe` block.
 * MUST compile reads, writes, and compound assignments on Trivial Type `astatic` local variables whose memory footprint is 64 bits or less as lock-free hardware atomic operations.
-* MUST synchronize reads, writes, field mutations, and mutating method calls (`ref @`) on Owning Type `astatic` local variables and Trivial Type `astatic` local variables exceeding 64 bits via an implicit per-variable atomic spinlock.
+* MUST synchronize reads, writes, field mutations, and mutating method calls (`ref @`) on `astatic` local variables that are Owning Types, contain nested Owning Type or `weak` fields, or exceed 64 bits via an implicit per-variable atomic spinlock.
+* MUST acquire the per-variable atomic spinlock, increment `strongCount` for the Owning Type (or any nested Owning Type fields) or copy the memory (for Trivial Types), and release the spinlock when reading a spinlock-backed `astatic` local variable.
 * MUST hold the per-variable atomic spinlock for the entire read-modify-write sequence when executing a compound assignment, field mutation, variant switch (`=::`), or mutating method call (`ref @`) on a spinlock-backed `astatic` local variable, releasing any replaced Owning Type reference after unlocking the spinlock.
 * MUST restrict all reads, mutations, and references to `gstatic` local variables exclusively to `unsafe` blocks or `unsafe` methods.
 * MUST NOT pass a `static` or `astatic` local variable directly as a `ref` argument to a method parameter.

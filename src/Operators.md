@@ -58,7 +58,7 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST compare both the active variant tag and the variant payload when evaluating equality on a variant field marked with `equality`.
 * MUST NOT apply the `equality` modifier to a `T weak` field.
 * MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `equality` modifier.
-* MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their ARC Control Block identity without dereferencing the target payload (`true` if both reference the exact same live allocation with `strongCount > 0` or if both have `strongCount == 0`, and `false` otherwise).
+* MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their trivial fields (or `equality`-marked fields) and comparing the ARC Control Block identity of each underlying Owning Type pointer without dereferencing target payloads (`true` if both are live and reference the exact same ARC Control Block allocations with matching trivial fields, or if both are in a disposed/`none` state, and `false` otherwise).
 * MUST NOT apply the `equality` modifier to variant payload fields of an untagged union (`tag none`).
 * MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equality` modifier.
 
@@ -202,9 +202,9 @@ playerC := playerA + playerB;
 * MUST require the target type to implement the weak contract `Set(ref @, key: TKey, value: TValue)` (or be constrained by `~Indexable<TKey, TValue>^Mutable`) to support index assignment (`col[key] = value`) and indexed mutations.
 * MUST reject index assignment (`col[key] = value`) and indexed mutations at compile time if the concrete type omits `Set`.
 * MUST execute compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on built-in addressable collections (`[T]`, `[T; N]`, `Array<T>`, `InlineArray<T>`, `[K: V]`, `[K: V; N]`, `[K -> V]`, and field projections of `soa` collections `soaCol[i].Field`) directly in-place against the element's memory slot:
-  1. Detach the collection buffer via Copy-on-Write if the collection is an Owning Type with `strongCount > 1`.
-  2. Evaluate `key` once and resolve the target element's memory slot in a single lookup.
-  3. Apply the mutation or bind the `ref` parameter directly to the resolved memory slot without invoking `Get` or `Set` and without incrementing the element's `strongCount`.
+    1. Detach the collection's underlying Owning Type buffer via Copy-on-Write if its `strongCount > 1`.
+    2. Evaluate `key` once and resolve the target element's memory slot in a single lookup.
+    3. Apply the mutation or bind the `ref` parameter directly to the resolved memory slot without invoking `Get` or `Set` and without incrementing `strongCount` of the element or its nested Owning Type fields.
 * MUST automatically unpack compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on custom `Data` types implementing `~Indexable<TKey, TValue>` with `Set` into a single-evaluation read-modify-write sequence:
   1. Evaluate `key` once into a temporary binding `_key`.
   2. Read `_temp := col.Get(_key)`.
@@ -261,8 +261,8 @@ tier := points >= 100 then "Gold" : points >= 50 then "Silver" : "Bronze";
 * MAY apply the optional chaining operators (`?.` and `?[...]`) to any expression of an Option type (`T?`) or a weak reference type (`T weak`).
 * MUST reject applying `?.` or `?[...]` to a non-optional, non-weak type at compile time.
 * MUST evaluate the left-hand target expression once:
-  * If the target evaluates to `Option::Some(val)` (or a live `T weak` with `strongCount > 0`), the compiler MUST unwrap (or temporarily retain) `val` and evaluate the remainder of the postfix chain.
-  * If the target evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`), the compiler MUST short-circuit and skip the entire remaining postfix chain (`.A.B.C()`), immediately yielding `Option::None` (or performing a no-op if the final member returns void).
+    * If the target evaluates to `Option::Some(val)` (or a live `T weak` where all underlying `strongCount > 0`), the compiler MUST unwrap (or temporarily promote) `val` and evaluate the remainder of the postfix chain.
+    * If the target evaluates to `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`), the compiler MUST short-circuit and skip the entire remaining postfix chain (`.A.B.C()`), immediately yielding `Option::None` (or performing a no-op if the final member returns void).
 * MUST wrap a non-optional return value `R` of an optionally chained expression into `R?` (`Option<R>`).
 * MUST flatten the result of an optionally chained expression to `R?` (rather than `R??`) if the invoked member already returns an optional type `R?`.
 * MAY invoke a mutating (`ref @`) method via `?.` on a mutable `T?` lvalue variable, mutating the underlying `Some` payload in-place if present.
@@ -292,8 +292,8 @@ maybeUser?.AddBonus(5);
 ### Postfix Force Unwrap
 
 * MAY apply the postfix force-unwrap operator (`!`) to any expression of an Option type (`T?`) or a weak reference type (`T weak`).
-* MUST evaluate `expr!` to the unwrapped payload `T` if `expr` is `Option::Some` (or a live `T weak` with `strongCount > 0`).
-* MUST immediately trigger runtime Abort or Fatal Panic mechanics if `expr` evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST evaluate `expr!` to the unwrapped payload `T` if `expr` is `Option::Some` (or a live `T weak` where all underlying `strongCount > 0`).
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics if `expr` evaluates to `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`).
 * MAY chain member accesses or invocations directly after `!` (`expr!.Method()`).
 
 ```scatty
@@ -310,4 +310,4 @@ result: Int = optInt!.Max(5);
 
 * MAY apply the binary coalescing operator (`left ?? right`) where `left` is an Option type (`T?`) or a weak reference type (`T weak`), and `right` evaluates to `T` (or `T?` for chained coalescing).
 * MUST evaluate `left` first and short-circuit (omitting evaluation of `right`) if `left` yields `Option::Some(val)` (or a live `T weak`), returning `val` of type `T`.
-* MUST evaluate and return `right` if and only if `left` yields `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST evaluate and return `right` if and only if `left` yields `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`).
