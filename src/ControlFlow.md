@@ -378,8 +378,44 @@ match shape
 * MUST terminate execution of the `match` construct immediately after the first matching arm finishes (no implicit fallthrough).
 * MAY use the `fall` statement within a block-bodied match arm to immediately transfer execution to the body of the next sequential arm without evaluating its pattern or `and` condition.
 * MUST NOT use the `fall` statement if the `match` construct evaluates as an expression.
-* MUST NOT use the `fall` statement to transfer control into a match arm that declares payload variable bindings.
+* MUST NOT use the `fall` statement to transfer control into a match arm that declares local variable bindings in its pattern or `and` condition.
+* MUST NOT use the `fall` statement to transfer control into a match arm whose body relies on implicit type narrowing of the matched subject expression or its fields (such as accessing variant-specific payload fields, invoking constrained-receiver methods, or passing the subject where a narrowed `Data::Variant` or `BaseType^Guard` type is required) unless the source arm statically guarantees the exact same narrowing.
 * MUST NOT use the `fall` statement within the final match arm.
+
+```scatty
+Color 
+{
+    ::Red;
+    ::Green(X: Int, Y: Int);
+}
+
+c: Color = Color::Red;
+
+match c 
+{
+    .Red 
+    {
+        Console.WriteLine("Red encountered, falling through to shared logic");
+        fall; // Valid: target arm does not rely on 'c' being narrowed to 'Color::Green'
+    }
+    .Green 
+    {
+        Console.WriteLine("Handled Red or Green");
+    }
+}
+
+match c 
+{
+    .Red 
+    {
+        fall; // ERROR: target arm relies on 'c' being narrowed to 'Color::Green'
+    }
+    .Green 
+    {
+        Console.WriteLine(c.X);
+    }
+}
+```
 
 ### Non-Exhaustive Pattern Matching
 
