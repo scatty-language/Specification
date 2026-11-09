@@ -263,9 +263,15 @@ ProcessVector(pos.Add(a)..Add(b));
 ## Parameter Passing and Return Semantics
 
 * MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) within CPU registers if its evaluated memory footprint is less than or equal to the target architecture's native pointer size (`sizeof(Usize)`).
-* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`), unless the argument evaluates a `static`, `astatic`, or `gstatic` variable or field.
-* MUST NOT increment or decrement the ARC `strongCount` of an Owning Type upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter, unless the argument evaluates a `static`, `astatic`, or `gstatic` variable or field.
-* MUST materialize an isolated copy (via bitwise copy for Trivial Types or ARC `strongCount` increment for Owning Types) at the call site prior to invocation whenever a `static`, `astatic`, or `gstatic` variable or field is passed by value.
+* MUST pass an immutable receiver (`@`) or standard parameter (`param: Type`) via a hidden read-only pointer under the hood if its evaluated memory footprint exceeds the target architecture's native pointer size (`sizeof(Usize)`).
+* MUST NOT increment or decrement the ARC `strongCount` of an Owning Type (or nested Owning Type fields) upon entering or exiting a method when passed as an immutable `@` receiver or as a read-only parameter, except when call-site value materialization is required.
+* MUST perform call-site value materialization prior to method invocation whenever a by-value argument or immutable `@` receiver expression:
+  * Is rooted in a `static`, `astatic`, or `gstatic` variable or field (including any chained field access, property evaluation, or index lookup on that static storage), or
+  * Reads from a field, property, or indexed element of a root variable that is also bound to a `ref @` receiver or `ref` parameter in the same invocation.
+* MUST execute call-site value materialization in the following sequence:
+  1. Evaluate the argument expression into an isolated caller-allocated temporary stack slot (via bitwise copy for Trivial Types and ARC `strongCount` increment for Owning Types and nested Owning Type fields) prior to passing any `ref` / `ref @` address or hidden read-only pointer.
+  2. Pass the CPU register value or hidden read-only pointer referencing the isolated temporary stack slot to the callee.
+  3. Decrement the ARC `strongCount` (and invoke `Dispose` where applicable) of the materialized temporary immediately after the call returns, including on exception propagation paths.
 * MUST lazily materialize a local copy (via bitwise copy for Trivial Types or ARC retain and Copy-on-Write detachment for Owning Types) at the exact point of assignment or mutation if a standard (non-`ref`) parameter is mutated or stored within the method body.
 * MUST NOT declare or return references (`ref`) from methods.
 * MUST return all `Data` by value.
@@ -289,7 +295,7 @@ Matrix
 }
 
 // 'mat' (> 8 bytes) is passed via a hidden read-only pointer under the hood;
-// zero bytes are copied at the call site because 'mat' is only read.
+// zero bytes are copied at the call site because 'mat' is an unaliased local variable.
 InspectMatrix(mat: Matrix) -> Float 
 {
     return mat.Cells[0];

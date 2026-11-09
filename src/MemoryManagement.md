@@ -123,36 +123,45 @@ ClearList(ref myList);
 
 ### Law of Exclusivity
 
-* MUST NOT alias a memory location passed as a `ref` argument with any other parameter (either by `ref` or by value) during the exact same method invocation.
-* MAY pass distinct structural fields of the same `Data` instance simultaneously as separate `ref` arguments.
-* MUST NOT pass a parent instance (by value or `ref`) and any of its nested fields simultaneously within the same method invocation.
+* MUST treat an in-place method receiver (`ref @`) as an exclusive `ref` borrow of the receiver instance for the duration of the method invocation.
+* MUST NOT alias or overlap a memory location bound to a `ref` parameter or `ref @` receiver with any other `ref` argument during the exact same method invocation.
+* MAY pass distinct, non-overlapping structural fields of the same `Data` instance simultaneously as separate `ref` arguments, provided the parent instance itself is not bound to a `ref` parameter or `ref @` receiver in that invocation.
+* MUST NOT pass a parent instance and any of its nested fields simultaneously as `ref` arguments (or as `ref @` and a `ref` argument) within the same method invocation.
 * MUST treat an in-place indexed borrow (`ref col[key]` or invoking a `ref @` method on `col[key]`) as an exclusive `ref` borrow of the entire `col` collection for the duration of the method invocation.
-* MUST NOT pass a collection (by value or `ref`) and any of its indexed elements simultaneously within the same method invocation.
-* MUST NOT pass two indexed elements of the same collection (`ref col[i]` and `ref col[j]`) simultaneously as `ref` arguments within the same method invocation.
-* MUST NOT pass a `static` or `astatic` variable or field directly as a `ref` argument to a method parameter.
+* MUST NOT pass a collection and any of its indexed elements, or two indexed elements of the same collection (`ref col[i]` and `ref col[j]`), simultaneously as `ref` arguments (or as `ref @` and a `ref` argument) within the same method invocation.
+* MUST NOT pass the exact same variable path simultaneously as an explicit `ref` argument and as a by-value argument (`Process(ref vector, vector)`).
+* MUST materialize an isolated temporary copy at the call site prior to invocation whenever a by-value argument expression reads from a field, property, or indexed element of a root variable that is also bound to a `ref @` receiver or `ref` parameter in the same invocation.
+* MUST NOT pass a `static` or `astatic` variable or field (or any sub-expression rooted in one) as a `ref` argument to a method parameter.
 
 ```scatty
+Process(ref a: Vector, b: Vector) { }
 ProcessValues(ref a: Int, ref b: Int) { }
 ProcessMixed(ref obj: Vector, ref val: Int) { }
 ProcessListAndItem(ref list: [Int], ref item: Int) { }
 
-vector := Vector { X: 0, Y: 0 };
+vector := Vector { X: 10, Y: 20 };
 numbers := [Int] { 10, 20, 30 };
 
-// ERROR: 'vector' is passed by 'ref' and by value simultaneously
+// ERROR: 'vector' is passed as an explicit 'ref' argument and by value simultaneously
 Process(ref vector, vector); 
 
-// Valid: distinct non-overlapping fields
+// Valid: distinct non-overlapping fields passed by 'ref'
 ProcessValues(ref vector.X, ref vector.Y);
 
-// ERROR: 'vector' memory overlaps with 'vector.X'
+// ERROR: 'ref vector' memory overlaps with 'ref vector.X'
 ProcessMixed(ref vector, ref vector.X); 
 
-// ERROR: cannot borrow 'numbers' and its element 'numbers[0]' simultaneously
+// ERROR: cannot borrow 'numbers' and its element 'numbers[0]' by 'ref' simultaneously
 ProcessListAndItem(ref numbers, ref numbers[0]);
 
-// ERROR: cannot borrow two indexed elements of 'numbers' simultaneously
+// ERROR: cannot borrow two indexed elements of 'numbers' by 'ref' simultaneously
 ProcessValues(ref numbers[0], ref numbers[1]);
+
+// Valid: 'vector.X' and 'numbers[0]' are passed by value
+// compiler materializes isolated temporary copies prior to the 'ref @' mutation
+vector.Translate(vector.X, 5);
+
+numbers.Add(numbers[0]);
 ```
 
 ## Resource Cleanup and Disposal

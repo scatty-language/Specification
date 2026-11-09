@@ -76,6 +76,7 @@
 
 * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size is less than or equal to `sizeof(Usize)` directly by value in CPU registers.
 * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size exceeds `sizeof(Usize)` via a hidden read-only pointer in a CPU register.
+* MUST point the hidden read-only pointer directly to the caller's source instance when the argument is an unaliased local binding, or to a caller-allocated temporary stack copy when the argument is an rvalue or requires call-site value materialization.
 * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in a CPU register.
 
 ### Return Values
