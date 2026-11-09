@@ -32,9 +32,15 @@ concurrent
 * MUST atomically increment the ARC strong reference count (`strongCount`) when capturing Owning Types (or nested Owning Type fields of inline `Data` types) into a `spawn` block.
 * MUST NOT invalidate or poison captured identifiers in the outer lexical scope or sibling `spawn` blocks.
 * MUST evaluate mutations to captured Owning Types (and nested Owning Type fields) according to Copy-on-Write (CoW) semantics, cloning an isolated task-local copy prior to mutation if `strongCount > 1`.
-* MUST NOT capture an Owning Type (or an inline `Data` type containing a nested Owning Type field) that does not implement `~Copyable` across multiple `spawn` blocks, unless encapsulated in a thread-safe synchronization primitive.
+* MUST NOT capture an Owning Type (or an inline `Data` type recursively containing a nested Owning Type field) that does not implement `~Copyable` into a `spawn` or `rollback` block, unless encapsulated in a thread-safe synchronization primitive.
 
 ```scatty
+FileHandle : ~Disposable 
+{
+    _fd: Int;
+    Dispose(ref @) => OS.Close(@._fd);
+}
+
 Calculate(value: Int) { }
 
 concurrent 
@@ -42,6 +48,8 @@ concurrent
     counter := 0;
     data := [String].New();
     data.Add("Initial");
+
+    rawFile := FileHandle { _fd: 1 };
 
     spawn 
     {
@@ -53,6 +61,12 @@ concurrent
     {
         Calculate(counter);
         data.Add("Processed by Task 2"); 
+    }
+
+    // ERROR: 'FileHandle' is '~Disposable' without '~Copyable' and cannot be captured
+    spawn 
+    {
+         Console.WriteLine(rawFile._fd);
     }
 }
 ```
