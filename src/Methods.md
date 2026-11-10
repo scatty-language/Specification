@@ -291,7 +291,7 @@ GetId() -> Int
 Matrix 
 {
     // Footprint: 64 bytes (16 * 4 bytes)
-    Cells: InlineArray<Float> = .New(16); 
+    Cells: [Float; 16]; 
 }
 
 // 'mat' (> 8 bytes) is passed via a hidden read-only pointer under the hood;
@@ -420,10 +420,10 @@ Processor
 
 * MUST NOT apply implicit primitive or `~Castable<T>` type conversions during overload resolution.
 * MUST select the single best matching overload by evaluating candidate parameters according to the following descending specificity hierarchy:
-  1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, `Color::Green` matching `Color::Green`, or `[ref Int..]` matching `[ref Int..]`).
+  1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, `[Int; 4]` matching `[Int; 4]`, `Color::Green` matching `Color::Green`, or `[ref Int..]` matching `[ref Int..]`).
   2. Base Type or Read-Only Downgrade: A guarded type (`T^Guard`) or variant subtype (`Data::Variant`) implicitly downgrades to its unguarded base `Data` type `T`, or a mutable slice (`[ref T..]`) implicitly downgrades to a read-only slice (`[T..]`).
-  3. Constrained Generic Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`).
-  4. Unconstrained Generic Match: The argument matches an unconstrained generic type parameter (`T`).
+  3. Constrained Generic or Guarded Constant Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`) or a constant generic parameter constrained by a type guard (`N: Int^Positive`).
+  4. Unconstrained Generic or Unconstrained Constant Match: The argument matches an unconstrained generic type parameter (`T`) or an unconstrained constant generic parameter (`N: Int`).
   5. Slice Parameter Match: Trailing positional arguments are packed into a slice parameter (`T...`).
 * MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments.
 * MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types of the target `fn` type.

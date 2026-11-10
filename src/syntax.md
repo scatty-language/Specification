@@ -170,9 +170,9 @@ primitive_type
 
 collection_type
     ::= "[" type "->" type "]"
-      | "[" ( type ":" | "$:" ) type [ ";" capacity_spec ] "]"
+      | "[" ( type ":" | "$:" ) type "]"
       | "[" [ "ref" ] type ".." "]"
-      | "[" type [ ";" capacity_spec ] "]"
+      | "[" type [ ";" const_arg ] "]"
 
 capacity_spec
     ::= decimal_literal | identifier
@@ -193,16 +193,32 @@ method_param_type
     ::= [ "ref" ] type [ "..." ]
 
 type_params
-    ::= type_parameter { "," type_parameter }
+    ::= generic_param { "," generic_param }
+
+generic_param
+    ::= type_parameter
+      | const_parameter
 
 type_parameter
-    ::= type_identifier [ ":" constraint_list ]
+    ::= type_identifier [ ":" constraint_list ] [ "=" type ]
+
+const_parameter
+    ::= type_identifier ":" type [ "=" expression ]
 
 constraint_list
     ::= interface_type { "," interface_type }
 
 type_args
-    ::= type { "," type }
+    ::= type_arg { "," type_arg }
+
+type_arg
+    ::= type
+      | const_arg
+
+const_arg
+    ::= literal
+      | identifier
+      | "(" expression ")"
 
 type_path
     ::= [ "~" ] type_identifier [ "<" type_args ">" ] { "::" [ "~" ] type_identifier [ "<" type_args ">" ] }
@@ -562,7 +578,7 @@ type_qualifier_expr
       | "(" type ")"
 
 collection_init
-    ::= [ collection_type [ "soa" ] ] "{" [ collection_elem_list ] "}"
+    ::= [ collection_type [ "soa" ] ] "{" [ collection_elem_list ] "}" [ init_modifier ]
 
 collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]

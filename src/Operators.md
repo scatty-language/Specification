@@ -201,7 +201,7 @@ playerC := playerA + playerB;
 
 * MUST require the target type to implement the weak contract `Set(ref @, key: TKey, value: TValue)` (or be constrained by `~Indexable<TKey, TValue>^Mutable`) to support index assignment (`col[key] = value`) and indexed mutations.
 * MUST reject index assignment (`col[key] = value`) and indexed mutations at compile time if the concrete type omits `Set`.
-* MUST execute compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on built-in addressable collections (`[T]`, `[T; N]`, `Array<T>`, `InlineArray<T>`, `[K: V]`, `[K: V; N]`, `[K -> V]`, and field projections of `soa` collections `soaCol[i].Field`) directly in-place against the element's memory slot:
+* MUST execute compound assignments (`col[key] += val`), field mutations (`col[key].Field = val`), variant switches (`col[key] =:: Variant`), mutating method calls (`col[key].Mutate()`), and `ref` argument bindings (`Func(ref col[key])`) on built-in addressable collections (`[T]`, `[T; N]`, `Array<T>`, `[K: V]`, `[K -> V]`, and field projections of `soa` collections `soaCol[i].Field`) directly in-place against the element's memory slot:
     1. Detach the collection's underlying Owning Type buffer via Copy-on-Write if its `strongCount > 1`.
     2. Evaluate `key` once and resolve the target element's memory slot in a single lookup.
     3. Apply the mutation or bind the `ref` parameter directly to the resolved memory slot without invoking `Get` or `Set` and without incrementing `strongCount` of the element or its nested Owning Type fields.
