@@ -101,7 +101,7 @@ type_identifier
       | private_id
 
 const_decl
-    ::= identifier [ ":" type ] "::" expression ";"
+    ::= identifier ":" type "::" expression ";"
 
 var_decl
     ::= local_id [ ":" type [ static_modifier ] ] ( "=" | "=^" | ":=" ) ( expression | cascade_chain ) [ "strict" ] ";"

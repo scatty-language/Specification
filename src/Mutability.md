@@ -118,15 +118,15 @@ Data
 ## Constants
 
 * MUST declare compile-time constants using the double-colon binding operator (`::`).
+* MUST explicitly declare a type annotation (`: Type`) on every constant declaration.
 * MUST evaluate the constant's initialization expression at compile time.
 * MUST NOT reassign a constant, mutate its fields, or pass it to a `ref` parameter.
-* MAY omit the explicit type annotation (`: Type`) if the compiler can infer the type from the initialization expression.
 * MUST govern constant access rights via standard identifier visibility rules (`PublicId`, `InternalId`, or `PrivateId` for file-level and type-level constants, and `LocalId` for method-local constants).
 
 ```scatty
 Pi: Float :: 3.14159f;
 
-MaxUsers :: 100;
+MaxUsers: Int :: 100;
 
-DoubleMax :: MaxUsers * 2;
+DoubleMax: Int :: MaxUsers * 2;
 ```

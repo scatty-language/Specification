@@ -76,9 +76,9 @@ r in text.Runes()
 * MUST evaluate an interpolated string literal at compile time if every embedded expression is a compile-time constant (`::` or literal), producing a static constant `String` without runtime allocation.
 
 ```scatty
-Version :: 2;
+Version: Int :: 2;
 // Compile-time constant folding
-AppTitle :: "Scatty App v\(Version)";
+AppTitle: String :: "Scatty App v\(Version)";
 
 name := "Alice";
 score := 42;

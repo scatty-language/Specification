@@ -397,8 +397,8 @@ PacketType tag Byte
     ::Ack  = 5;
 }
 
-// Compile-time constant evaluation on a variant path (typed as 'Byte', value 5)
-AckCode :: tagof PacketType::Ack;
+// Compile-time constant evaluation on a variant path (value 5)
+AckCode: Byte :: tagof PacketType::Ack;
 
 InspectPacket(pkt: PacketType) 
 {
@@ -441,12 +441,12 @@ Color
 cell := Cell<Int> { Value: 42 };
 `match` := 10;
 
-a :: nameof Cell<Int>;       // "Cell<Int>"
-b :: nameof cell.Value;      // "Value"
-c :: nameof ~Printable;      // "Printable"
-d :: nameof ^Positive;       // "Positive"
-e :: nameof Int^Positive;    // "Positive"
-f :: nameof Color::Red;      // "Red"
-g :: nameof `match`;         // "match"
-h := cell.TypeName();        // "Cell<Int>"
+a: String :: nameof Cell<Int>;       // "Cell<Int>"
+b: String :: nameof cell.Value;      // "Value"
+c: String :: nameof ~Printable;      // "Printable"
+d: String :: nameof ^Positive;       // "Positive"
+e: String :: nameof Int^Positive;    // "Positive"
+f: String :: nameof Color::Red;      // "Red"
+g: String :: nameof `match`;         // "match"
+h := cell.TypeName();                // "Cell<Int>"
 ```

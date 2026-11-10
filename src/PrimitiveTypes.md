@@ -89,10 +89,10 @@ emoji := '🔥';      // Rune (U+1F525)
 ```scatty
 text := "Hello, Scatty!";
 
-MaxUsers :: 100;
+MaxUsers: Int :: 100;
 
 // Evaluated at compile time into "Max capacity: 100"
-Banner :: "Max capacity: \(MaxUsers)";
+Banner: String :: "Max capacity: \(MaxUsers)";
 ```
 
 ### Raw String Literals
