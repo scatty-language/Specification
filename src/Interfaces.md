@@ -133,9 +133,11 @@ ProcessDynamic(ref item: ~Copyable) { }
 ```scatty
 ~Stream 
 {
-    Read(ref @, buffer: [Byte]) throws -> Int;
-    Write?(ref @, buffer: [Byte]) throws;
+    Read(ref @, buffer: [ref Byte..]) throws -> Int;
+    Write?(ref @, buffer: [Byte..]) throws;
+    
     Seek?(ref @, offset: Long) throws;
+
     Length?: Long;
 
     // Interface type guard declared inside the interface
@@ -158,15 +160,15 @@ ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<
 {
     // 1. Concrete type: statically known at compile time
     len := ro.Length; // Valid: 'Length' is implemented on 'ReadOnlyMemoryStream'
-    ro.Write(buf); // ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
+    ro.Write(buffer); // ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
 
     // 2. Guarded interface: guaranteed to implement 'Write'
-    writable.Write(buf);
+    writable.Write(buffer);
 
     // 3. Unguarded dynamic interface: verified via 'is'
     may dynStream is .Write 
     {
-        dynStream.Write(buf);
+        dynStream.Write(buffer);
     }
 
     may dynStream is ~Stream^SeekableStream 
@@ -175,8 +177,8 @@ ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<
     }
 
     // 4. Direct optional '?' and forced '!' calls on dynamic interface
-    dynStream.Write?(buf);          // No-op if 'Write' is not implemented
+    dynStream.Write?(buffer);          // No-op if 'Write' is not implemented
     maybeLen: Long? = dynStream.Length?; // Evaluates to 'Option::None' if unimplemented
-    dynStream.Write!(buf);          // Aborts/Panics if 'Write' is not implemented
+    dynStream.Write!(buffer);          // Aborts/Panics if 'Write' is not implemented
 }
 ```
