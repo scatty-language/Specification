@@ -2,8 +2,8 @@
 
 * MUST declare a type extension block using the `with` keyword applied to the target type (`TargetType with { ... }`).
 * MAY extend any `Data` type, including primitive types.
-* MAY declare instance methods, static methods, properties, and type guards within an extension block.
-* MUST NOT declare structural state fields within an extension block.
+* MAY declare instance methods, static methods, and properties within an extension block.
+* MUST NOT declare structural state fields or type guards within an extension block.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in the target type's primary definition.
 * MUST NOT declare members in an extension block that shadow or collide with members declared in another extension block for the same target type.
 * MAY declare new overloads of an existing method name within an extension block provided their parameter signatures are distinct under Method Overloading rules.
@@ -24,15 +24,14 @@ MyData with
 {
     Count: Int => @._count;
 
-    ^ValidData = MyData must @.Count > 0;
-
     PrintCount(@) => Console.WriteLine(@.Count);
 }
 
+^ValidData = MyData must @.Count > 0;
+^Email = String must @.Contains("@");
+
 String with 
 {
-    ^Email = String must @.Contains("@");
-
     Empty() -> String => "";
 }
 

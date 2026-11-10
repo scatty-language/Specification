@@ -124,7 +124,7 @@ ProcessDynamic(ref item: ~Copyable) { }
 * MUST represent an unimplemented weak contract member as a null slot (`0x0`) within the interface's virtual method table (`vtable`) during dynamic dispatch.
 * MUST NOT invoke or read an unverified weak contract member directly (`box.Method()` or `box.Property`) on an unguarded dynamic interface container (`Box<~Interface>`), an interface reference (`ref item: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
 * MAY verify the presence of a weak contract member at runtime using the `is` operator (`must item is .Method` or `must item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch.
-* MAY declare type guards over an interface (`^Guard = ~Interface must @ is .Member` or `^Guard = @ must @ is .Member`) either inside the `~Interface` body or at the file top level.
+* MAY declare type guards over an interface (`^Guard = ~Interface must @ is .Member` or `^Guard = @ must @ is .Member`) at the file's top level.
 * MAY invoke a weak contract member conditionally using the `?` suffix (`item.Method?(args)` or `item.Property?`):
   * If the member returns a value of type `T`, the expression MUST evaluate to `T?` (`Option::Some` if implemented, or `Option::None` if unimplemented).
   * If the member returns void, the expression MUST execute the method if implemented or perform a no-op if unimplemented.
@@ -139,12 +139,9 @@ ProcessDynamic(ref item: ~Copyable) { }
     Seek?(ref @, offset: Long) throws;
 
     Length?: Long;
-
-    // Interface type guard declared inside the interface
-    ^Writable = @ must @ is .Write;
 }
 
-// Interface type guard declared outside at the file top level
+^Writable = ~Stream must @ is .Write;
 ^SeekableStream = ~Stream must @ is .Seek and @ is .Length;
 
 // Concrete type implementing only strong contracts and 'Length?'
@@ -153,7 +150,7 @@ ReadOnlyMemoryStream : ~Stream
     _data: [Byte];
     Length: Long => @._data.Length as Long;
 
-    Read(ref @, buffer: [Byte]) throws -> Int => 0;
+    Read(ref @, buffer: [ref Byte..]) throws -> Int => 0;
 }
 
 ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<~Stream^Writable>) throws 

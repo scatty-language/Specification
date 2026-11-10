@@ -69,7 +69,6 @@ interface_decl
 interface_member
     ::= interface_prop_decl
       | method_decl
-      | guard_decl
 
 interface_prop_decl
     ::= type_identifier [ "?" ] ":" type ( ";" | "=>" expression ";" | block )

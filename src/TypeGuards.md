@@ -1,6 +1,7 @@
 # Type Guards
 
-* MAY declare a type guard at the file's top level, within a `~Interface` declaration, or within a Type with extension block using the prefix `^` operator (`^Identifier = TargetType must Expression;`).
+* MUST declare a type guard at the file's top level using the prefix `^` operator (`^Identifier = TargetType must Expression;`).
+* MUST NOT declare a type guard within a `Data` declaration, an `~Interface` declaration, or a `with` extension block.
 * MUST evaluate the `must` clause expression to a pure, side-effect-free `Bool`.
 * MUST explicitly specify the base type being guarded immediately following the `=` token.
 * MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a type guard declaration.
