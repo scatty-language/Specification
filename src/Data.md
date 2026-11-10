@@ -135,7 +135,7 @@ Option<T>
 * MAY explicitly annotate variables, parameters, or return types with a specific variant subtype (`Data::Variant`).
 * MUST NOT assign a different variant to a variable or parameter explicitly typed as a specific variant subtype (`Data::Variant`).
 * MAY implicitly downgrade an expression of a variant subtype (`Data::Variant`) to its enclosing base `Data` type without an explicit cast.
-* MUST explicitly validate the active discriminant tag using `is`, `as`, `as?`, `as!`, or `match` (or bypass validation via `assume`) when narrowing an expression from a base `Data` type to a specific `Data::Variant` subtype.
+* MUST explicitly validate the active discriminant tag using `is`, `as`, `as?`, `as!`, or `match` (or bypass validation via `assume` within an `unsafe` block or `unsafe` method) when narrowing an expression from a base `Data` type to a specific `Data::Variant` subtype.
 * MAY use the contextual leading-dot syntax (`.Variant`) with `is`, `as`, `as?`, `as!`, and `assume` when the base `Data` type is statically known.
 * MAY constrain the receiver of an instance method to a specific variant subtype (`@::Variant` or `ref @::Variant`).
 * MUST expose the payload fields of `::Variant` directly on `@` within the body of a method declaring an `@::Variant` or `ref @::Variant` receiver.
@@ -280,7 +280,7 @@ HttpResponse : ~Formattable tag Int
 
 * MAY remove the discriminant tag by explicitly declaring `tag none`.
 * MUST NOT use checked pattern matching or casting operators (`is`, `as`, `as?`, `as!`, `match`) on untagged unions.
-* MUST extract payloads or narrow an untagged union to a specific variant subtype using the unchecked cast operator (`assume`).
+* MUST extract payloads or narrow an untagged union to a specific variant subtype using the unchecked cast operator (`assume`) within an `unsafe` block or `unsafe` method.
 * MUST enclose any variant declaration whose payload is an Owning Type (`~Disposable`) or an inline `Data` type that recursively contains an Owning Type or `weak` field within an `unsafe` block, or mark the variant declaration with the `unsafe` modifier, when the enclosing `Data` type declares `tag none`.
 * MUST NOT automatically track, retain, or dispose Owning Type payloads (or nested Owning Type fields) inside an untagged union (`tag none`). Shared fields declared outside the variants remain automatically managed via ARC.
 
@@ -306,5 +306,9 @@ RawBufferUnion tag none
 }
 
 myUnion := FloatIntUnion::IntBits(42);
-floatVal := myUnion assume .FloatBits;
+
+unsafe 
+{
+    floatVal := myUnion assume .FloatBits;
+}
 ```
