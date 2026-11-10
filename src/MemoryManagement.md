@@ -132,6 +132,11 @@ ClearList(ref myList);
 * MUST NOT pass the exact same variable path simultaneously as an explicit `ref` argument and as a by-value argument (`Process(ref vector, vector)`).
 * MUST materialize an isolated temporary copy at the call site prior to invocation whenever a by-value argument expression reads from a field, property, or indexed element of a root variable that is also bound to a `ref @` receiver or `ref` parameter in the same invocation.
 * MUST NOT pass a `static` or `astatic` variable or field (or any sub-expression rooted in one) as a `ref` argument to a method parameter.
+* MUST treat an active read-only slice (`[T..]`) as a shared read-only borrow of its source collection for the duration of the slice's lexical liveness (from slice creation through its final read).
+* MUST NOT mutate, reassign, switch variants on, or take a `ref` or `[ref T..]` borrow of a source collection while any read-only slice (`[T..]`) borrowed from it remains live.
+* MAY hold multiple read-only slices (`[T..]`) of the same source collection simultaneously.
+* MUST treat an active mutable slice (`[ref T..]`) as an exclusive `ref` borrow of the entire source collection for the duration of the mutable slice's lexical liveness (from slice creation through its final use).
+* MUST NOT read, mutate, reassign, or create another slice from a source collection while a mutable slice (`[ref T..]`) borrowed from it remains live, except through that mutable slice itself.
 
 ```scatty
 Process(ref a: Vector, b: Vector) { }
@@ -162,6 +167,24 @@ ProcessValues(ref numbers[0], ref numbers[1]);
 vector.Translate(vector.X, 5);
 
 numbers.Add(numbers[0]);
+
+nums := [Int] { 1, 2, 3, 4 };
+
+slice := nums[0..2];
+
+// ERROR: Cannot mutate 'nums' while 'slice' is still read below
+nums.Add(5);
+Console.WriteLine(slice[0]);
+
+// Valid: 'slice' is no longer used below this point
+nums.Add(5);
+
+mutSlice := nums[ref 0..2];
+mutSlice[0] = 100;
+
+// ERROR: Cannot read 'nums' directly while 'mutSlice' is still live
+Console.WriteLine(nums[0]);
+mutSlice[1] = 200;
 ```
 
 ## Resource Cleanup and Disposal

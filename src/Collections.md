@@ -203,3 +203,54 @@ g := prices[.Green]!; // Aborts/Panics immediately because '.Green' is 'Option::
 may greenPrice := prices[.Green] => Console.WriteLine(greenPrice);
 or => Console.WriteLine("Green price is not configured");
 ```
+
+## Slices
+
+* MAY declare a read-only slice type using `[Type..]` and a mutable slice type using `[ref Type..]`.
+* MUST represent a slice (`[Type..]` or `[ref Type..]`) as a contiguous, non-owning view over a sequence of `Type` elements without its own heap allocation or ARC Control Block.
+* MAY construct a read-only slice (`[Type..]`) by applying a range index expression (`col[start..end]`, `col[start..]`, `col[..end]`, or `col[..]`) to an instance of `[Type]`, `[Type; N]`, `Array<Type>`, `InlineArray<Type>`, `[Type..]`, or `[ref Type..]`.
+* MAY construct a read-only byte slice (`[Char..]`) by applying a range index expression to a `String`, and a read-only rune slice (`[Rune..]`) by applying a range index expression to a `RuneString`.
+* MAY construct a mutable slice (`[ref Type..]`) by applying a `ref` range index expression (`col[ref start..end]`, `col[ref start..]`, `col[ref ..end]`, or `col[ref ..]`) to a mutable lvalue of `[Type]`, `[Type; N]`, `Array<Type>`, `InlineArray<Type>`, `[ref Type..]`, or `RuneString`.
+* MUST NOT construct a mutable byte slice (`[ref Char..]`) from a `String` outside of an `unsafe` block or `unsafe` method.
+* MUST NOT apply range slicing to `soa` collections, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), or associated arrays (`[KeyType -> ValueType]`).
+* MUST NOT implicitly convert `[Type]`, `[Type; N]`, `Array<Type>`, `InlineArray<Type>`, `String`, or `RuneString` to `[Type..]` or `[ref Type..]`; an explicit slice expression (`col[..]` or `col[ref ..]`) MUST be used.
+* MAY implicitly downgrade a mutable slice (`[ref Type..]`) to a read-only slice (`[Type..]`).
+
+```scatty
+numbers := [Int] { 10, 20, 30, 40, 50 };
+
+// Read-only slices ('[Int..]')
+middle := numbers[1..4];   // Views [20, 30, 40]
+prefix := numbers[..2];    // Views [10, 20]
+suffix := numbers[3..];    // Views [40, 50]
+all    := numbers[..];     // Views all elements
+
+// Mutable slice ('[ref Int..]')
+mutMiddle := numbers[ref 1..4];
+mutMiddle[0] = 99;         // Mutates 'numbers[1]' in-place
+
+// String slicing yields '[Char..]'
+text := "Hello, Scatty!";
+helloBytes: [Char..] = text[0..5];
+```
+
+### Slice Bounds and Operations
+
+* MUST evaluate the lower bound `start` as inclusive (defaulting to `0` when omitted) and the upper bound `end` as exclusive (defaulting to the source collection's element count when omitted).
+* MUST throw an exception (or immediately trigger Abort or Fatal Panic mechanics in a non-throwing context) if `start < 0`, `end < start`, or `end` exceeds the source collection's element count.
+* MUST evaluate a range slice where `start == end` and `0 <= start <= Count` to a valid empty slice with a length of `0`.
+* MUST NOT mutate elements, assign to an index (`slice[i] = val`), invoke `ref @` methods on elements, or borrow elements via `ref` (`ref slice[i]` or `ref item in slice`) on a read-only slice (`[Type..]`).
+* MAY mutate elements in-place, assign to an index (`slice[i] = val`), invoke `ref @` methods on elements, and borrow elements via `ref` (`ref slice[i]` or `ref item in slice`) on a mutable slice (`[ref Type..]`).
+* MUST NOT resize, append to, or remove elements from `[Type..]` or `[ref Type..]`.
+* MUST evaluate the strong reference count of an Owning Type source collection (`[Type]`, `Array<Type>`, or `RuneString`) prior to constructing a mutable slice (`[ref Type..]`), detaching a unique deep copy via Copy-on-Write if `strongCount > 1`.
+
+### Non-Escaping Restrictions
+
+* MAY declare `[Type..]` and `[ref Type..]` as method parameters, local variables, or stage iteration sources.
+* MUST NOT declare `[Type..]` or `[ref Type..]` as:
+  * A structural or variant payload field of a `Data` type,
+  * A `static`, `astatic`, or `gstatic` variable or field,
+  * A method or anonymous function return type (`-> [Type..]`), or
+  * A type argument to a generic `Data` type, collection, or `~Interface`.
+* MUST NOT capture a `[Type..]` or `[ref Type..]` variable into a `spawn` or `rollback` block.
+* MUST NOT reassign a local slice variable to reference a source collection declared in a narrower inner lexical scope than the slice variable itself.

@@ -6,41 +6,41 @@
 * MAY declare parameters with default values using the `=` syntax.
 * MUST position parameters with default values sequentially after all parameters lacking default values.
 
-## Variadic Parameters
+## Slice Parameters
 
-* MUST position a variadic parameter (`LocalId: ...Type`) as the final parameter in the method signature.
-* MUST NOT declare a default value for a variadic parameter.
-* MUST intrinsically evaluate the variadic parameter within the method body as an `InlineArray<Type>` whose length equals the exact number of passed arguments.
-* MUST generate a unique, distinct function signature during monomorphization for every distinct argument count evaluated at call sites.
-* MUST supply arguments to a variadic parameter positionally.
-* MUST NOT use named arguments for variadic elements.
-* MUST intrinsically generate and pass an empty inline array (`InlineArray<Type>.New(0)`) if no arguments are provided to the variadic parameter.
+* MAY declare the final parameter of a method as a slice parameter by appending the `...` suffix to its element type (`local_id: Type...`).
+* MUST position a slice parameter (`local_id: Type...`) as the final parameter in the method signature.
+* MUST NOT apply the `ref` modifier or declare a default value (`= Expression`) on a slice parameter.
+* MUST statically type a slice parameter (`local_id: Type...`) within the method body as a read-only slice `[Type..]`.
+* MUST compile a method declaring `local_id: Type...` as a single function taking `[Type..]` as its final parameter without call-site monomorphization.
+* MAY supply zero or more positional arguments of type `Type` to a `Type...` parameter at the call site, or supply a single `[Type..]` (or `[ref Type..]`) slice argument directly.
+* MUST NOT use named arguments for individual elements passed to a `Type...` parameter, except when passing a single `[Type..]` slice by parameter name (`local_id: sliceExpr`).
+* MUST evaluate positional arguments supplied to a `Type...` parameter into a contiguous caller-allocated temporary stack buffer prior to invocation and pass a `[Type..]` view referencing that stack buffer.
+* MUST pass an empty `[Type..]` slice (`data_ptr = 0x0`, `length = 0`) without stack buffer allocation when zero arguments are supplied to a `Type...` parameter.
+* MUST decrement the ARC `strongCount` (and invoke `Dispose` where applicable) for any materialized temporary Owning Type elements in the caller-allocated stack buffer immediately after the invocation returns, including on exception propagation (`throws`) paths.
 
 ```scatty
 Logger 
 {
-    // Declares a variadic parameter for 'Int'
-    LogMetrics(prefix: String, metrics: ...Int) 
+    // Declares a slice parameter of 'Int'; 'metrics' has type '[Int..]'
+    LogMetrics(prefix: String, metrics: Int...) 
     {
-        // 'metrics' acts as a Inline Array
         m in metrics 
         {
-            Console.WriteLine(m);
+            Console.WriteLine("\(prefix): \(m)");
         }
     }
 }
 
-// Call Site 1: 3 variadic arguments
-// Compiler generates: LogMetrics_3(prefix: String, metrics: InlineArray<Int>)
+// Call Site 1: 3 positional arguments allocated on the caller's stack
 Logger.LogMetrics("A", 10, 20, 30);
 
-// Call Site 2: 2 variadic arguments
-// Compiler generates: LogMetrics_2(prefix: String, metrics: InlineArray<Int>)
-Logger.LogMetrics("B", 5, 10);
+// Call Site 2: 0 arguments (passes empty '[Int..]' slice)
+Logger.LogMetrics("B");
 
-// Call Site 3: 0 variadic arguments
-// Compiler generates: LogMetrics_0(prefix: String, metrics: InlineArray<Int>)
-Logger.LogMetrics("C");
+// Call Site 3: Passing an existing slice directly
+history := [Int] { 100, 200, 300 };
+Logger.LogMetrics("C", history[..]);
 ```
 
 ## Method Invocation and Arguments
@@ -388,8 +388,8 @@ validator: fn(Some^Valid) = Some.Process;
   * Return type (`-> ReturnType`),
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
   * Method modifiers (`throws` or `unsafe`).
-* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when default parameters or empty variadic arguments are omitted.
-* MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
+* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when default parameters or empty slice parameter (`T...`) arguments are omitted.
+* MUST NOT overload a method solely by replacing a read-only slice parameter (`[T..]`) with a slice parameter (`T...`) at the same parameter position.* MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
 * MAY implement multiple specializations of a generic interface on the same `Data` type, resolving invocations via standard Overload Resolution rules.
 
 ```scatty
@@ -406,6 +406,13 @@ Processor
 
     // ERROR: Collides with 'Execute(val: Int)' when 'retry' is omitted
     Execute(val: Int, retry: Bool = false) { }
+
+    // ERROR: Collides with 'Execute(val: Int)' when 'extra' is omitted
+    Execute(val: Int, extra: Int...) { }
+
+    // ERROR: 'Int...' and '[Int..]' have identical ABI and collide when passed a slice
+    Log(items: [Int..]) { }
+    Log(items: Int...) { }
 }
 ```
 
@@ -413,11 +420,11 @@ Processor
 
 * MUST NOT apply implicit primitive or `~Castable<T>` type conversions during overload resolution.
 * MUST select the single best matching overload by evaluating candidate parameters according to the following descending specificity hierarchy:
-  1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, or `Color::Green` matching `Color::Green`).
-  2. Base Type Downgrade: A guarded type (`T^Guard`) or variant subtype (`Data::Variant`) implicitly downgrades to its unguarded base `Data` type `T`.
+  1. Exact Type Match: The argument type matches the parameter type identically (e.g., `Int^Positive` matching `Int^Positive`, `Color::Green` matching `Color::Green`, or `[ref Int..]` matching `[ref Int..]`).
+  2. Base Type or Read-Only Downgrade: A guarded type (`T^Guard`) or variant subtype (`Data::Variant`) implicitly downgrades to its unguarded base `Data` type `T`, or a mutable slice (`[ref T..]`) implicitly downgrades to a read-only slice (`[T..]`).
   3. Constrained Generic Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`).
   4. Unconstrained Generic Match: The argument matches an unconstrained generic type parameter (`T`).
-  5. Variadic Parameter Match: Trailing arguments are packed into a variadic parameter (`...T`).
+  5. Slice Parameter Match: Trailing positional arguments are packed into a slice parameter (`T...`).
 * MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments.
 * MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types of the target `fn` type.
 * MUST apply the same specificity hierarchy to the receiver type when resolving overloaded instance methods (an expression of type `Type^Guard` or `Data::Variant` matches a constrained receiver `@^Guard` or `@::Variant` at Priority 1 over an unconstrained receiver `@` at Priority 2).

@@ -110,3 +110,14 @@
 * MUST inspect the existing `owner_thread` value upon a failed `cmpxchg` attempt and immediately trigger runtime Abort or Fatal Panic mechanics if `owner_thread` equals the calling thread's `tid`.
 * MUST execute spinlock release by atomically storing `0` into `owner_thread` with `release` memory ordering.
 * MUST emit spinlock release instructions on both normal return and non-null error indicator register (`swifterror`) paths immediately following a guarded `throws` invocation, prior to executing any deferred ARC reference decrements, `Dispose` calls, or exception propagation branches.
+
+## Slices ABI
+
+* MUST represent a slice (`[T..]` or `[ref T..]`) as a 2-word structure (`2 * sizeof Usize`) with alignment equal to `alignof Usize`:
+
+| Offset (bytes) | Field | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `0` | `data_ptr` | `Usize` | Pointer to the first contiguous `T` element (`0x0` when empty) |
+| `sizeof Usize` | `length` | `Usize` | Element count (zero-extended from `Int`) |
+
+* MUST compile a slice parameter (`local_id: T...`) with the exact same binary parameter signature as `[T..]`, guaranteeing binary ABI compatibility between a method declaring `T...` and a function pointer `fn(..., [T..])`.

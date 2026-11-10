@@ -123,7 +123,7 @@ parameter_list
     ::= parameter { "," parameter }
 
 parameter
-    ::= [ "ref" ] local_id ":" [ "..." ] type [ "=" expression ]
+    ::= [ "ref" ] local_id ":" type [ "..." ] [ "=" expression ]
 
 return_type
     ::= type
@@ -171,6 +171,7 @@ primitive_type
 collection_type
     ::= "[" type "->" type "]"
       | "[" ( type ":" | "$:" ) type [ ";" capacity_spec ] "]"
+      | "[" [ "ref" ] type ".." "]"
       | "[" type [ ";" capacity_spec ] "]"
 
 capacity_spec
@@ -189,7 +190,7 @@ method_type_list
     ::= method_param_type { "," method_param_type }
 
 method_param_type
-    ::= [ "ref" ] type
+    ::= [ "ref" ] type [ "..." ]
 
 type_params
     ::= type_parameter { "," type_parameter }
@@ -502,7 +503,10 @@ member_access
     ::= ( "." | "?." ) type_identifier [ "?" | "!" ]
 
 index_access
-    ::= [ "?" ] "[" expr_list "]"
+    ::= [ "?" ] "[" ( slice_range | expr_list ) "]"
+
+slice_range
+    ::= [ "ref" ] [ expression ] ".." [ expression ]
 
 force_unwrap
     ::= "!"
