@@ -141,14 +141,14 @@ match rawValue as? Int^Positive
 
 ### Field Mutations and In-Place Operations on Guarded Variables
 
-* MUST NOT mutate an internal field of a guarded `Data` variable (`instance: Data^Guard`) using standard assignment operators (`instance.Field = val`).
-* MUST require guarded assignment operators (`instance.Field =^ val`, `instance.Field +=^ val`) when mutating any field of a variable governed by a type guard, which re-evaluates the enclosing `Data^Guard` invariant after updating the field.
-* MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any field of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
-* MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) immediately after:
-  * Invoking any mutating (`ref @`) method on `instance` (e.g., `list.Clear()` on `list: [Int]^NonEmpty`), or
-  * Passing `instance` (or any of its fields) as a `ref` argument to a parameter typed as the unguarded base type.
-* MUST also re-evaluate the `must` invariant of the guarded variable on the error-return path if a mutating (`ref @`) method or a method accepting `instance` (or any of its fields) as an unguarded `ref` argument is declared with `throws` and returns an active exception.
-* MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
+* MUST NOT mutate a direct or nested field or indexed element of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) using standard assignment operators (`instance.Field = val`, `instance.Items[i] = val`).
+* MUST require guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) when mutating any direct or nested field or indexed element of a variable governed by a type guard (`instance.Field =^ val`, `instance.Sub.Field +=^ val`), re-evaluating all enclosing `^Guard` invariants along the mutated path from innermost to outermost after updating the target.
+* MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any direct or nested field or indexed element of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
+* MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`)—along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
+  * Invoking any mutating (`ref @`) method on `instance` (or `@`) or on any of its direct or nested fields or indexed elements (e.g., `list.Clear()` on `list: [Int]^NonEmpty`, or `user.Scores.Clear()` on `user: Profile^HasScores`), or
+  * Passing `instance` (or `@`) or any of its direct or nested fields or indexed elements as a `ref` argument to any method parameter, regardless of whether the target parameter is typed as an unguarded base type or a guarded type.
+* MUST also re-evaluate the `must` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active exception.
+* MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` / post-`ref @` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
   * In Debug mode, the compiler MUST evaluate the governing `must` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
@@ -162,17 +162,37 @@ User
 {
     Name: String;
     Age: Int;
+    Scores: [Int];
 }
 
-^Adult = User must @.Age >= 18;
-^NonEmpty = [Int] must @.Count > 0;
+Range 
+{
+    Min: Int^Positive;
+    Max: Int^Positive;
+}
+
+^Adult      = User must @.Age >= 18;
+^HasScores  = User must @.Scores.Count > 0;
+^NonEmpty   = [Int] must @.Count > 0;
+^ValidRange = Range must @.Min < @.Max;
 
 ResetUser(ref u: User) 
 {
     u.Age = 5;
 }
 
-MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [Int]^NonEmpty) 
+SetHighValue(ref val: Int^Positive) 
+{
+    val =^ 1000 strict;
+}
+
+MutateExamples(
+    ref age: Int^Positive,
+    ref adult: User^Adult,
+    ref player: User^HasScores,
+    ref list: [Int]^NonEmpty,
+    ref bounds: Range^ValidRange
+) 
 {
     // 1. Default guarded scalar mutation: checked in Debug, elided in default Release
     age -=^ 10;
@@ -181,8 +201,15 @@ MutateExamples(ref age: Int^Positive, ref adult: User^Adult, ref list: [Int]^Non
     age -=^ 5 strict;
     adult.Age =^ 21 strict;
 
-    // 3. Strict post-'ref @' and post-'ref' invariant checks in both Debug and Release
+    // 3. Strict post-'ref @' and post-'ref' invariant checks on the root variable
     list.RemoveAt(0) strict;
     ResetUser(ref adult) strict;
+
+    // 4. Post-'ref @' invariant check triggered by mutating a nested field ('player.Scores')
+    player.Scores.Clear() strict;
+
+    // 5. Post-'ref' invariant check on 'bounds' ('^ValidRange') triggered even though
+    //    the parameter 'val' is itself guarded as 'Int^Positive'
+    SetHighValue(ref bounds.Min) strict;
 }
 ```
