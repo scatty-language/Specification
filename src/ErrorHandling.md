@@ -65,9 +65,9 @@ Some() throws
 * MUST bind the variable declared in a `catch` arm (`catch e: Type`) directly to that `catch` construct's frame-local exception slot when `Type` is a concrete `Data` type.
 * MUST bind the variable declared in a `catch` arm (`catch e: ~Interface`) as an implicit `ref` reference to that `catch` construct's frame-local exception slot when `Type` is an interface.
 * MAY omit the variable identifier and type in a `catch` arm to define a catch-all block.
-* MAY execute a parameterless `throw;` statement within a `catch` or `rollback` block to rethrow the active exception.
-* MUST move the exception data from the innermost enclosing `catch` or `rollback` construct's frame-local exception slot back into the TLS exception buffer when executing a parameterless `throw;` statement.
-* MUST NOT execute a parameterless `throw;` statement outside of a `catch` or `rollback` block.
+* MAY execute a parameterless `throw;` statement within a `catch` block to rethrow the active exception.
+* MUST move the exception data from the innermost enclosing `catch` construct's frame-local exception slot back into the TLS exception buffer when executing a parameterless `throw;` statement.
+* MUST NOT execute a parameterless `throw;` statement outside of a `catch` block.
 * MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) in a `catch` construct's frame-local exception slot upon exiting the `catch` block via normal completion, control-flow transfer (`return`, `break`, `continue`), or propagation of a newly thrown exception (`throw Expression;` or an uncaught `throws` invocation), omitting cleanup only when the intercepted exception is rethrown via a parameterless `throw;` statement.
 * MUST release any nested Owning Type fields (decrementing `strongCount` and invoking `Dispose` where applicable) in the TLS exception buffer when an active exception is intercepted by `try?`.
 
