@@ -62,8 +62,9 @@
 | `0` | `size` | `Usize` | Byte size of `ConcreteType` |
 | `1` | `align` | `Usize` | Byte alignment of `ConcreteType` |
 | `2` | `dispose_fn` | `Usize` | Pointer to cleanup thunk `fn(ref ConcreteType)` (`0x0` for Trivial Types) |
-| `3..N` | `member_slots` | `Usize` | Function pointers for interface methods and property getters in declaration order |
+| `3..N` | `member_slots` | `Usize` | Function pointers for object-safe interface methods and property getters in declaration order |
 
+* MUST omit non-object-safe interface members (static methods, generic methods, and methods or properties referencing `@` outside the receiver position) from `member_slots`.
 * MUST set `dispose_fn` to `0x0` if `ConcreteType` is a Trivial Type.
 * MUST populate `dispose_fn` with a compiler-generated cleanup thunk if `ConcreteType` is an Owning Type (`~Disposable`) or an inline `Data` type containing nested Owning Type or `weak` fields; the thunk MUST decrement `strongCount` (or `weakCount`) and invoke `Dispose` where applicable for the instance pointed to by `data_ptr`.
 * MUST populate the corresponding `member_slots` entry with `0x0` if a weak interface contract member (`Method?` or `Property?`) is omitted by `ConcreteType`.

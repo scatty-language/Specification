@@ -92,32 +92,73 @@ Entity : ~Vectorable
 ## Object Safety and Dispatch Restrictions
 
 * MAY utilize interfaces via static dispatch (generics) or dynamic dispatch (polymorphic parameters and `catch` bindings).
-* MUST permit static dispatch calls for ANY method defined in the Interface.
+* MUST permit static dispatch calls for ANY method or property defined in the Interface.
 * MUST erase the concrete type and memory size at compile time for dynamic dispatch.
 * MUST restrict bare `~Interface` and guarded `~Interface^Guard` types to method parameters (`item: ~Interface` or `ref item: ~Interface`), anonymous function parameters, and `catch` bindings (`catch e: ~Exception`).
 * MUST NOT declare a bare `~Interface` or `~Interface^Guard` type as a structural or variant payload field, tuple element, local variable (outside `catch` arms), `static`/`astatic`/`gstatic` storage, method return type, or collection element type.
 * MUST treat a non-`ref` interface parameter (`item: ~Interface`) as a read-only polymorphic reference:
-  * MAY read interface properties and invoke non-mutating (`@`) interface methods on `item`.
+  * MAY read object-safe interface properties and invoke non-mutating (`@`) object-safe interface methods on `item`.
   * MUST NOT invoke mutating (`ref @`) interface methods on `item`, reassign `item`, or pass `item` as a `ref` argument.
-* MUST treat a `ref` interface parameter (`ref item: ~Interface`) as a mutable polymorphic reference that MAY invoke both non-mutating (`@`) and mutating (`ref @`) interface methods in-place on the caller's instance.
-* MUST permit dynamic dispatch calls ONLY for instance methods that accept `@` or `ref @` and DO NOT return `@` (and do not accept other parameters of type `@`).
-* MUST NOT permit dynamic dispatch calls for static methods or methods that reference the concrete self type (`@`) in parameter or return positions.
+* MUST treat a `ref` interface parameter (`ref item: ~Interface`) as a mutable polymorphic reference that MAY invoke both non-mutating (`@`) and mutating (`ref @`) object-safe interface methods in-place on the caller's instance.
+* MUST permit dynamic dispatch calls ONLY for object-safe interface members:
+  * An interface method is object-safe if and only if it declares an instance receiver (`@` or `ref @`), declares zero method-level generic parameters (`<...>`), and does not reference the self type (`@`) directly or nested within any non-receiver parameter type or return type.
+  * An interface property is object-safe if and only if its declared type does not reference the self type (`@`) directly or nested within a compound type.
+* MUST NOT permit dynamic dispatch calls for:
+  * Static interface methods (methods lacking an `@` or `ref @` receiver),
+  * Generic interface methods (`Method<T>(...)` or `Method<N: Type>(...)`), or
+  * Interface methods or properties that reference `@` anywhere outside the receiver position (including direct `@`, guarded `@^Guard`, optional `@?`, `weak`, `soa`, tuple, collection, or function pointer types containing `@`).
 
 ```scatty
-Duplicate<T: ~Copyable>(item: T) 
+~Equatable 
 {
-    newItem := item.Copy();
+    // Non-object-safe: references '@' in 'other: @' (static dispatch only)
+    Equals(@, other: @) -> Bool;
+
+    // Object-safe: uses polymorphic '~Equatable' instead of '@'
+    IsSame(@, other: ~Equatable) -> Bool;
 }
 
-InspectDynamic(item: ~Equatable) { }
+~Copyable
+{
+    // Non-object-safe: returns '@' (static dispatch only)
+    Copy(@) -> @;
+}
 
-MutateDynamic(ref item: ~Copyable) { }
+~Serializer
+{
+    // Non-object-safe: generic method (static dispatch only)
+    WriteValue<T>(ref @, val: T);
+
+    // Object-safe
+    Flush(ref @);
+}
+
+// Valid: static dispatch via generics permits calling 'Copy' and 'Equals'
+DuplicateIfEqual<T: ~Copyable, ~Equatable>(a: T, b: T) -> T 
+{
+    may a.Equals(b) => return a.Copy();
+    return a;
+}
+
+InspectDynamic(a: ~Equatable, b: ~Equatable, ref s: ~Serializer) 
+{
+    // Valid: 'IsSame' and 'Flush' are object-safe
+    same := a.IsSame(b);
+    s.Flush();
+
+    // ERROR: 'Equals' references '@' in parameter position and cannot be called dynamically
+    badEq := a.Equals(b);
+
+    // ERROR: 'WriteValue<T>' is a generic method and cannot be called dynamically
+    s.WriteValue(42);
+}
 ```
 
 ## Weak Contracts and Interface Type Guards
 
-* MAY declare a method or property contract within an interface as a weak (optional) contract by appending the `?` suffix to its identifier (`Method?(...)` or `Property?: Type;`).
+* MAY declare an object-safe method or property contract within an interface as a weak (optional) contract by appending the `?` suffix to its identifier (`Method?(...)` or `Property?: Type;`).
 * MUST NOT declare the `?` weak contract suffix on methods or properties outside of an `~Interface` declaration.
+* MUST NOT declare the `?` weak contract suffix on a non-object-safe interface member (static methods, generic methods, or members referencing `@` outside the receiver position).
 * MAY omit the implementation of any weak contract member in a concrete `Data` type implementing the interface.
 * MUST omit the `?` suffix when implementing a weak contract member on a concrete `Data` type.
 
