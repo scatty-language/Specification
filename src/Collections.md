@@ -70,19 +70,32 @@ staticSoa: [Entity; 16] soa = { _ = Entity { Id: 0, PosX: 0.0f } };
 
 ## Hashed Collections
 
-* MUST enforce element uniqueness in Hash Sets (`[$: Type]`) using the element's Identity hash.
-* MUST index Hash Maps (`[KeyType: ValueType]`) using the key's Identity hash.
+* MUST require the element type of a Hash Set (`[$: Type]`) and the key type of a Hash Map (`[KeyType: ValueType]`) to satisfy the `~Hashable` interface and support structural equality (`==`).
+* MUST reject at compile time any `[$: Type]` or `[KeyType: ValueType]` instantiation whose element or key type is `T weak` or a `Data` type that does not synthesize `~Hashable` (such as an untagged union `tag none` or a `Data` type with `T weak` fields lacking explicit `equality`-marked fields).
+* MUST compute bucket hashes in `[$: Type]` and `[KeyType: ValueType]` via the `Hash(@) -> Ulong` method of `~Hashable` and resolve key equivalence via the `==` operator.
 * MUST throw an exception (or trigger Abort/Panic in a non-throwing method) upon accessing an unmapped key via the index operator (`map[key]`).
 * MAY use `.At(key)` to safely query a key and return `ValueType?` (`Option::Some` or `Option::None`) without throwing.
 
 ```scatty
-// A hashed set of Strings
+AccountKey 
+{
+    Id: Int equality;
+    Region: String equality;
+    DebugLabel: String;
+}
+
+// A hashed set of 'String's
 activeUsers: [$: String] = [$: String].New();
 activeUsers.Add("Alice");
 
-// A map of Ints keyed by String
-scores: [String: Int] = [String: Int].New();
-scores["Alice"] = 100;
+// A map of 'Int's keyed by a custom Data type using synthesized '~Hashable'
+balances: [AccountKey: Int] = [AccountKey: Int].New();
+key := AccountKey { Id: 10, Region: "EU", DebugLabel: "Primary" };
+balances[key] = 500;
+
+// A map keyed by a fixed-size inline array '[Int; 2]'
+gridWeights: [[Int; 2]: Float] = [[Int; 2]: Float].New();
+gridWeights[{ 0, 1 }] = 1.5f;
 ```
 
 ## Structure of Arrays

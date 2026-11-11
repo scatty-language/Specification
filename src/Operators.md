@@ -49,18 +49,34 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST perform an arithmetic right shift via `bitshr` when applied to signed integer types, preserving the sign bit.
 * MUST perform a logical right shift via `bitshr` when applied to unsigned integer types, shifting zero bits into the most significant positions.
 
-## Identity and Structural Equality
+## Identity, Structural Equality, and Hashing
 
-* MUST compare all structural fields of a `Data` type for `==` and `!=` operations if no fields are marked with the `equality` modifier.
+```scatty
+~Hashable 
+{
+    Hash(@) -> Ulong;
+}
+```
+
+* MUST compare all shared fields, the active discriminant tag, and all payload fields of the active variant of a `Data` type for `==` and `!=` operations if no fields are marked with the `equality` modifier.
 * MUST restrict `==` and `!=` operations to fields marked with the `equality` modifier if one or more fields are marked with `equality`.
 * MUST ignore all fields not marked with `equality` during `==` and `!=` evaluation when at least one `equality` modifier is present in the `Data` declaration.
 * MAY apply the `equality` modifier to variant payload fields.
-* MUST compare both the active variant tag and the variant payload when evaluating equality on a variant field marked with `equality`.
+* MUST compare both the active discriminant tag and the `equality`-marked payload fields of the active variant when evaluating equality on a `Data` type with variant payload fields marked with `equality`.
 * MUST NOT apply the `equality` modifier to a `T weak` field.
 * MUST NOT implicitly generate `==` and `!=` operations for a `Data` type containing one or more `T weak` fields unless at least one non-weak field is explicitly marked with the `equality` modifier.
-* MUST evaluate `==` and `!=` between two `T weak` expressions by comparing their trivial fields (or `equality`-marked fields) and comparing the ARC Control Block identity of each underlying Owning Type pointer without dereferencing target payloads (`true` if both are live and reference the exact same ARC Control Block allocations with matching trivial fields, or if both are in a disposed/`none` state, and `false` otherwise).
+* MUST evaluate `==` and `!=` between two standalone `T weak` expressions by comparing their trivial fields (or `equality`-marked fields) and comparing the ARC Control Block identity of each underlying Owning Type pointer without dereferencing target payloads (`true` if both are live and reference the exact same ARC Control Block allocations with matching trivial fields, or if both are in a disposed/`none` state, and `false` otherwise).
 * MUST NOT apply the `equality` modifier to variant payload fields of an untagged union (`tag none`).
 * MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equality` modifier.
+* MUST provide intrinsic implementations of the standard library `~Hashable` interface (`Hash(@) -> Ulong`) for all primitive types, function pointers (`fn`), tuples whose element types all satisfy `~Hashable`, and collections whose element, key, and value types all satisfy `~Hashable`.
+* MUST automatically synthesize a compile-time `~Hashable` implementation for any `Data` type that supports `==` and whose equality-participating fields all satisfy `~Hashable`.
+* MUST compute the synthesized `Hash(@) -> Ulong` value of a `Data` instance exclusively from the exact same fields (and active discriminant tag and variant payload fields) evaluated by its `==` operator, guaranteeing that `a == b` implies `a.Hash() == b.Hash()`.
+* MUST NOT manually implement or override `~Hashable` or `Hash(@) -> Ulong` on any user-defined `Data` type or extension block.
+* MUST canonicalize floating-point values (`Float` and `Double`) during `Hash(@) -> Ulong` evaluation by mapping `-0.0` and `+0.0` to an identical bit representation and mapping all `NaN` bit patterns to a single canonical `NaN` representation.
+* MUST compute `Hash(@) -> Ulong` on a function pointer (`fn`) from its raw code address.
+* MUST compute `Hash(@) -> Ulong` on ordered collections (`[T]`, `[T; N]`, `Array<T>`, `[K -> V]`, and their `soa` counterparts) sequentially across all elements in index order.
+* MUST compute `Hash(@) -> Ulong` on unordered hashed collections (`[$: T]` and `[K: V]`) using a commutative (order-independent) hash aggregation across all elements or key-value pairs.
+* MUST NOT synthesize or implement `~Hashable` for a standalone `T weak` type, an untagged union (`tag none`) lacking `equality`-marked shared fields, or a `Data` type containing `T weak` fields without at least one explicit `equality`-marked field.
 
 ```scatty
 User 
@@ -73,7 +89,8 @@ User
 userA := User { Id: 1, Role: "Admin", Status: .Active };
 userB := User { Id: 1, Role: "Guest", Status: .Active };
 
-isEqual := userA == userB;
+isEqual := userA == userB;           // true
+sameHash := userA.Hash() == userB.Hash(); // true
 ```
 
 ## Mathematical Operations
@@ -114,10 +131,10 @@ result := t1 + t2;
 
 ## Embedded Field Operator Delegation
 
-* MUST delegate `==` and `!=` operators to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type defines equality operators.
+* MUST delegate `==`, `!=`, and `~Hashable` (`Hash(@) -> Ulong`) to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type supports equality and `~Hashable`.
 * MUST delegate arithmetic operators to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type defines arithmetic operators.
-* MUST shadow and override embedded field operators if the parent type explicitly declares any `equality` or `math` fields.
-* MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators and the parent type does not explicitly shadow them.
+* MUST shadow and override embedded field operators and `~Hashable` delegation if the parent type explicitly declares any `equality` or `math` fields.
+* MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators or `~Hashable` implementations and the parent type does not explicitly shadow them.
 
 ```scatty
 PhysicsData 
