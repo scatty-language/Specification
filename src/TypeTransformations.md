@@ -1,6 +1,8 @@
 # Type Transformations
 
 * MUST implement the standard library `~Castable<T>` interface on a user-defined `Data` type to support custom type transformations via the `as`, `as?`, and `as!` operators.
+* MAY implement multiple specializations of `~Castable<T>` on the same `Data` type, declaring a corresponding `Cast(@) -> T` or `Cast(@) throws -> T` method for each target type `T`.
+* MUST NOT specify a guarded type (`Target^Guard`) as the type argument `T` when implementing `~Castable<T>`.
 * MUST NOT apply the `assume` operator to any `~Castable<T>` transformation.
 
 ```scatty
@@ -33,61 +35,33 @@
 ## Chained Type Guard Transformations
 
 * MAY apply `as`, `as?`, or `as!` to transform a source type directly into a guarded target type (`Source as Target^Guard`) if the source type implements `~Castable<Target>`.
-* MUST execute the `~Castable<Target>` transformation prior to evaluating the `^Guard` invariant.
+* MUST execute the `~Castable<Target>` transformation to obtain the unguarded `Target` value prior to evaluating the `^Guard` invariant.
 
 ```scatty
-Vector : ~Castable<Point> 
-{
-    X: Int;
-    Y: Int;
+^Positive = Int must @ > 0;
 
-    // Infallible implementation (omits 'throws')
-    Cast(@) -> Point 
-    {
-        return Point { X: @.X, Y: @.Y };
-    }
+// ERROR: Cannot implement '~Castable<T>' for a guarded target type 'Int^Positive'
+BadCaster : ~Castable<Int^Positive> 
+{
+    Cast(@) -> Int^Positive => 1 as ^;
 }
 
-vec := Vector { X: 10, Y: 20 };
-
-// Allocates a new 'Point' instance
-point := vec as Point; 
-
-// ERROR: Statically known infallible conversions do not support 'as?' or 'as!'
-bad := vec as? Point; 
-
-Record : ~Castable<User> 
+Metric : ~Castable<Int>, ~Castable<Float> 
 {
-    RawId: String;
+    Raw: String;
 
-    // Fallible implementation (retains 'throws')
-    Cast(@) throws -> User 
-    {
-        may @.RawId == "" => throw Exception.New("Empty ID");
-        
-        parsedId := @.RawId as! Int; 
-        
-        return User { Id: parsedId };
-    }
+    // Fallible conversion to 'Int'
+    Cast(@) throws -> Int => @.Raw as Int;
+
+    // Infallible conversion to 'Float'
+    Cast(@) -> Float => 0.0f;
 }
 
-record := Record { RawId: "123" };
+metric := Metric { Raw: "42" };
 
-// Fallible 'as' acts as a throws expression
-ProcessRecord() throws 
-{
-    user := record as User; 
-}
+// Resolves 'Cast(@) -> Float' (infallible)
+f := metric as Float;
 
-// Safe inline unpacking using 'as?'
-may user := record as? User 
-{
-    Console.WriteLine(user.Id);
-}
-
-// Forced transformation using 'as!'
-validUser := record as! User; // Aborts/Panics immediately if 'RawId' is invalid
-
-// Chained transformation and type guard validation
-validId := "42" as? Int^Positive;
+// Resolves 'Cast(@) throws -> Int' followed by '^Positive' guard validation
+validId := metric as? Int^Positive;
 ```

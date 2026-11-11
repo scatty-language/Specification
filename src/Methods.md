@@ -381,15 +381,17 @@ validator: fn(Some^Valid) = Some.Process;
 * MUST distinguish overloaded methods by:
   * The count of required parameters,
   * The positional types of the parameters,
-  * The presence or absence of the `ref` modifier on non-receiver parameters, or
-  * Distinct receiver type constraints (`@::VariantA` versus `@::VariantB`, or `@^Guard` versus `@`).
+  * The presence or absence of the `ref` modifier on non-receiver parameters,
+  * Distinct receiver type constraints (`@::VariantA` versus `@::VariantB`, or `@^Guard` versus `@`), or
+  * Distinct return types (`-> ReturnType`) if and only if each overloaded method satisfies a contract method of a distinct specialization of a generic interface implemented by the enclosing `Data` type.
 * MUST NOT overload methods that differ solely by:
   * Receiver mutability (`@` versus `ref @` on the identical receiver type) or instance versus static without a distinct parameter signature,
-  * Return type (`-> ReturnType`),
+  * Return type (`-> ReturnType`) on methods that do not satisfy distinct specializations of a generic interface,
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
-  * Method modifiers (`throws` or `unsafe`).
-* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures collide when default parameters or empty slice parameter (`T...`) arguments are omitted.
-* MUST NOT overload a method solely by replacing a read-only slice parameter (`[T..]`) with a slice parameter (`T...`) at the same parameter position.* MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
+  * Method modifiers (`throws` or `unsafe`) when the parameter signature and return type are identical.
+* MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures (and return types, for generic interface specializations) collide when default parameters or empty slice parameter (`T...`) arguments are omitted.
+* MUST NOT overload a method solely by replacing a read-only slice parameter (`[T..]`) with a slice parameter (`T...`) at the same parameter position.
+* MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).
 * MAY implement multiple specializations of a generic interface on the same `Data` type, resolving invocations via standard Overload Resolution rules.
 
 ```scatty
@@ -399,6 +401,10 @@ Processor
     Execute(val: Int) { }
     Execute(ref val: Int) { }
     Execute(val: String) { }
+
+    // ERROR: Cannot overload regular methods solely on return type
+    GetValue(@) -> Int => 1;
+    GetValue(@) -> String => "one";
 
     // ERROR: Cannot overload solely on '@' vs 'ref @' receiver
     Reset(@) { }
@@ -414,6 +420,15 @@ Processor
     Log(items: [Int..]) { }
     Log(items: Int...) { }
 }
+
+// Valid: return-type overloading satisfying distinct generic interface specializations
+Scalar : ~Castable<Int>, ~Castable<Float>
+{
+    Raw: Int;
+
+    Cast(@) -> Int => @.Raw;
+    Cast(@) -> Float => @.Raw as Float;
+}
 ```
 
 ### Overload Resolution Priority
@@ -425,9 +440,10 @@ Processor
   3. Constrained Generic or Guarded Constant Match: The argument matches a generic type parameter constrained by one or more interfaces (`T: ~Interface`) or a constant generic parameter constrained by a type guard (`N: Int^Positive`).
   4. Unconstrained Generic or Unconstrained Constant Match: The argument matches an unconstrained generic type parameter (`T`) or an unconstrained constant generic parameter (`N: Int`).
   5. Slice Parameter Match: Trailing positional arguments are packed into a slice parameter (`T...`).
-* MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments.
-* MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types of the target `fn` type.
 * MUST apply the same specificity hierarchy to the receiver type when resolving overloaded instance methods (an expression of type `Type^Guard` or `Data::Variant` matches a constrained receiver `@^Guard` or `@::Variant` at Priority 1 over an unconstrained receiver `@` at Priority 2).
+* MUST disambiguate candidate overloads that remain tied at the highest parameter and receiver specificity rank and differ by return type (`-> ReturnType`) using the statically known expected return type from the call-site context (including the target type of `as`, `as?`, and `as!` operators, explicit type annotations, or the return type of a target `fn` type).
+* MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments and cannot be uniquely disambiguated by a statically known expected return type.
+* MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types and return type of the target `fn` type.
 * MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` type annotation.
 
 ```scatty
@@ -452,4 +468,9 @@ Validator.Check("Hi");  // Calls 'Check<T>(val: T)' (Generic Match)
 
 // Disambiguates overloaded method via explicit 'fn' type
 intChecker: fn(Int) = Validator.Check;
+
+s := Scalar { Raw: 42 };
+asInt := s as Int;          // Disambiguated by 'as Int' -> calls 'Cast(@) -> Int'
+asFloat: Float = s.Cast();  // Disambiguated by expected type 'Float' -> calls 'Cast(@) -> Float'
+bad := s.Cast();            // ERROR: Ambiguous overload in inferred ':=' context without expected return type
 ```
