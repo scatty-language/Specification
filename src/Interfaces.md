@@ -73,14 +73,14 @@ Entity : ~Vectorable
 
 * MUST resolve the receiver within an Interface declaration to the concrete implementing type, not the interface type.
 * MUST return an instance of the exact concrete type if a method signature declares a return type of `-> @`.
-* MUST explicitly type parameters as the interface to interact polymorphically with any type implementing the interface.
+* MUST explicitly type parameters as the interface (`other: ~Interface` or `ref other: ~Interface`) to interact polymorphically with any type implementing the interface.
 
 ```scatty
 ~Equatable 
 {
     Equals(@, other: @) -> Bool;
 
-    IsSame(@, ref other: ~Equatable) -> Bool;
+    IsSame(@, other: ~Equatable) -> Bool;
 }
 
 ~Copyable
@@ -91,11 +91,17 @@ Entity : ~Vectorable
 
 ## Object Safety and Dispatch Restrictions
 
-* MAY utilize interfaces via static dispatch (generics) or dynamic dispatch (references or containers).
+* MAY utilize interfaces via static dispatch (generics) or dynamic dispatch (polymorphic parameters and `catch` bindings).
 * MUST permit static dispatch calls for ANY method defined in the Interface.
 * MUST erase the concrete type and memory size at compile time for dynamic dispatch.
-* MUST permit dynamic dispatch calls ONLY for methods that accept `@` or `ref @` and DO NOT return `@`.
-* MUST NOT permit dynamic dispatch calls for methods that return the concrete type (`@`).
+* MUST restrict bare `~Interface` and guarded `~Interface^Guard` types to method parameters (`item: ~Interface` or `ref item: ~Interface`), anonymous function parameters, and `catch` bindings (`catch e: ~Exception`).
+* MUST NOT declare a bare `~Interface` or `~Interface^Guard` type as a structural or variant payload field, tuple element, local variable (outside `catch` arms), `static`/`astatic`/`gstatic` storage, method return type, or collection element type.
+* MUST treat a non-`ref` interface parameter (`item: ~Interface`) as a read-only polymorphic reference:
+  * MAY read interface properties and invoke non-mutating (`@`) interface methods on `item`.
+  * MUST NOT invoke mutating (`ref @`) interface methods on `item`, reassign `item`, or pass `item` as a `ref` argument.
+* MUST treat a `ref` interface parameter (`ref item: ~Interface`) as a mutable polymorphic reference that MAY invoke both non-mutating (`@`) and mutating (`ref @`) interface methods in-place on the caller's instance.
+* MUST permit dynamic dispatch calls ONLY for instance methods that accept `@` or `ref @` and DO NOT return `@` (and do not accept other parameters of type `@`).
+* MUST NOT permit dynamic dispatch calls for static methods or methods that reference the concrete self type (`@`) in parameter or return positions.
 
 ```scatty
 Duplicate<T: ~Copyable>(item: T) 
@@ -103,7 +109,9 @@ Duplicate<T: ~Copyable>(item: T)
     newItem := item.Copy();
 }
 
-ProcessDynamic(ref item: ~Copyable) { }
+InspectDynamic(item: ~Equatable) { }
+
+MutateDynamic(ref item: ~Copyable) { }
 ```
 
 ## Weak Contracts and Interface Type Guards
@@ -122,7 +130,7 @@ ProcessDynamic(ref item: ~Copyable) { }
 ### Dynamic Resolution and Type Guards
 
 * MUST represent an unimplemented weak contract member as a null slot (`0x0`) within the interface's virtual method table (`vtable`) during dynamic dispatch.
-* MUST NOT invoke or read an unverified weak contract member directly (`box.Method()` or `box.Property`) on an unguarded dynamic interface container (`Box<~Interface>`), an interface reference (`ref item: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
+* MUST NOT invoke or read an unverified weak contract member directly (`item.Method()` or `item.Property`) on an unguarded polymorphic interface parameter (`item: ~Interface` or `ref item: ~Interface`), a `catch` binding (`catch e: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
 * MAY verify the presence of a weak contract member at runtime using the `is` operator (`must item is .Method` or `must item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch.
 * MAY declare type guards over an interface (`^Guard = ~Interface must @ is .Member` or `^Guard = @ must @ is .Member`) at the file's top level.
 * MAY invoke a weak contract member conditionally using the `?` suffix (`item.Method?(args)` or `item.Property?`):
@@ -153,16 +161,21 @@ ReadOnlyMemoryStream : ~Stream
     Read(ref @, buffer: [ref Byte..]) throws -> Int => 0;
 }
 
-ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<~Stream^Writable>) throws 
+ProcessStreams(
+    ro: ReadOnlyMemoryStream,
+    infoStream: ~Stream,
+    ref dynStream: ~Stream,
+    ref writable: ~Stream^Writable
+) throws 
 {
     // 1. Concrete type: statically known at compile time
     len := ro.Length; // Valid: 'Length' is implemented on 'ReadOnlyMemoryStream'
     ro.Write(buffer); // ERROR: 'Write' is not implemented on 'ReadOnlyMemoryStream'
 
-    // 2. Guarded interface: guaranteed to implement 'Write'
+    // 2. Guarded mutable interface parameter: guaranteed to implement 'Write'
     writable.Write(buffer);
 
-    // 3. Unguarded dynamic interface: verified via 'is'
+    // 3. Unguarded dynamic interface parameter: verified via 'is'
     may dynStream is .Write 
     {
         dynStream.Write(buffer);
@@ -173,9 +186,10 @@ ProcessStreams(ro: ReadOnlyMemoryStream, dynStream: Box<~Stream>, writable: Box<
         dynStream.Seek(0);
     }
 
-    // 4. Direct optional '?' and forced '!' calls on dynamic interface
-    dynStream.Write?(buffer);          // No-op if 'Write' is not implemented
-    maybeLen: Long? = dynStream.Length?; // Evaluates to 'Option::None' if unimplemented
-    dynStream.Write!(buffer);          // Aborts/Panics if 'Write' is not implemented
+    // 4. Direct optional '?' and forced '!' calls on dynamic interface parameters
+    maybeLen: Long? = infoStream.Length?; // Read-only parameter; evaluates to 'Option::None' if unimplemented
+    
+    dynStream.Write?(buffer);             // No-op if 'Write' is not implemented
+    dynStream.Write!(buffer);             // Aborts/Panics if 'Write' is not implemented
 }
 ```

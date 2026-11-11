@@ -48,7 +48,7 @@
 
 ## Dynamic Dispatch and Virtual Method Tables
 
-* MUST represent a polymorphic interface reference (`ref item: ~Interface`, `Box<~Interface>`, or `catch e: ~Exception`) as a 2-word fat pointer (`2 * sizeof Usize`):
+* MUST represent a polymorphic interface reference (`item: ~Interface`, `ref item: ~Interface`, or `catch e: ~Exception`) as a 2-word fat pointer (`2 * sizeof Usize`):
 
 | Offset (bytes) | Field | Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -61,9 +61,11 @@
 | :--- | :--- | :--- | :--- |
 | `0` | `size` | `Usize` | Byte size of `ConcreteType` |
 | `1` | `align` | `Usize` | Byte alignment of `ConcreteType` |
-| `2` | `dispose_fn` | `Usize` | Cleanup function pointer (`0x0` for Trivial Types) |
+| `2` | `dispose_fn` | `Usize` | Pointer to cleanup thunk `fn(ref ConcreteType)` (`0x0` for Trivial Types) |
 | `3..N` | `member_slots` | `Usize` | Function pointers for interface methods and property getters in declaration order |
 
+* MUST set `dispose_fn` to `0x0` if `ConcreteType` is a Trivial Type.
+* MUST populate `dispose_fn` with a compiler-generated cleanup thunk if `ConcreteType` is an Owning Type (`~Disposable`) or an inline `Data` type containing nested Owning Type or `weak` fields; the thunk MUST decrement `strongCount` (or `weakCount`) and invoke `Dispose` where applicable for the instance pointed to by `data_ptr`.
 * MUST populate the corresponding `member_slots` entry with `0x0` if a weak interface contract member (`Method?` or `Property?`) is omitted by `ConcreteType`.
 
 ## Calling Convention
@@ -78,6 +80,7 @@
 * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size exceeds `sizeof Usize` via a hidden read-only pointer in a CPU register.
 * MUST point the hidden read-only pointer directly to the caller's source instance when the argument is an unaliased local binding, or to a caller-allocated temporary stack copy when the argument is an rvalue or requires call-site value materialization.
 * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in a CPU register.
+* MUST pass polymorphic interface parameters (`item: ~Interface` and `ref item: ~Interface`) as a 2-word fat pointer (`data_ptr`, `vtable_ptr`) in two CPU registers, where `data_ptr` points to the read-only source instance (or caller-materialized stack temporary) for `item: ~Interface` and to the mutable target instance for `ref item: ~Interface`.
 
 ### Return Values
 

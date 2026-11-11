@@ -341,9 +341,6 @@ rawBytes: Usize = sizeof Vector;
 // Data wrapping a single 'Array<Char>' Owning Type field: evaluates to pointer size (8 on 64-bit)
 strSlotSize := sizeof String;
 
-// Polymorphic container: evaluates to 2 * sizeof Usize (16 on 64-bit)
-boxSize := sizeof Box<~Printable>;
-
 // ERROR: Cannot apply 'sizeof' to a variable or expression
 v := Vector { X: 1, Y: 2 };
 badSize := sizeof v;
