@@ -202,9 +202,9 @@ playerC := playerA + playerB;
         may res := try? @.Get(key) => return .Some(res);
         return .None;
     }
-
-    ^Mutable = @ must @ is .Set;
 }
+
+^Mutable<TKey, TValue> = ~Indexable<TKey, TValue> must @ is .Set;
 ```
 
 ### Reading by Index
