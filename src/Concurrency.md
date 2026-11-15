@@ -109,11 +109,11 @@ results: [Int] = concurrent
 ## Rollback Blocks
 
 * MAY attach a `rollback` block to a `spawn` statement.
-* MUST execute a `rollback` block if and only if its associated `spawn` task completed successfully and the enclosing `concurrent` scope subsequently entered a `Cancelled` state.
+* MUST execute a `rollback` block if and only if its associated `spawn` task completed normally (without throwing an unhandled exception) and the enclosing `concurrent` scope subsequently entered a `Cancelled` state.
 * MUST capture outer variables referenced inside a `rollback` block by value.
-* MAY reference local variables declared at the top-level scope of the associated `spawn` block (including variables bound via top-level `must` or `must!` gates) within the `rollback` block.
-* MUST preserve by value any top-level `spawn` local variables referenced by the `rollback` block upon successful completion of the `spawn` task.
-* MUST reject compilation if a `rollback` block references a local variable declared in the associated `spawn` block and the `spawn` block contains a `return` statement preceding that variable's declaration.
+* MAY reference local variables declared at the top-level scope of the associated `spawn` block (including variables bound via top-level `must!` gates or `must ... or` gates whose fallback clause unconditionally throws) within the `rollback` block.
+* MUST preserve by value any top-level `spawn` local variables referenced by the `rollback` block upon normal completion of the `spawn` task.
+* MUST reject compilation if a `rollback` block references a local variable declared in the associated `spawn` block and the `spawn` block contains a `return` statement, a standalone `must` gate, or a non-throwing `must ... or` gate preceding or declaring that variable.
 * MUST NOT allow exceptions to escape from a `rollback` block.
 * MUST immediately abort the process if an exception escapes from a `rollback` block.
 * MAY declare a resilience strategy for a `rollback` block using the `by` modifier.
