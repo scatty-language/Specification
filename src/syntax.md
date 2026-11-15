@@ -183,7 +183,7 @@ tuple_type_elem
     ::= [ public_id ":" ] type
 
 method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ "extern" ] [ "throws" ] [ "->" type ]
+    ::= "fn" "(" [ method_type_list ] ")" [ "extern" | "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }

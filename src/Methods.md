@@ -311,6 +311,7 @@ GetIdentity() -> Matrix
 ## `extern` Methods
 
 * MAY declare a method with the `extern` modifier (`Method(...) extern -> ReturnType`).
+* MUST NOT combine the `extern` and `throws` modifiers on the same method declaration.
 * MUST compile a method declared with `extern` using the target platform's native C calling convention instead of the internal `fastcc` calling convention.
 * MUST disable interprocedural register reallocation, parameter reordering, and dead-argument elimination optimizations on methods declared with `extern`.
 * MAY pass and return any valid parameter or return type, including non-`extern` `Data` types, in a method declared with `extern`.
@@ -335,7 +336,8 @@ MathCallbacks
 * MUST match the presence or absence of the `extern` modifier when assigning a method or anonymous function to an `fn` type.
 * MUST NOT assign a non-`extern` method to an `fn(...) extern` pointer, or an `extern` method to a non-`extern` `fn(...)` pointer.
 * MAY infer the `extern` calling convention on an anonymous function when initialized in a context expecting an `fn(...) extern` type.
-* MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType` or `fn(...) extern throws -> ReturnType`).
+* MAY declare the `throws` modifier on a non-`extern` `fn` type (`fn(...) throws -> ReturnType`).
+* MUST NOT combine the `extern` and `throws` modifiers on an `fn` type.
 * MAY assign a non-throwing method or anonymous function to an `fn` type declared with `throws`.
 * MUST NOT assign a `throws` method or throwing anonymous function to an `fn` type that omits `throws`.
 * MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.

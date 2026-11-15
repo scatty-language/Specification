@@ -54,7 +54,7 @@
 
 * MUST omit the Discriminant Tag (`0` bytes) when `tag none` is declared.
 
-### Generalized Niche Optimization for `Option<T>` (`T?`)
+### Generalized Niche Optimization for `Option<T>`
 
 * MUST apply niche optimization to `Option<T>` (`T?`), omitting the separate discriminant tag so that `sizeof T? == sizeof T` and `alignof T? == alignof T`, whenever `T` is a primitive, pointer, or non-`extern` `Data` type whose layout contains at least one field with an invalid bit pattern (niche) at any byte offset:
   1. Non-Null Pointer Niche: If `T` is an Owning Type (`~Disposable`), a function pointer (`fn`), or an inline non-`extern` `Data` type containing an Owning Type or `fn` field at any byte offset, `Option::None` (`none`) MUST be represented by storing `0x0` in the first such pointer slot.
@@ -129,7 +129,8 @@
 ## Exception Propagation ABI
 
 * MUST allocate a 16-byte-aligned, 128-byte exception buffer in Thread-Local Storage (TLS) for each thread.
-* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all methods and `fn` pointers declared with the `throws` modifier:
+* MUST NOT reserve or modify the error indicator register (`swifterror`) in methods or `fn` pointers declared with `extern`.
+* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn` pointers declared with the `throws` modifier:
   * Upon a non-throwing return, the callee MUST set the error indicator register to `0x0` and populate the normal return register or `sret` RVO buffer.
   * Upon executing `throw`, the callee MUST write the exception value bitwise into the 128-byte TLS exception buffer, set the error indicator register to the non-null address of the TLS exception buffer, execute frame-local `undo` and ARC / `~Disposable` cleanup, and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
 
