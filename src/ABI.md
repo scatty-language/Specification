@@ -104,10 +104,21 @@
 ## Calling Convention
 
 * MUST compile all methods (omitting `extern`), virtual table thunks, and stateless function pointers (`fn` omitting `extern`) using the LLVM `fastcc` register-prioritized calling convention.
-* MUST compile all methods declared with `extern` and function pointers declared with `extern` (`fn(...) extern`) using the target platform's native C ABI calling convention (`ccc`).
+* MUST compile methods and function pointers declared with `extern` according to the following hardware calling convention mapping table:
+
+| Modifier | Supported Targets | Target ABI / LLVM Calling Convention |
+| :--- | :--- | :--- |
+| `extern` | All targets | Platform default C calling convention (`ccc` / `cdecl`) |
+| `extern system` | All targets | `x86_stdcallcc` on `windows` + `x86`; `ccc` on all other `(os, arch)` targets |
+| `extern vectorcall` | All targets | `x86_vectorcallcc` on `x86` and `amd64`; `aapcs_vfpcc` on `arm`; native vector-register C ABI (`ccc`) on `arm64`, `riscv64`, and `wasm32` |
+| `extern stdcall` | `x86` only | x86 standard call (`x86_stdcallcc`, callee cleans stack) |
+| `extern fastcall` | `x86` only | x86 fastcall (`x86_fastcallcc`, first two `<= 32-bit` integer/pointer arguments in `ECX`/`EDX`, callee cleans stack) |
+| `extern win64` | `amd64` only | Microsoft x64 calling convention (`win64cc`) |
+| `extern sysv64` | `amd64` only | System V AMD64 ABI calling convention (`x86_64_sysvcc`) |
+
 * MUST disable interprocedural register-allocation, parameter-reordering, and dead-argument-elimination optimizations on methods and `fn` pointers declared with `extern`.
-* MUST represent both standard `fn` and `fn(...) extern` pointers as a single raw code address (`sizeof Usize`) with zero closure environment overhead.
-* MUST map the instance receiver (`@` or `ref @`) to the first parameter slot (index `0`), guaranteeing binary ABI compatibility between instance methods and stateless `fn` pointers whose first parameter matches the receiver type and `extern` qualification.
+* MUST represent both standard `fn` and `fn(...) extern [calling_convention]` pointers as a single raw code address (`sizeof Usize`) with zero closure environment overhead.
+* MUST map the instance receiver (`@` or `ref @`) to the first parameter slot (index `0`), guaranteeing binary ABI compatibility between instance methods and stateless `fn` pointers whose first parameter matches the receiver type and exact `extern` calling convention.
 
 ### Parameter Passing and Return Values
 
@@ -115,10 +126,10 @@
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size is less than or equal to `sizeof Usize` directly by value in CPU registers.
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size exceeds `sizeof Usize` via a hidden read-only pointer in a CPU register, pointing to the caller's source instance when unaliased or to a caller-allocated temporary stack copy when rvalue or call-site value materialization is required.
   * MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers, and values exceeding `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register.
-* For `extern` (`ccc`) methods and `fn(...) extern` pointers:
-  * MUST pass by-value parameters and return values according to the target architecture's native C ABI register classification and stack-passing rules (using caller-allocated temporary copies when call-site value materialization is required).
-  * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in the corresponding C ABI pointer register or stack slot.
-  * MUST pass polymorphic interface parameters (`~Interface`) and slices (`[T..]`, `[ref T..]`) as 2-word structures according to the target platform's native C ABI rules for 2-word aggregates.
+* For `extern` methods and `fn(...) extern [calling_convention]` pointers:
+  * MUST pass by-value parameters and return values according to the resolved hardware calling convention's register classification, Homogeneous Floating-Point / Vector Aggregate (HFA/HVA) rules, and stack-passing rules (using caller-allocated temporary copies when call-site value materialization is required).
+  * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in the corresponding pointer register or stack slot dictated by the resolved `extern` calling convention.
+  * MUST pass polymorphic interface parameters (`~Interface`) and slices (`[T..]`, `[ref T..]`) as 2-word structures according to the resolved `extern` calling convention's rules for 2-word aggregates.
 
 ### Return Values
 

@@ -132,7 +132,18 @@ body
     ::= block | "=>" expression ";"
 
 method_modifier
-    ::= "throws" | "unsafe" | "extern"
+    ::= "throws" | "unsafe" | extern_modifier
+
+extern_modifier
+    ::= "extern" [ calling_convention ]
+
+calling_convention
+    ::= "system"
+      | "stdcall"
+      | "fastcall"
+      | "vectorcall"
+      | "win64"
+      | "sysv64"
 
 property_decl
     ::= type_identifier ":" type ( "=>" expression ";" | block )
@@ -183,7 +194,7 @@ tuple_type_elem
     ::= [ public_id ":" ] type
 
 method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ "extern" | "throws" ] [ "->" type ]
+    ::= "fn" "(" [ method_type_list ] ")" [ extern_modifier | "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }

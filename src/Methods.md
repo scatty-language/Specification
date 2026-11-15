@@ -310,20 +310,39 @@ GetIdentity() -> Matrix
 
 ## `extern` Methods
 
-* MAY declare a method with the `extern` modifier (`Method(...) extern -> ReturnType`).
-* MUST NOT combine the `extern` and `throws` modifiers on the same method declaration.
-* MUST compile a method declared with `extern` using the target platform's native C calling convention instead of the internal `fastcc` calling convention.
+* MAY declare a method with the `extern` modifier (`Method(...) extern [calling_convention] -> ReturnType`).
+* MAY specify an explicit calling convention identifier (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, or `sysv64`) immediately following the `extern` keyword on a method declaration or `fn` type.
+* MUST treat the calling convention identifiers (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, and `sysv64`) as contextual modifiers valid exclusively after `extern` on methods and `fn` types; they MUST NOT be reserved as global keywords.
+* MUST NOT specify a calling convention identifier after `extern` on a `Data` declaration.
+* MUST compile a method declared with an unqualified `extern` modifier using the target platform's default C calling convention (`cdecl` / `ccc`) instead of the internal `fastcc` calling convention.
+* MUST compile a method declared with `extern <calling_convention>` using the specified hardware calling convention defined in the ABI rules.
+* MUST reject `extern stdcall` and `extern fastcall` at compile time when the active target architecture is not `x86`.
+* MUST reject `extern win64` and `extern sysv64` at compile time when the active target architecture is not `amd64`.
+* MUST NOT combine the `extern` modifier (with or without a calling convention specifier) and the `throws` modifier on the same method declaration.
 * MUST disable interprocedural register reallocation, parameter reordering, and dead-argument elimination optimizations on methods declared with `extern`.
 * MAY pass and return any valid parameter or return type, including non-`extern` `Data` types, in a method declared with `extern`.
 
 ```scatty
 MathCallbacks 
 {
+    // Default platform C calling convention ('ccc')
     ComputeDistance(a: Vector, b: Vector) extern -> Float 
     {
         dx := (a.X - b.X) as Float;
         dy := (a.Y - b.Y) as Float;
         return (dx * dx) + (dy * dy);
+    }
+
+    // OS system API calling convention ('stdcall' on 32-bit Windows, 'ccc' elsewhere)
+    WindowProc(hwnd: Usize, msg: Uint, wParam: Usize, lParam: Size) extern system -> Size 
+    {
+        return 0;
+    }
+
+    // SIMD vector register calling convention
+    TransformVector(v: Vector, scale: Float) extern vectorcall -> Vector 
+    {
+        return Vector { X: (v.X as Float * scale) as Int, Y: (v.Y as Float * ale) as Int };
     }
 }
 ```
@@ -332,10 +351,11 @@ MathCallbacks
 
 * MUST represent a function type (`fn`) as a stateless, raw function pointer (`Trivial Type`).
 * MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
-* MAY declare the `extern` modifier on an `fn` type (`fn(...) extern -> ReturnType`) to specify the target platform's native C calling convention.
-* MUST match the presence or absence of the `extern` modifier when assigning a method or anonymous function to an `fn` type.
-* MUST NOT assign a non-`extern` method to an `fn(...) extern` pointer, or an `extern` method to a non-`extern` `fn(...)` pointer.
-* MAY infer the `extern` calling convention on an anonymous function when initialized in a context expecting an `fn(...) extern` type.
+* MAY declare the `extern` modifier with an optional calling convention specifier on an `fn` type (`fn(...) extern [calling_convention] -> ReturnType`).
+* MUST treat `fn(...)` (internal `fastcc`), `fn(...) extern` (default C ABI), and each explicitly specified `fn(...) extern <calling_convention>` (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, `sysv64`) as nominally distinct and mutually incompatible types across all target architectures, even when two conventions lower to the same physical calling convention on the active target.
+* MUST match the exact `extern` qualification and calling convention specifier when assigning a method or `fn` expression to an `fn` type.
+* MUST NOT assign a non-`extern` method to an `fn(...) extern` pointer, an `extern` method to a non-`extern` `fn(...)` pointer, or an `extern` method with one calling convention specifier to an `fn` pointer with a different calling convention specifier (e.g., assigning an `extern` method to an `fn(...) extern system` pointer).
+* MAY infer the exact `extern` calling convention on an anonymous function when initialized in a context expecting an `fn(...) extern [calling_convention]` type.
 * MAY declare the `throws` modifier on a non-`extern` `fn` type (`fn(...) throws -> ReturnType`).
 * MUST NOT combine the `extern` and `throws` modifiers on an `fn` type.
 * MAY assign a non-throwing method or anonymous function to an `fn` type declared with `throws`.
@@ -349,9 +369,19 @@ MathCallbacks
 // Standard 'fastcc' function pointer
 internalOp: fn(Int, Int) -> Int = (a, b) => a + b;
 
-// Native C ABI 'extern' function pointer
+// Default platform C ABI ('ccc') function pointers
 cCallback: fn(Vector, Vector) extern -> Float = MathCallbacks.ComputeDistance;
 cLambda: fn(Int) extern -> Int = x => x * 2;
+
+// OS system ABI ('extern system') function pointers
+wndProc: fn(Usize, Uint, Usize, Size) extern system -> Size = MathCallbacks.WindowProc;
+sysLambda: fn(Uint) extern system -> Int = code => code as Int;
+
+// SIMD 'vectorcall' function pointer
+vecOp: fn(Vector, Float) extern vectorcall -> Vector = MathCallbacks.TransformVector;
+
+// ERROR: Nominal calling convention mismatch ('extern' vs 'extern system')
+badProc: fn(Vector, Vector) extern system -> Float = MathCallbacks.ComputeDistance;
 ```
 
 ### Anonymous Functions
