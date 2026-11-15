@@ -308,17 +308,49 @@ GetIdentity() -> Matrix
 }
 ```
 
+## `extern` Methods
+
+* MAY declare a method with the `extern` modifier (`Method(...) extern -> ReturnType`).
+* MUST compile a method declared with `extern` using the target platform's native C calling convention instead of the internal `fastcc` calling convention.
+* MUST disable interprocedural register reallocation, parameter reordering, and dead-argument elimination optimizations on methods declared with `extern`.
+* MAY pass and return any valid parameter or return type, including non-`extern` `Data` types, in a method declared with `extern`.
+
+```scatty
+MathCallbacks 
+{
+    ComputeDistance(a: Vector, b: Vector) extern -> Float 
+    {
+        dx := (a.X - b.X) as Float;
+        dy := (a.Y - b.Y) as Float;
+        return (dx * dx) + (dy * dy);
+    }
+}
+```
+
 ## Method Type
 
 * MUST represent a function type (`fn`) as a stateless, raw function pointer (`Trivial Type`).
 * MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
-* MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType`).
+* MAY declare the `extern` modifier on an `fn` type (`fn(...) extern -> ReturnType`) to specify the target platform's native C calling convention.
+* MUST match the presence or absence of the `extern` modifier when assigning a method or anonymous function to an `fn` type.
+* MUST NOT assign a non-`extern` method to an `fn(...) extern` pointer, or an `extern` method to a non-`extern` `fn(...)` pointer.
+* MAY infer the `extern` calling convention on an anonymous function when initialized in a context expecting an `fn(...) extern` type.
+* MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType` or `fn(...) extern throws -> ReturnType`).
 * MAY assign a non-throwing method or anonymous function to an `fn` type declared with `throws`.
 * MUST NOT assign a `throws` method or throwing anonymous function to an `fn` type that omits `throws`.
 * MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.
 * MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fn` signature.
 * MUST perform an indirect call when invoking an `fn` pointer.
 * MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
+
+```scatty
+// Standard 'fastcc' function pointer
+internalOp: fn(Int, Int) -> Int = (a, b) => a + b;
+
+// Native C ABI 'extern' function pointer
+cCallback: fn(Vector, Vector) extern -> Float = MathCallbacks.ComputeDistance;
+cLambda: fn(Int) extern -> Int = x => x * 2;
+```
 
 ### Anonymous Functions
 
@@ -388,7 +420,7 @@ validator: fn(Some^Valid) = Some.Process;
   * Receiver mutability (`@` versus `ref @` on the identical receiver type) or instance versus static without a distinct parameter signature,
   * Return type (`-> ReturnType`) on methods that do not satisfy distinct specializations of a generic interface,
   * Parameter identifiers (`(x: Int)` versus `(width: Int)`), or
-  * Method modifiers (`throws` or `unsafe`) when the parameter signature and return type are identical.
+  * Method modifiers (`throws`, `unsafe`, or `extern`) when the parameter signature and return type are identical.
 * MUST reject at declaration time any pair of overloaded methods whose effective parameter signatures (and return types, for generic interface specializations) collide when default parameters or empty slice parameter (`T...`) arguments are omitted.
 * MUST NOT overload a method solely by replacing a read-only slice parameter (`[T..]`) with a slice parameter (`T...`) at the same parameter position.
 * MUST NOT overload a method solely by the presence or absence of the weak interface contract marker (`Method()` versus `Method?()`).

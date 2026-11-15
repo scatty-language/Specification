@@ -3,7 +3,9 @@
 * MUST be declared at the file's top level.
 * MUST evaluate default values prior to initializer execution.
 * MUST determine type equality via structural comparison of fields marked with the `equality` modifier, or all fields if no fields marked with `equality` exist.
-* MUST lay out fields sequentially in memory.
+* MUST automatically reorder physical fields and reuse alignment padding holes in `Data` types that omit the `extern` modifier according to the deterministic ABI layout rules.
+* MUST lay out physical fields sequentially in their exact declaration order when the `extern` modifier is applied to the `Data` declaration.
+* MUST NOT alter the lexical declaration order used for positional initialization when physical fields are reordered in memory.
 * MAY apply memory padding to fields.
 * MUST occupy a minimum of 1 byte.
 
@@ -16,13 +18,19 @@ Vector
 }
 
 Vector(Id: Int equality, X: Int math, Y: Int math = 1);
+
+CPoint(X: Float, Y: Float) extern;
 ```
 
-## Padding and Bitfields
+## `extern` Layout, Padding, and Bitfields
+
+* MAY declare a `Data` type with the `extern` modifier (`Data extern { ... }` or `Data(...) extern;`).
+* MUST disable compiler field reordering, tail-padding reuse, and non-pointer niche optimizations on any `Data` type declared with `extern`.
 
 ### Anonymous Padding Fields
 
-* MAY declare anonymous padding fields using the wildcard (`_`).
+* MAY declare anonymous padding fields using the wildcard (`_`) exclusively within an `extern` `Data` declaration.
+* MUST NOT declare anonymous padding fields (`_`) in a `Data` type that omits the `extern` modifier.
 * MUST NOT be read, mutated, or accessed.
 * MUST NOT be required during structural initialization.
 * MUST NOT declare default values.
@@ -30,13 +38,14 @@ Vector(Id: Int equality, X: Int math, Y: Int math = 1);
 
 ### Bitfields
 
-* MAY define exact field bit-width using the `bitwidth` modifier (`Field: Type bitwidth N;`).
+* MAY define exact field bit-width using the `bitwidth` modifier (`Field: Type bitwidth N;`) exclusively within an `extern` `Data` declaration.
+* MUST NOT declare `bitwidth` fields in a `Data` type that omits the `extern` modifier.
 * MUST pack adjacent bitfields into the smallest contiguous memory boundary.
 * MUST apply only to scalar integer primitives and `Bool` fields.
 * MUST NOT be passed by reference.
 
 ```scatty
-NetworkHeader 
+NetworkHeader extern 
 {
     Version: Byte;
     

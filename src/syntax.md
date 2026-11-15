@@ -16,7 +16,7 @@ top_level_declaration
       | const_decl
 
 data_decl
-    ::= type_identifier  [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ]
+    ::= type_identifier [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ] [ "extern" ]
         ( "{" { member } "}" | "(" [ short_field_list ] ")" ";" )
 
 interfaces
@@ -132,7 +132,7 @@ body
     ::= block | "=>" expression ";"
 
 method_modifier
-    ::= "throws" | "unsafe"
+    ::= "throws" | "unsafe" | "extern"
 
 property_decl
     ::= type_identifier ":" type ( "=>" expression ";" | block )
@@ -183,7 +183,7 @@ tuple_type_elem
     ::= [ public_id ":" ] type
 
 method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ "throws" ] [ "->" type ]
+    ::= "fn" "(" [ method_type_list ] ")" [ "extern" ] [ "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }
@@ -764,7 +764,7 @@ alphanumeric
     ::= uppercase_letter | lowercase_letter | digit
 
 keyword
-    ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
+    ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe" | "extern"
       | "where" | "must" | "may" | "then" | "in" | "by" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"

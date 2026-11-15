@@ -400,7 +400,7 @@ errCodeOffset := offsetof HttpResponse::Error.Code; // Byte offset of 'Code' ins
 * MUST evaluate `tagof` to the declared discriminant tag type of the target `Data` type (`Int` by default, or the explicit scalar integer primitive `T` specified via `tag T`).
 * MUST evaluate `tagof Data::Variant` (and `tagof expr` when `expr` is a compile-time constant or statically narrowed to `Data::Variant`) at compile time as a constant expression yielding that variant's discriminant tag value.
 * MUST read and return the active discriminant tag value at runtime when `tagof` is applied to an unnarrowed runtime instance of a tagged `Data` type.
-* MUST evaluate `tagof` on a pointer-niche-optimized `Option<T>` (`T?`) instance to `0` when the value is `Option::None` and `1` when the value is `Option::Some`.
+* MUST evaluate `tagof` on any niche-optimized `Option<T>` (`T?`) instance to `0` when the value is `Option::None` and `1` when the value is `Option::Some`.
 * MUST reject applying `tagof` to an untagged union (`tag none`), a `Data` type that declares no variants, a primitive type, a tuple, or an `~Interface` at compile time.
 
 ```scatty
