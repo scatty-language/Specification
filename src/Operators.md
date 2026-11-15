@@ -204,7 +204,7 @@ playerC := playerA + playerB;
     }
 }
 
-^Mutable<TKey, TValue> = ~Indexable<TKey, TValue> must @ is .Set;
+^Mutable<TKey, TValue> = ~Indexable<TKey, TValue> where @ is .Set;
 ```
 
 ### Reading by Index
@@ -439,7 +439,7 @@ Cell<T>
     TypeName(@) -> String => nameof @;
 }
 
-^Positive = Int must @ > 0;
+^Positive = Int where @ > 0;
 
 ~Printable 
 {

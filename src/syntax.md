@@ -77,7 +77,7 @@ extension_decl
     ::= type "with" "{" { member } "}"
 
 guard_decl
-    ::= "^" type_identifier [ "<" type_params ">" ] [ ":" parent_list ] "=" target_type "must" expression ";"
+    ::= "^" type_identifier [ "<" type_params ">" ] [ ":" parent_list ] "=" target_type "where" expression ";"
 
 target_type
     ::= "@" | type
@@ -226,6 +226,7 @@ statement
     ::= var_decl
       | const_decl
       | destructure_stmt
+      | where_stmt
       | must_stmt
       | may_stmt
       | stage_expr
@@ -286,6 +287,9 @@ destructure_target
 
 expression_stmt
     ::= expression [ "strict" ] ";"
+
+where_stmt
+    ::= "where" ( condition ";" | condition_block )
 
 must_stmt
     ::= "must" ( condition ";" | condition_block )
@@ -761,7 +765,7 @@ alphanumeric
 
 keyword
     ::= "concurrent" | "spawn" | "rollback" | "throws" | "unsafe"
-      | "must" | "may" | "then" | "in" | "by" | "break" | "continue"
+      | "where" | "must" | "may" | "then" | "in" | "by" | "break" | "continue"
       | "match" | "fall" | "try" | "catch" | "throw" | "undo"
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"

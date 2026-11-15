@@ -44,8 +44,8 @@ data2 := MyData { MyFloat: 0.0, 0, true };
 * MUST confine the use of the `noinit` modifier to within an `unsafe` block or `unsafe` method.
 
 ```scatty
-^NonNegative = Int must @ >= 0;
-^Positive    = Int must @ > 0;
+^NonNegative = Int where @ >= 0;
+^Positive    = Int where @ > 0;
 
 PacketStats 
 {

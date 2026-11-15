@@ -27,8 +27,8 @@ MyData with
     PrintCount(@) => Console.WriteLine(@.Count);
 }
 
-^ValidData = MyData must @.Count > 0;
-^Email = String must @.Contains("@");
+^ValidData = MyData where @.Count > 0;
+^Email = String where @.Contains("@");
 
 String with 
 {

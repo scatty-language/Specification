@@ -4,22 +4,23 @@
 
 * MUST evaluate a `Condition` expression to `Bool`.
 * MUST interpret an unparenthesized `{` token in the header of a `may`, `in`, or `match` construct as the opening delimiter of the construct's body block.
-* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside a `must`, `must!`, `may`, `in`, or `match` header.
+* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside a `where`, `must`, `must!`, `may`, `in`, or `match` header.
 
-### Filter and Guard Gates
+### Guard Gates
 
-* MAY declare a standalone gate (`must Condition;` or `must { Condition; ... }`) inside an `in` pipeline block or inside a method that returns no value (void).
-* MUST immediately skip all subsequent statements in the `in` block for the current element and advance the innermost active stage if any condition in a standalone `must` gate inside an `in` pipeline evaluates to `false` or `Option::None`.
-* MUST immediately return from the enclosing method (`return;`) if any condition in a standalone `must` gate inside a void method (outside an `in` pipeline) evaluates to `false` or `Option::None`.
-* MUST reject a standalone `must` gate lacking an `or` fallback clause inside a value-returning method (outside an `in` pipeline) at compile time.
-* MAY attach an `or` fallback clause to a `must` gate (`must Condition or Fallback;` or `must { Condition; ... } or Fallback;`) in any method or pipeline block.
+* MAY declare a standalone guard gate (`must Condition;` or `must { Condition; ... }`) inside a method, anonymous function, or `spawn` block whose return type is omitted (void), `Bool`, or an Option type (`T?`).
+* MUST immediately exit the enclosing method, anonymous function, or `spawn` block if any condition in a standalone `must` gate evaluates to `false` or `Option::None` (or a disposed `T weak` with `strongCount == 0`):
+  * By returning void (`return;`) when the enclosing callable omits a return type.
+  * By returning `false` (`return false;`) when the enclosing callable's return type is `Bool`.
+  * By returning `Option::None` (`return .None;`) when the enclosing callable's return type is `T?` (`Option<T>`).
+* MUST reject a standalone `must` gate lacking an `or` fallback clause at compile time if the enclosing callable declares a return type other than `Bool` or `T?`, or if the gate is placed directly inside a `concurrent` block outside of a `spawn` block.
+* MAY attach an `or` fallback clause to a `must` gate (`must Condition or Fallback;` or `must { Condition; ... } or Fallback;`) in any method, anonymous function, `spawn` block, or `in` pipeline block.
 * MUST require the `or` fallback clause of a `must` gate to unconditionally exit the enclosing scope via `return`, `throw`, `break`, or `continue`.
-* MUST evaluate multiple conditions inside a `must { ... }` block sequentially from top to bottom and short-circuit immediately upon the first condition that evaluates to `false` or `Option::None`.
+* MUST evaluate multiple conditions inside a `must { ... }` block sequentially from top to bottom and short-circuit immediately upon the first condition that evaluates to `false` or `Option::None` (or a disposed `T weak` with `strongCount == 0`).
 * MUST bring all local identifiers bound via `:=` and all type narrowings proven via `is` within a `must` gate into the enclosing lexical scope for all subsequent statements below the gate.
 
 ```scatty
-// 1. Standalone 'must' gate in a void method:
-// Automatically returns if 'user' is None or inactive
+// 1. Standalone 'must' gate in a void method (returns void on failure)
 SendNotification(userId: Int) 
 {
     must 
@@ -31,7 +32,33 @@ SendNotification(userId: Int)
     Notify(user);
 }
 
-// 2. 'must ... or' gate in a value-returning method:
+// 2. Standalone 'must' gate in a 'Bool' method (returns 'false' on failure)
+CanPurchase(rawUser: User?, price: Float) -> Bool 
+{
+    must 
+    {
+        user := rawUser;
+        user.IsVerified;
+        user.Balance >= price;
+    }
+
+    return true;
+}
+
+// 3. Standalone 'must' gate in an 'Option<T>' ('T?') method (returns '.None' on failure)
+FindActiveAdmin(userId: Int) -> User? 
+{
+    must 
+    {
+        user := FindUser(userId);
+        user.IsActive;
+        user.Role is .Admin;
+    }
+
+    return .Some(user);
+}
+
+// 4. 'must ... or' gate in a method returning 'Float', and 'where' filter inside 'in'
 ProcessBatch(orders: [Order], userId: Int) -> Float 
 {
     must 
@@ -44,7 +71,7 @@ ProcessBatch(orders: [Order], userId: Int) -> Float
 
     order in orders -> total := 0.0f
     {
-        must 
+        where 
         {
             order is .Paid;
             order.Amount > 0.0f;
@@ -96,7 +123,7 @@ or Console.WriteLine("Not 101");
 
 item in items -> total := 0.0f
 {
-    must item.IsValid;
+    where item.IsValid;
     may item.IsRare => LogRareItem(item);
     must! item.Price >= 0.0f;
 
@@ -109,13 +136,13 @@ item in items -> total := 0.0f
 * MUST evaluate the right-hand expression of a conditional binding (`:=`) to an Option type (`T?`) or a weak reference type (`T weak`).
 * MUST bind the unwrapped payload (or promoted strong reference `T`) to the new local identifier and continue evaluating the condition if the expression evaluates to `Option::Some` (or a live `T weak` with `strongCount > 0`).
 * MUST short-circuit the condition if the expression evaluates to `Option::None` (or a disposed `T weak` with `strongCount == 0`).
-* MAY chain multiple conditional bindings, conditional assignments, and boolean expressions using the `and` operator or across sequential lines inside a `must { ... }` or `must! { ... }` block.
-* MUST bring any local identifier introduced by a conditional binding (`:=`) into scope for all subsequent clauses to its right within an `and` chain, for all subsequent lines within a `must { ... }` or `must! { ... }` block, and:
+* MAY chain multiple conditional bindings, conditional assignments, and boolean expressions using the `and` operator or across sequential lines inside a `where { ... }`, `must { ... }`, or `must! { ... }` block.
+* MUST bring any local identifier introduced by a conditional binding (`:=`) into scope for all subsequent clauses to its right within an `and` chain, for all subsequent lines within a `where { ... }`, `must { ... }`, or `must! { ... }` block, and:
   * within the positive branch of a `may` statement,
   * within the matching arm body of a subjectless `match { ... }` construct, or
-  * within the enclosing lexical scope for all statements following a `must` or `must!` gate.
+  * within the enclosing lexical scope for all statements following a `where`, `must`, or `must!` gate.
 * MUST NOT access a local identifier introduced by a conditional binding inside an `or` fallback branch.
-* MUST NOT declare duplicate local identifiers across multiple conditional bindings within the same condition or `must` block.
+* MUST NOT declare duplicate local identifiers across multiple conditional bindings within the same condition or `where` / `must` / `must!` block.
 * MUST NOT apply the `not` operator to a conditional binding or combine a conditional binding with the boolean `or` operator.
 
 ### Conditional Assignment
@@ -125,7 +152,7 @@ item in items -> total := 0.0f
 * MUST NOT use the `=` assignment operator with non-Option types within a condition clause.
 * MAY use the guarded assignment operator (`=^`) within a condition clause when the left-hand `AssignablePath` resolves to a mutable target of a guarded type (`T^Guard`) and the right-hand expression evaluates to the underlying base type `T`.
 * MUST evaluate `AssignablePath =^ Expression` within a condition clause as `AssignablePath = (Expression) as? T^Guard`.
-* MAY chain conditional assignments with boolean expressions and conditional bindings using `and` or inside a `must { ... }` or `must! { ... }` block.
+* MAY chain conditional assignments with boolean expressions and conditional bindings using `and` or inside a `where { ... }`, `must { ... }`, or `must! { ... }` block.
 * MUST mutate the left-hand target with the unwrapped or validated payload and continue evaluating subsequent clauses if the evaluation yields `Option::Some`.
 * MUST skip the assignment and short-circuit remaining clauses if the evaluation yields `Option::None`.
 * MUST NOT apply the `not` operator to a conditional assignment or combine a conditional assignment with the boolean `or` operator.
@@ -154,12 +181,12 @@ SomeData
 ### Flow-Sensitive Type Narrowing
 
 * MUST implicitly narrow the static type of a local variable, parameter, receiver (`@`), or immutable field path when evaluated with the `is` or `is not` operator against a variant subtype (`.Variant` or `Data::Variant`), a type guard (`^Guard` or `Type^Guard`), a structural pattern (`{ ... }`), a tuple pattern (`( ... )`), or a weak interface member (`.Member`).
-* MUST bring any local identifier (`local_id`) bound within an `expr is Pattern` clause into scope for all subsequent clauses to its right within an `and` chain, for all subsequent lines within a `must { ... }` or `must! { ... }` block, throughout the positive branch of a `may` statement, and for all subsequent statements in the enclosing lexical scope following a `must` or `must!` gate.
+* MUST bring any local identifier (`local_id`) bound within an `expr is Pattern` clause into scope for all subsequent clauses to its right within an `and` chain, for all subsequent lines within a `where { ... }`, `must { ... }`, or `must! { ... }` block, throughout the positive branch of a `may` statement, and for all subsequent statements in the enclosing lexical scope following a `where`, `must`, or `must!` gate.
 * MUST NOT declare local variable bindings inside an `is not` expression or combine a binding `is` expression with the boolean `or` operator.
-* MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses within the same `and` chain or `must { ... }` / `must! { ... }` block, throughout the positive branch of a `may` statement, and to all statements in the enclosing scope following a `must` or `must!` gate.
+* MUST apply positive type narrowing (`expr is Target`) to all subsequent clauses within the same `and` chain or `where { ... }` / `must { ... }` / `must! { ... }` block, throughout the positive branch of a `may` statement, and to all statements in the enclosing scope following a `where`, `must`, or `must!` gate.
 * MUST apply negative type narrowing (`expr is not Target`) to the `or` branch of a `may` statement, refining `expr` to `Target` within the `or` scope.
 * MUST apply type narrowing to all subsequent statements in the enclosing lexical scope whenever a `may` branch testing a negated condition (`may expr is not Target => return;`) unconditionally terminates execution of the current scope via `return`, `throw`, `break`, or `continue`.
-* MUST narrow an expression of a tagged `Data` type to the single remaining variant subtype (`Data::Variant`) in the `or` branch or following an unconditional early-exit branch or `must` gate if all other declared variants of that `Data` type are excluded.
+* MUST narrow an expression of a tagged `Data` type to the single remaining variant subtype (`Data::Variant`) in the `or` branch or following an unconditional early-exit branch or `where` / `must` / `must!` gate if all other declared variants of that `Data` type are excluded.
 * MUST immediately invalidate flow-sensitive type narrowing on a mutable variable or field at the point where it is reassigned, switched via `=::`, or passed as a `ref` argument to a method that may mutate its active variant or violate its type guard invariant.
 
 ## Staged Iteration
@@ -187,10 +214,10 @@ i in 10..0..-1
     Console.WriteLine(i);
 }
 
-// In-place mutation of collection elements
+// In-place mutation of collection elements with 'where' filter
 ref enemy in enemies 
 {
-    must enemy.Hp > 0;
+    where enemy.Hp > 0;
     enemy.Hp -= 10;
 }
 
@@ -204,22 +231,24 @@ in
 
 ### Filter Stages and Flattened Inner Stages
 
-* MAY place one or more filter gates (`must Condition;` or `must { Condition; ... }`) at any point inside an `in` pipeline block.
-* MUST immediately skip all subsequent statements in the `in` block for the current element and advance the innermost active stage if a `must` gate evaluates to `false` or `Option::None`.
-* MUST bring variables bound via `:=` and type narrowings proven via `is` inside a `must` gate into scope for all subsequent statements below that gate within the `in` block.
+* MAY place one or more filter gates (`where Condition;` or `where { Condition; ... }`) at any point inside an `in` pipeline block.
+* MUST NOT use a `where` statement outside the lexical body of an `in` pipeline block or across a nested anonymous function or `spawn` boundary.
+* MUST evaluate multiple conditions inside a `where { ... }` block sequentially from top to bottom and short-circuit immediately upon the first condition that evaluates to `false` or `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST immediately skip all subsequent statements in the `in` block for the current element and advance the innermost active stage if a `where` gate evaluates to `false` or `Option::None` (or a disposed `T weak` with `strongCount == 0`).
+* MUST bring variables bound via `:=` and type narrowings proven via `is` inside a `where` gate into scope for all subsequent statements below that gate within the `in` block.
 * MAY place one or more stage expansion statements (`inner in iterable;`) inside an `in` block to flatten nested collections without nested blocks.
 * MUST iterate over the expanded `iterable` for each upstream element that reaches the `inner in iterable;` stage, bringing `inner` into scope for all subsequent statements in the `in` block.
 
 ```scatty
 dept in company.Departments 
 {
-    must not dept.IsArchived;
+    where not dept.IsArchived;
 
     emp in dept.Employees;
-    must emp.Role is .Engineer;
+    where emp.Role is .Engineer;
 
     task in emp.Tasks;
-    must task.IsOverdue;
+    where task.IsOverdue;
 
     Console.WriteLine("\(dept.Name): \(emp.Name) -> \(task.Title)");
 }
@@ -253,7 +282,7 @@ dept in company.Departments
 // 1. Statement-level pipeline hoisting multiple output bindings into the enclosing scope
 order in orders -> paidCount := 0, totalRevenue := 0.0f, vipOrders := [Int].New()
 {
-    must order is .Paid and order.Amount > 0.0f;
+    where order is .Paid and order.Amount > 0.0f;
 
     net := order.Amount * (1.0f - order.Discount);
     paidCount += 1;
@@ -278,7 +307,7 @@ Console.WriteLine("Loaded \(loadedItems.Count) items (\(currentWeight) kg)");
 // 3. Expression-level pipeline with a single output binding (evaluates to 'Float')
 netTotal := order in orders -> sum := 0.0f 
 {
-    must order is .Paid;
+    where order is .Paid;
     sum += order.Amount;
 };
 
@@ -353,8 +382,8 @@ match (request.Method, user.IsAuthenticated)
 * MUST NOT treat a match arm governed by a `^Guard` pattern, a nested literal or structural field pattern, or an `and` condition as exhaustive coverage for the underlying type or variant; an unguarded fallback arm or `_` wildcard MUST be provided in an exhaustive `match`.
 
 ```scatty
-^ClientError = Int must @ >= 400 and @ < 500;
-^ServerError = Int must @ >= 500 and @ < 600;
+^ClientError = Int where @ >= 400 and @ < 500;
+^ServerError = Int where @ >= 500 and @ < 600;
 
 match statusCode 
 {

@@ -38,7 +38,7 @@ PrinterData<T: ~Printable>
 * MUST reject a positional collection initializer Containing a `_ = expr` wildcard fallback when `N` is not explicitly specified or known from an expected type.
 
 ```scatty
-^Positive = Int must @ > 0;
+^Positive = Int where @ > 0;
 
 Matrix<T, Rows: Int^Positive = 4, Cols: Int^Positive = Rows> 
 {

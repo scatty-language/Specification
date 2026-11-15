@@ -171,8 +171,8 @@ HttpException : ~Exception
     Message: String;
 }
 
-^ClientError = HttpException must @.Code >= 400 and @.Code < 500;
-^ServerError = HttpException must @.Code >= 500 and @.Code < 600;
+^ClientError = HttpException where @.Code >= 400 and @.Code < 500;
+^ServerError = HttpException where @.Code >= 500 and @.Code < 600;
 
 ProcessRequest() throws 
 {

@@ -38,7 +38,7 @@
 * MUST execute the `~Castable<Target>` transformation to obtain the unguarded `Target` value prior to evaluating the `^Guard` invariant.
 
 ```scatty
-^Positive = Int must @ > 0;
+^Positive = Int where @ > 0;
 
 // ERROR: Cannot implement '~Castable<T>' for a guarded target type 'Int^Positive'
 BadCaster : ~Castable<Int^Positive> 

@@ -1,38 +1,38 @@
 # Type Guards
 
-* MUST declare a type guard at the file's top level using the prefix `^` operator (`^Identifier = TargetType must Expression;`).
+* MUST declare a type guard at the file's top level using the prefix `^` operator (`^Identifier = TargetType where Expression;`).
 * MUST NOT declare a type guard within a `Data` declaration, an `~Interface` declaration, or a `with` extension block.
-* MUST evaluate the `must` clause expression to a pure, side-effect-free `Bool`.
+* MUST evaluate the `where` clause expression to a pure, side-effect-free `Bool`.
 * MUST explicitly specify the base type being guarded immediately following the `=` token.
 * MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a type guard declaration.
-* MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `must` expression.
-* MUST evaluate `@` within the `must` expression as the immutable instance receiver.
+* MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `where` expression.
+* MUST evaluate `@` within the `where` expression as the immutable instance receiver.
 * MAY declare explicit generic parameters and assign a type parameter as the `TargetType`.
 * MAY omit the base type and use the contextual guard pattern (`is ^Guard` or `is ^Guard<TypeArgs>`) when the type guard is applicable to the left-hand expression's static type.
 
 ```scatty
-^Positive = @ must @ > 0;
+^Positive = @ where @ > 0;
 
-^PositiveNumber<T: ~INumber> = T must @ > 0;
+^PositiveNumber<T: ~INumber> = T where @ > 0;
 
-^Email = String must @.Contains("@");
+^Email = String where @.Contains("@");
 
-^Writable = ~Stream must @ is .Write;
+^Writable = ~Stream where @ is .Write;
 ```
 
 ## Type Guard Inheritance and Composition
 
-* MAY inherit from other type guards by placing `: ^ParentGuard` prior to the `=` token (`^Identifier : ^Parent = TargetType must Expression;`).
+* MAY inherit from other type guards by placing `: ^ParentGuard` prior to the `=` token (`^Identifier : ^Parent = TargetType where Expression;`).
 * MUST implicitly forward the current type guard's base type to inherited parent type guards.
 * MAY provide explicit generic arguments to parent type guards using `<@>` or concrete type identifiers.
-* MUST evaluate all inherited parent `must` invariants in declaration order prior to evaluating the child type guard's own `must` expression.
+* MUST evaluate all inherited parent `where` invariants in declaration order prior to evaluating the child type guard's own `where` expression.
 
 ```scatty
-^Positive = @ must @ > 0;
+^Positive = @ where @ > 0;
 
-^Big : ^Positive = @ must @ > 1000;
+^Big : ^Positive = @ where @ > 1000;
 
-^Complex : ^Positive, ^AnotherComplex<@> = @ must @ % 2 == 0;
+^Complex : ^Positive, ^AnotherComplex<@> = @ where @ % 2 == 0;
 ```
 
 ## Applying Type Guards
@@ -57,7 +57,7 @@ Account
     Balance: Int;
 }
 
-^Solvent = Account must @.Balance > 0;
+^Solvent = Account where @.Balance > 0;
 
 Account with
 {
@@ -84,7 +84,7 @@ may rawAcc is Account^Solvent
 
 ### Operators
 
-* MUST evaluate the type guard's `must` invariant at compile time whenever the operand of `as`, `as?`, `as!`, or `=^` is a compile-time constant expression:
+* MUST evaluate the type guard's `where` invariant at compile time whenever the operand of `as`, `as?`, `as!`, or `=^` is a compile-time constant expression:
   * If the compile-time evaluation yields `true`, the compiler MUST elide all runtime validation branches.
   * If the compile-time evaluation yields `false`, the compiler MUST reject the expression with a compile-time error (or evaluate `as?` directly to `Option::None`).
 * MUST evaluate the invariant and implicitly narrow the type within conditional branches, `and` condition chains, and subsequent statements following an unconditional early-exit branch when using the `is` and `is not` operators.
@@ -144,18 +144,18 @@ match rawValue as? Int^Positive
 * MUST NOT mutate a direct or nested field or indexed element of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) using standard assignment operators (`instance.Field = val`, `instance.Items[i] = val`).
 * MUST require guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) when mutating any direct or nested field or indexed element of a variable governed by a type guard (`instance.Field =^ val`, `instance.Sub.Field +=^ val`), re-evaluating all enclosing `^Guard` invariants along the mutated path from innermost to outermost after updating the target.
 * MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any direct or nested field or indexed element of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
-* MUST automatically re-evaluate the `must` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`)—along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
+* MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) - along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
   * Invoking any mutating (`ref @`) method on `instance` (or `@`) or on any of its direct or nested fields or indexed elements (e.g., `list.Clear()` on `list: [Int]^NonEmpty`, or `user.Scores.Clear()` on `user: Profile^HasScores`), or
   * Passing `instance` (or `@`) or any of its direct or nested fields or indexed elements as a `ref` argument to any method parameter, regardless of whether the target parameter is typed as an unguarded base type or a guarded type.
-* MUST also re-evaluate the `must` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active exception.
+* MUST also re-evaluate the `where` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active exception.
 * MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` / post-`ref @` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
-  * In Debug mode, the compiler MUST evaluate the governing `must` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
+  * In Debug mode, the compiler MUST evaluate the governing `where` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
   * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
 * MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
 * MUST evaluate the runtime invariant check in both Debug and Release modes when the `strict` modifier is applied, triggering an immediate process Abort or Fatal Panic if the invariant evaluates to `false`.
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
-* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`must`, `must!`, `may`, or `match`).
+* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`where`, `must!`, `may`, or `match`).
 
 ```scatty
 User 
@@ -171,10 +171,10 @@ Range
     Max: Int^Positive;
 }
 
-^Adult      = User must @.Age >= 18;
-^HasScores  = User must @.Scores.Count > 0;
-^NonEmpty   = [Int] must @.Count > 0;
-^ValidRange = Range must @.Min < @.Max;
+^Adult      = User where @.Age >= 18;
+^HasScores  = User where @.Scores.Count > 0;
+^NonEmpty   = [Int] where @.Count > 0;
+^ValidRange = Range where @.Min < @.Max;
 
 ResetUser(ref u: User) 
 {
