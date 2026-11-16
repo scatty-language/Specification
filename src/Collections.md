@@ -3,9 +3,9 @@
 ## Contextual and Indexed Initialization
 
 * MAY omit the explicit `CollectionType` prefix before `{ ... }` when the expected collection type is statically known from context (explicitly typed variable declarations, assignments, method parameters, `return` statements, or structural field initializers).
-* MUST reject an unqualified `{ ... }` collection initializer at compile time if the target type is inferred (`:=`) without an expected collection type context.
+* MUST reject an unqualified `{ ... }` collection initializer at compile time if the target type is inferred (`:=`) without an explicit collection type context.
 * MAY initialize collection elements positionally (`{ expr1, expr2 }`) or by explicit key/index mapping (`{ key = expr }`).
-* MAY provide a wildcard fallback entry (`_ = expr`) to initialize all remaining unmapped indices of an inline fixed-size array (`[T; N]`), a fixed-size heap array (`Array<T>`), or an associated array (`[K -> V]`).
+* MAY provide a wildcard fallback entry (`_ = expr`) to initialize all remaining unmapped indices of an inline fixed-size array (`[T; N]`), a fixed-size heap array (`Array<T>`), or a variant array (`[K -> V]`).
 
 ```scatty
 // Contextual initialization without repeating '[Int]'
@@ -103,7 +103,7 @@ gridWeights[{ 0, 1 }] = 1.5f;
 * MAY apply the postfix `soa` type modifier to any linear collection type (`[Type] soa`, `[Type; N] soa`, or `Array<Type> soa`).
 * MUST intrinsically invert the structural memory layout into parallel contiguous arrays for each field when the `soa` modifier is applied.
 * MUST apply the `soa` modifier ONLY to collections whose element type is a custom `Data` type possessing internal fields.
-* MUST NOT apply the `soa` modifier to non-collection types, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), associated arrays (`[KeyType -> ValueType]`), or collections of scalar primitives or interfaces.
+* MUST NOT apply the `soa` modifier to non-collection types, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), variant arrays (`[KeyType -> ValueType]`), or collections of scalar primitives or interfaces.
 * MUST recursively flatten the base element type, nested embedded fields, structural fields, and array metadata into independent, parallel arrays.
 * MUST allocate `[Type; N] soa` inline on the stack or within an enclosing `Data` layout by embedding a contiguous `[FieldType; N]` array for each flattened field of `Type`.
 
@@ -180,11 +180,11 @@ entity in soaCol
 }
 ```
 
-## Associated Arrays
+## Variant Arrays
 
-* MAY declare a fixed-size associated array keyed by the variants of a `Data` type using `[KeyType -> ValueType]`.
+* MAY declare a fixed-size variant array keyed by the variants of a `Data` type using `[KeyType -> ValueType]`.
 * MUST require `KeyType` to be a tagged `Data` type (not `tag none`) that declares variants without payload fields and declares zero shared instance fields.
-* MUST allocate associated arrays inline on the stack or physically embedded within an enclosing `Data` layout with a fixed capacity equal to the exact count of variants declared in `KeyType`.
+* MUST allocate variant arrays inline on the stack or physically embedded within an enclosing `Data` layout with a fixed capacity equal to the exact count of variants declared in `KeyType`.
 * MUST map each variant of `KeyType` to its 0-based declaration ordinal (`0` through `VariantCount - 1`), regardless of whether `KeyType` declares explicit sparse or negative tag values (`=`).
 * MUST resolve constant variant keys (`.Variant`) to their corresponding 0-based ordinal at compile time with zero runtime lookup overhead.
 * MUST evaluate an index access (`array[key]`) on `[KeyType -> ValueType]` infallibly to `ValueType`.
@@ -226,7 +226,7 @@ or => Console.WriteLine("Green price is not configured");
 * MAY construct a read-only byte slice (`[Char..]`) by applying a range index expression to a `String`, and a read-only rune slice (`[Rune..]`) by applying a range index expression to a `RuneString`.
 * MAY construct a mutable slice (`[ref Type..]`) by applying a `ref` range index expression (`col[ref start..end]`, `col[ref start..]`, `col[ref ..end]`, or `col[ref ..]`) to a mutable lvalue of `[Type]`, `[Type; N]`, `Array<Type>`, `[ref Type..]`, or `RuneString`.
 * MUST NOT construct a mutable byte slice (`[ref Char..]`) from a `String` outside of an `unsafe` block or `unsafe` method.
-* MUST NOT apply range slicing to `soa` collections, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), or associated arrays (`[KeyType -> ValueType]`).
+* MUST NOT apply range slicing to `soa` collections, hashed collections (`[$: Type]`, `[KeyType: ValueType]`), or variant arrays (`[KeyType -> ValueType]`).
 * MUST NOT implicitly convert `[Type]`, `[Type; N]`, `Array<Type>`, `String`, or `RuneString` to `[Type..]` or `[ref Type..]`; an explicit slice expression (`col[..]` or `col[ref ..]`) MUST be used.
 * MAY implicitly downgrade a mutable slice (`[ref Type..]`) to a read-only slice (`[Type..]`).
 

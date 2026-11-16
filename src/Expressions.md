@@ -13,7 +13,7 @@
   * Method, variant payload, and indexer arguments where the target parameter or key type is explicitly known (`Process(.New(1, 1))`, `weights[.Blue]`).
   * Return expressions in methods, anonymous functions, or `spawn` blocks with a known return type (`return .None;`).
   * Structural field initializers and copy-update (`with`) assignments where the target field type is known (`Pos: .Zero`).
-  * Collection and associated array initializer entries where the element, key, or value type is known (`{ .Red = 10 }`).
+  * Collection and variant array initializer entries where the element, key, or value type is known (`{ .Red = 10 }`).
   * Right-hand operands of binary equality (`==`, `!=`) and coalescing (`??`) operators where the left-hand operand's type is statically known (`status == .Active`, `opt ?? .None`).
   * Arms of a `match` expression where the expected result type of the `match` construct is statically known.
 * MUST NOT use the leading-dot syntax in contexts where the target type is inferred (`:=`) without an explicit type expectation.

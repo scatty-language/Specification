@@ -308,6 +308,6 @@ UpdateState() throws
 }
 ```
 
-### Associated Array Cleanup
+### Variant Array Cleanup
 
-* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when an associated array (`[K -> V]`) containing Owning Type elements (or `Option::Some` payloads in `[K -> V?]`) is destroyed.
+* MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when a variant array (`[K -> V]`) containing Owning Type elements (or `Option::Some` payloads in `[K -> V?]`) is destroyed.
