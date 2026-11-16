@@ -57,7 +57,7 @@
 ### Generalized Niche Optimization for `Option<T>`
 
 * MUST apply niche optimization to `Option<T>` (`T?`), omitting the separate discriminant tag so that `sizeof T? == sizeof T` and `alignof T? == alignof T`, whenever `T` is a primitive, pointer, or non-`extern` `Data` type whose layout contains at least one field with an invalid bit pattern (niche) at any byte offset:
-  1. Non-Null Pointer Niche: If `T` is an Owning Type (`~Disposable`), a function pointer (`fn`), or an inline non-`extern` `Data` type containing an Owning Type or `fn` field at any byte offset, `Option::None` (`none`) MUST be represented by storing `0x0` in the first such pointer slot.
+  1. Non-Null Pointer Niche: If `T` is an Owning Type (`~Disposable`), a stack closure (`fn`), a raw function pointer (`fnptr`), or an inline non-`extern` `Data` type containing an Owning Type or `fnptr` field at any byte offset, `Option::None` (`none`) MUST be represented by storing `0x0` in the first non-null pointer slot (`code_ptr` for `fn` and `fnptr`).
   2. Boolean Niche: If `T` is `Bool` or contains a `Bool` field at any byte offset, `Option::None` MUST be represented by storing the byte value `0x02` in that `Bool` slot (`0x00` represents `false` and `0x01` represents `true`).
   3. Rune Niche: If `T` is `Rune` or contains a `Rune` field at any byte offset, `Option::None` MUST be represented by storing `0xFFFFFFFF` in that `Rune` slot.
   4. Discriminant Tag Niche: If `T` is a tagged `Data` type (not `tag none`) whose discriminant tag type has at least one unused representable integer value, `Option::None` MUST be represented by storing the numeric value `MaxVariantTag + 1` (or the lowest unused representable value of the tag type) in `T`'s discriminant tag slot.
@@ -103,8 +103,8 @@
 
 ## Calling Convention
 
-* MUST compile all methods (omitting `extern`), virtual table thunks, and stateless function pointers (`fn` omitting `extern`) using the LLVM `fastcc` register-prioritized calling convention.
-* MUST compile methods and function pointers declared with `extern` according to the following hardware calling convention mapping table:
+* MUST compile all methods (omitting `extern`), virtual table thunks, closure thunks (`fn`), and stateless function pointers (`fnptr` omitting `extern`) using the LLVM `fastcc` register-prioritized calling convention.
+* MUST compile methods and raw function pointers (`fnptr`) declared with `extern` according to the following hardware calling convention mapping table:
 
 | Modifier | Supported Targets | Target ABI / LLVM Calling Convention |
 | :--- | :--- | :--- |
@@ -116,26 +116,41 @@
 | `extern win64` | `amd64` only | Microsoft x64 calling convention (`win64cc`) |
 | `extern sysv64` | `amd64` only | System V AMD64 ABI calling convention (`x86_64_sysvcc`) |
 
-* MUST disable interprocedural register-allocation, parameter-reordering, and dead-argument-elimination optimizations on methods and `fn` pointers declared with `extern`.
-* MUST represent both standard `fn` and `fn(...) extern [calling_convention]` pointers as a single raw code address (`sizeof Usize`) with zero closure environment overhead.
-* MUST map the instance receiver (`@` or `ref @`) to the first parameter slot (index `0`), guaranteeing binary ABI compatibility between instance methods and stateless `fn` pointers whose first parameter matches the receiver type and exact `extern` calling convention.
+* MUST disable interprocedural register-allocation, parameter-reordering, and dead-argument-elimination optimizations on methods and `fnptr` pointers declared with `extern`.
+* MUST map the instance receiver (`@` or `ref @`) to the first parameter slot (index `0`), guaranteeing binary ABI compatibility between unbound instance methods and stateless `fnptr` pointers whose first parameter matches the receiver type and exact `extern` calling convention.
 
 ### Parameter Passing and Return Values
 
-* For non-`extern` (`fastcc`) methods and `fn` pointers:
+* For non-`extern` (`fastcc`) methods, `fn` closures, and `fnptr` pointers:
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size is less than or equal to `sizeof Usize` directly by value in CPU registers.
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size exceeds `sizeof Usize` via a hidden read-only pointer in a CPU register, pointing to the caller's source instance when unaliased or to a caller-allocated temporary stack copy when rvalue or call-site value materialization is required.
+  * MUST pass a stack closure (`fn`) as two pointer-sized words (`env_ptr`, `code_ptr`) in CPU registers.
   * MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers, and values exceeding `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register.
-* For `extern` methods and `fn(...) extern [calling_convention]` pointers:
+* For `extern` methods and `fnptr(...) extern [calling_convention]` pointers:
   * MUST pass by-value parameters and return values according to the resolved hardware calling convention's register classification, Homogeneous Floating-Point / Vector Aggregate (HFA/HVA) rules, and stack-passing rules (using caller-allocated temporary copies when call-site value materialization is required).
   * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in the corresponding pointer register or stack slot dictated by the resolved `extern` calling convention.
-  * MUST pass polymorphic interface parameters (`~Interface`) and slices (`[T..]`, `[ref T..]`) as 2-word structures according to the resolved `extern` calling convention's rules for 2-word aggregates.
+  * MUST pass polymorphic interface parameters (`~Interface`), stack closures (`fn`), and slices (`[T..]`, `[ref T..]`) as 2-word structures according to the resolved `extern` calling convention's rules for 2-word aggregates.
 
 ### Return Values
 
 * MUST NOT allocate a return register for methods that omit the `-> ReturnType` clause.
 * MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers.
 * MUST return values whose byte size exceeds `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register pointing to caller-allocated stack memory.
+
+## Stack Closures and Function Pointers ABI
+
+* MUST represent a raw function pointer (`fnptr`) as a single raw code address (`sizeof Usize`) with alignment equal to `alignof Usize` and zero closure environment overhead.
+* MUST represent a stack closure (`fn`) as a 2-word structure (`2 * sizeof Usize`) with alignment equal to `alignof Usize`:
+
+| Offset (bytes) | Field | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `0` | `env_ptr` | `Usize` | Pointer to the stack-allocated capture environment or bound instance (`0x0` when stateless) |
+| `sizeof Usize` | `code_ptr` | `Usize` | Non-null pointer to the `fastcc` entry function `fnptr(env_ptr: Usize, params...)` |
+
+* MUST invoke an `fn` closure by calling `code_ptr` using `fastcc` with `env_ptr` passed in parameter slot `0` and all explicit closure arguments passed in parameter slots `1..N`.
+* MUST allocate the capture environment record for a capturing anonymous function directly within the enclosing method's stack frame without heap allocation.
+* MUST set `env_ptr` directly to the memory address of `instance` and `code_ptr` directly to the target method's entry point with zero wrapper thunk when constructing an `fn` from a bound instance method (`instance.Method`) whose receiver is `ref @` or an immutable `@` with `sizeof Instance > sizeof Usize`.
+* MUST set `env_ptr` to `0x0` (or the address of `instance` for small by-value `@` receivers with `sizeof Instance <= sizeof Usize`) and `code_ptr` to a compiler-generated stateless forwarding thunk in the read-only code segment when constructing an `fn` from a static method, an `fnptr`, or a bound instance method with a register-passed `@` receiver.
 
 ## Exception Propagation ABI
 

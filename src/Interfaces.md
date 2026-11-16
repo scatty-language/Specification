@@ -106,7 +106,7 @@ Entity : ~Vectorable
 * MUST NOT permit dynamic dispatch calls for:
   * Static interface methods (methods lacking an `@` or `ref @` receiver),
   * Generic interface methods (`Method<T>(...)` or `Method<N: Type>(...)`), or
-  * Interface methods or properties that reference `@` anywhere outside the receiver position (including direct `@`, guarded `@^Guard`, optional `@?`, `weak`, `soa`, tuple, collection, or function pointer types containing `@`).
+  * Interface methods or properties that reference `@` anywhere outside the receiver position (including direct `@`, guarded `@^Guard`, optional `@?`, `weak`, `soa`, tuple, collection, closure (`fn`), or function pointer (`fnptr`) types containing `@`).
 
 ```scatty
 ~Equatable 

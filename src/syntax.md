@@ -152,7 +152,8 @@ type
     ::= primitive_type
       | collection_type
       | tuple_type
-      | method_type
+      | closure_type
+      | function_ptr_type
       | guarded_type
       | option_type
       | weak_type
@@ -167,6 +168,12 @@ weak_type
 
 soa_type
     ::= type "soa"
+
+closure_type
+    ::= "fn" "(" [ method_type_list ] ")" [ "throws" ] [ "->" type ]
+
+function_ptr_type
+    ::= "fnptr" "(" [ method_type_list ] ")" [ extern_modifier | "throws" ] [ "->" type ]
 
 guarded_type
     ::= type "^" type_identifier [ "<" type_args ">" ]
@@ -192,9 +199,6 @@ tuple_type
 
 tuple_type_elem
     ::= [ public_id ":" ] type
-
-method_type
-    ::= "fn" "(" [ method_type_list ] ")" [ extern_modifier | "throws" ] [ "->" type ]
 
 method_type_list
     ::= method_param_type { "," method_param_type }
@@ -781,7 +785,7 @@ keyword
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
       | "equality" | "math" | "tag" | "bitwidth"
-      | "zeroed" | "noinit" | "strict" | "none" | "fn"
+      | "zeroed" | "noinit" | "strict" | "none" | "fn" | "fnptr"
       | "sizeof" | "alignof" | "offsetof" | "nameof" | "tagof"
       | "as" | "assume" | "is" | "and" | "or" | "not"
       | "bitand" | "bitor" | "bitxor" | "bitnot" | "bitshl" | "bitshr"

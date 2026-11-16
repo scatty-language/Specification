@@ -347,96 +347,171 @@ MathCallbacks
 }
 ```
 
-## Method Type
+## Stack Closures
 
-* MUST represent a function type (`fn`) as a stateless, raw function pointer (`Trivial Type`).
-* MUST NOT store captured variables, closures, or instance state within an `fn` pointer.
-* MAY declare the `extern` modifier with an optional calling convention specifier on an `fn` type (`fn(...) extern [calling_convention] -> ReturnType`).
-* MUST treat `fn(...)` (internal `fastcc`), `fn(...) extern` (default C ABI), and each explicitly specified `fn(...) extern <calling_convention>` (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, `sysv64`) as nominally distinct and mutually incompatible types across all target architectures, even when two conventions lower to the same physical calling convention on the active target.
-* MUST match the exact `extern` qualification and calling convention specifier when assigning a method or `fn` expression to an `fn` type.
-* MUST NOT assign a non-`extern` method to an `fn(...) extern` pointer, an `extern` method to a non-`extern` `fn(...)` pointer, or an `extern` method with one calling convention specifier to an `fn` pointer with a different calling convention specifier (e.g., assigning an `extern` method to an `fn(...) extern system` pointer).
-* MAY infer the exact `extern` calling convention on an anonymous function when initialized in a context expecting an `fn(...) extern [calling_convention]` type.
-* MAY declare the `throws` modifier on a non-`extern` `fn` type (`fn(...) throws -> ReturnType`).
-* MUST NOT combine the `extern` and `throws` modifiers on an `fn` type.
-* MAY assign a non-throwing method or anonymous function to an `fn` type declared with `throws`.
-* MUST NOT assign a `throws` method or throwing anonymous function to an `fn` type that omits `throws`.
-* MAY cast instance methods to `fn` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fn` signature.
-* MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fn` signature.
-* MUST perform an indirect call when invoking an `fn` pointer.
-* MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
+* MUST represent a closure type (`fn(...) -> ReturnType`) as a stack-bound, non-escaping 2-word fat pointer (`env_ptr` and `code_ptr`) with zero heap allocation.
+* MUST NOT allocate heap memory or ARC Control Blocks when constructing, copying, or invoking an `fn` closure.
+* MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType`).
+* MUST NOT declare the `extern` modifier or calling convention specifiers on an `fn` type.
+* MAY assign or pass a non-throwing closure, method, or `fnptr` to an `fn` type declared with `throws`.
+* MUST NOT assign or pass a `throws` closure, method, or `fnptr` to an `fn` type that omits `throws`.
+* MAY implicitly convert a non-`extern` stateless function pointer (`fnptr(...) -> ReturnType`), static method (`Type.StaticMethod`), or unbound instance method (`Type.InstanceMethod`, mapping `@` or `ref @` to the first parameter of `fn`) to a compatible `fn` type.
 
-```scatty
-// Standard 'fastcc' function pointer
-internalOp: fn(Int, Int) -> Int = (a, b) => a + b;
+### Anonymous Functions and Variable Capture
 
-// Default platform C ABI ('ccc') function pointers
-cCallback: fn(Vector, Vector) extern -> Float = MathCallbacks.ComputeDistance;
-cLambda: fn(Int) extern -> Int = x => x * 2;
-
-// OS system ABI ('extern system') function pointers
-wndProc: fn(Usize, Uint, Usize, Size) extern system -> Size = MathCallbacks.WindowProc;
-sysLambda: fn(Uint) extern system -> Int = code => code as Int;
-
-// SIMD 'vectorcall' function pointer
-vecOp: fn(Vector, Float) extern vectorcall -> Vector = MathCallbacks.TransformVector;
-
-// ERROR: Nominal calling convention mismatch ('extern' vs 'extern system')
-badProc: fn(Vector, Vector) extern system -> Float = MathCallbacks.ComputeDistance;
-```
-
-### Anonymous Functions
-
-* MUST evaluate every anonymous function expression (`params => body`) to a stateless `fn` pointer.
-* MUST NOT reference or capture local variables, method parameters, or the `@` receiver from enclosing lexical scopes within an anonymous function body.
-* MAY access the anonymous function's own parameters, compile-time constants (`::`), and static members within an anonymous function body.
-* MAY infer parameter types and the return type of an anonymous function when the expected `fn` type is statically known from context.
-* MUST require explicit parameter type annotations on an anonymous function when bound via type inference (`:=`) without an expected `fn` type context.
+* MUST infer the static type of an anonymous function (`params => body`) as an `fn` closure type unless initialized in a context explicitly expecting an `fnptr` type.
+* MAY infer parameter types and the return type of an anonymous function when the expected `fn` or `fnptr` type is statically known from context.
+* MUST require explicit parameter type annotations on an anonymous function when bound via type inference (`:=`) without an expected `fn` or `fnptr` type context.
 * MAY omit parentheses around the parameter identifier if an anonymous function declares a single non-`ref` parameter with an inferred type (`x => x * 2`).
 * MUST require parentheses around the parameter list if the anonymous function declares zero parameters, two or more parameters, a `ref` parameter modifier, or any explicit type annotations.
 * MAY declare an anonymous function body as either a single `Expression` or a `{ ... }` block.
 * MUST implicitly return the evaluated value of a single `Expression` body.
 * MUST require an explicit `return` statement to yield a value from a `{ ... }` block body.
+* MAY reference and capture local variables, method parameters, and the `@` receiver from enclosing lexical scopes within an anonymous function typed as `fn`.
+* MUST capture any outer local variable, parameter, or `@` receiver that is only read within the anonymous function body as a shared read-only borrow in the stack environment without copying memory or incrementing ARC `strongCount`.
+* MUST capture any outer local variable, parameter, or `ref @` receiver that is reassigned, mutated in-place, switched via `=::`, or passed as a `ref` argument within the anonymous function body as an exclusive `ref` borrow in the stack environment.
+* MUST govern all captured bindings according to the lexical liveness rules of the Law of Exclusivity.
 
 ```scatty
-Vector 
+Filter<T>(items: [T..], predicate: fn(T) -> Bool) -> [T] 
 {
-    X: Int;
-    Y: Int;
-
-    // Static method
-    Create() -> Vector => Vector { X: 0, Y: 0 };
-
-    // Instance method
-    Translate(ref @, dx: Int, dy: Int) 
+    item in items -> result := [T].New() 
     {
-        @.X += dx;
-        @.Y += dy;
+        where predicate(item);
+        result.Add(item);
     }
+    return result;
 }
 
-// 1. Pointing to a static method
-factory: fn() -> Vector = Vector.Create;
-
-// 2. Pointing to an instance method ('ref @' maps to 'ref Vector')
-mover: fn(ref Vector, Int, Int) = Vector.Translate;
-
-vec := factory();
-mover(ref vec, 10, 10);
-
-// 3. Stateless anonymous functions coercing to 'fn' pointers
-mathOp: fn(Int, Int) -> Int = (a, b) => a + b;
-doubleOp: fn(Int) -> Int = x => x * 2;
-inferredOp := (a: Int, b: Int) => 
+ForEach<T>(items: [T..], action: fn(T)) 
 {
-    return a + b;
-};
+    item in items => action(item);
+}
 
-// 4. Throwing function pointer
-parser: fn(String) throws -> Int = (raw: String) => raw as Int;
+ProcessScores(scores: [Int..], minScore: Int) 
+{
+    // Read-only stack capture of 'minScore' (zero heap allocation)
+    passed := Filter(scores, s => s >= minScore);
 
-// 5. Constrained receivers mapped to first parameter
-processor: fn(Bill::Init) -> Bill::Closed = Bill.Process;
-validator: fn(Some^Valid) = Some.Process;
+    total := 0;
+    history := [String].New();
+
+    // Mutating stack capture of 'total' and 'history' in-place (strongCount remains 1)
+    ForEach(passed[..], s => 
+    {
+        total += s;
+        history.Add("Score: \(s)");
+    });
+
+    Console.WriteLine("Total: \(total), Entries: \(history.Count)");
+}
+```
+
+### Bound Instance Methods
+
+* MAY construct a stack closure (`fn`) directly from an instance method access (`instance.Method`) without wrapping it in an anonymous function, binding `instance` as the closure's `env_ptr` and matching the remaining method parameters to the `fn` parameter list.
+* MUST treat `instance` as a shared read-only borrow for the duration of the closure's lexical liveness when binding a non-mutating instance method (`@`).
+* MUST require `instance` to be a mutable lvalue and treat `instance` as an exclusive `ref` borrow for the duration of the closure's lexical liveness when binding a mutating instance method (`ref @`).
+* MUST require `instance` to be statically typed or narrowed to `Data::Variant` or `Type^Guard` when binding a method with a constrained receiver (`@::Variant`, `ref @::Variant`, `@^Guard`, or `ref @^Guard`).
+
+```scatty
+Accumulator 
+{
+    Total: Int = 0;
+
+    Add(ref @, value: Int) => @.Total += value;
+    IsAbove(@, value: Int) -> Bool => value > @.Total;
+}
+
+ApplyAll(values: [Int..], callback: fn(Int)) 
+{
+    v in values => callback(v);
+}
+
+acc := Accumulator { Total: 10 };
+nums := [Int] { 5, 15, 25 };
+
+// Binds 'acc.Add' ('ref @') directly as an 'fn(Int)' stack closure
+ApplyAll(nums[..], acc.Add);
+
+// Binds 'acc.IsAbove' ('@') directly as an 'fn(Int) -> Bool' stack closure
+filtered := Filter(nums[..], acc.IsAbove);
+```
+
+### Non-Escaping Restrictions
+
+* MAY declare an `fn` closure type as a method parameter, anonymous function parameter, or local variable.
+* MUST NOT declare an `fn` closure type as:
+  * A structural or variant payload field of a `Data` type,
+  * A tuple element,
+  * A `static`, `astatic`, or `gstatic` variable or field,
+  * A method, anonymous function, or `fnptr` return type (`-> fn(...)`), or
+  * A type argument to a generic `Data` type, collection, or `~Interface`.
+* MUST NOT capture an `fn` variable or parameter into a `spawn` or `rollback` block.
+* MUST NOT reassign a local `fn` variable to a closure or bound method that captures a variable or instance declared in a narrower inner lexical scope than the `fn` variable itself.
+
+```scatty
+// ERROR: 'fn' cannot be returned from a method
+MakeAdder(offset: Int) -> fn(Int) -> Int 
+{
+    return x => x + offset;
+}
+
+// ERROR: Cannot reassign outer 'fn' variable to capture narrower-scoped 'temp'
+outerFn := (x: Int) => x;
+may condition 
+{
+    temp := 42;
+    outerFn = x => x + temp;
+}
+```
+
+## Raw Function Pointers
+
+* MUST represent a raw function pointer type (`fnptr(...) -> ReturnType`) as a stateless, 1-word code address (`sizeof Usize`, `Trivial Type`).
+* MAY store `fnptr` values in `Data` fields, tuples, collections, and `static`, `astatic`, or `gstatic` storage, and return `fnptr` values from methods.
+* MUST NOT store captured variables, closures, or bound instance state within an `fnptr`.
+* MUST reject at compile time any anonymous function initialized as or assigned to an `fnptr` if its body references local variables, parameters, or the `@` receiver from an enclosing lexical scope.
+* MAY access the anonymous function's own parameters, compile-time constants (`::`), and `static`, `astatic`, or `gstatic` members within a stateless anonymous function assigned to an `fnptr`.
+* MAY declare the `extern` modifier with an optional calling convention specifier on an `fnptr` type (`fnptr(...) extern [calling_convention] -> ReturnType`).
+* MUST treat `fnptr(...)` (internal `fastcc`), `fnptr(...) extern` (default C ABI), and each explicitly specified `fnptr(...) extern <calling_convention>` (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, `sysv64`) as nominally distinct and mutually incompatible types across all target architectures, even when two conventions lower to the same physical calling convention on the active target.
+* MUST match the exact `extern` qualification and calling convention specifier when assigning a method or `fnptr` expression to an `fnptr` type.
+* MUST NOT assign a non-`extern` method to an `fnptr(...) extern` pointer, an `extern` method to a non-`extern` `fnptr(...)` pointer, or an `extern` method with one calling convention specifier to an `fnptr` pointer with a different calling convention specifier.
+* MAY infer the exact `extern` calling convention on a stateless anonymous function when initialized in a context expecting an `fnptr(...) extern [calling_convention]` type.
+* MAY declare the `throws` modifier on a non-`extern` `fnptr` type (`fnptr(...) throws -> ReturnType`).
+* MUST NOT combine the `extern` and `throws` modifiers on an `fnptr` type.
+* MAY assign a non-throwing stateless method or anonymous function to an `fnptr` type declared with `throws`.
+* MUST NOT assign a `throws` method or throwing anonymous function to an `fnptr` type that omits `throws`.
+* MAY assign unbound instance methods (`Type.Method`) to `fnptr` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fnptr` signature.
+* MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fnptr` signature.
+* MUST perform an indirect call when invoking an `fnptr` pointer.
+* MAY devirtualize and inline the invocation if the pointer resolves to a known internal function at compile time.
+
+```scatty
+// Standard 'fastcc' stateless function pointer
+internalOp: fnptr(Int, Int) -> Int = (a, b) => a + b;
+
+// Default platform C ABI ('ccc') function pointers
+cCallback: fnptr(Vector, Vector) extern -> Float = MathCallbacks.ComputeDistance;
+cLambda: fnptr(Int) extern -> Int = x => x * 2;
+
+// OS system ABI ('extern system') function pointers
+wndProc: fnptr(Usize, Uint, Usize, Size) extern system -> Size = MathCallbacks.WindowProc;
+sysLambda: fnptr(Uint) extern system -> Int = code => code as Int;
+
+// SIMD 'vectorcall' function pointer
+vecOp: fnptr(Vector, Float) extern vectorcall -> Vector = MathCallbacks.TransformVector;
+
+// Unbound instance method mapped to first parameter of 'fnptr'
+mover: fnptr(ref Vector, Int, Int) = Vector.Translate;
+processor: fnptr(Bill::Init) -> Bill::Closed = Bill.Process;
+
+// ERROR: Nominal calling convention mismatch ('extern' vs 'extern system')
+badProc: fnptr(Vector, Vector) extern system -> Float = MathCallbacks.ComputeDistance;
+
+// ERROR: 'fnptr' cannot capture local variable ' factor'
+factor := 10;
+badPtr: fnptr(Int) -> Int = x => x * factor;
 ```
 
 ## Method Overloading
@@ -505,10 +580,10 @@ Scalar : ~Castable<Int>, ~Castable<Float>
   4. Unconstrained Generic or Unconstrained Constant Match: The argument matches an unconstrained generic type parameter (`T`) or an unconstrained constant generic parameter (`N: Int`).
   5. Slice Parameter Match: Trailing positional arguments are packed into a slice parameter (`T...`).
 * MUST apply the same specificity hierarchy to the receiver type when resolving overloaded instance methods (an expression of type `Type^Guard` or `Data::Variant` matches a constrained receiver `@^Guard` or `@::Variant` at Priority 1 over an unconstrained receiver `@` at Priority 2).
-* MUST disambiguate candidate overloads that remain tied at the highest parameter and receiver specificity rank and differ by return type (`-> ReturnType`) using the statically known expected return type from the call-site context (including the target type of `as`, `as?`, and `as!` operators, explicit type annotations, or the return type of a target `fn` type).
+* MUST disambiguate candidate overloads that remain tied at the highest parameter and receiver specificity rank and differ by return type (`-> ReturnType`) using the statically known expected return type from the call-site context (including the target type of `as`, `as?`, and `as!` operators, explicit type annotations, or the return type of a target `fn` or `fnptr` type).
 * MUST reject the invocation at compile time as ambiguous if two or more candidate overloads remain tied at the highest specificity rank across the supplied arguments and cannot be uniquely disambiguated by a statically known expected return type.
-* MUST resolve an overloaded method reference assigned to a function pointer (`fn`) using the explicit parameter types and return type of the target `fn` type.
-* MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` type annotation.
+* MUST resolve an overloaded method reference assigned to a stack closure (`fn`) or raw function pointer (`fnptr`) using the explicit parameter types and return type of the target `fn` or `fnptr` type.
+* MUST reject assigning an overloaded method identifier to an inferred variable (`:=`) without an explicit `fn` or `fnptr` type annotation.
 
 ```scatty
 Validator 
@@ -530,8 +605,9 @@ Validator.Check(pos);   // Calls 'Check(val: Int^Positive)' (Exact Match)
 Validator.Check(raw);   // Calls 'Check(val: Int)' (Exact Match)
 Validator.Check("Hi");  // Calls 'Check<T>(val: T)' (Generic Match)
 
-// Disambiguates overloaded method via explicit 'fn' type
+// Disambiguates overloaded method via explicit 'fn' or 'fnptr' type
 intChecker: fn(Int) = Validator.Check;
+rawChecker: fnptr(Int) = Validator.Check;
 
 s := Scalar { Raw: 42 };
 asInt := s as Int;          // Disambiguated by 'as Int' -> calls 'Cast(@) -> Int'

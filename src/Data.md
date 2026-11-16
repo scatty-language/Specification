@@ -153,8 +153,8 @@ Option<T>
 * MAY pass an expression statically typed or narrowed to `Data::Variant` as a `ref` argument to a `ref Data` parameter (or invoke an enclosing `ref @` method on it) if and only if the target method is statically known and does not:
   * Apply the `=::` operator to the `ref` binding,
   * Reassign the entire `ref` binding via `=`, or
-  * Forward the `ref` binding to another method or `fn` pointer that may mutate the active variant.
-* MUST reject at compile time passing a `Data::Variant` expression by `ref` to any `ref Data` method that mutates the active variant or to an indirect function pointer (`fn(ref Data)`).
+  * Forward the `ref` binding to another method, `fn` closure, or `fnptr` pointer that may mutate the active variant.
+* MUST reject at compile time passing a `Data::Variant` expression by `ref` to any `ref Data` method that mutates the active variant or to an indirect stack closure (`fn(ref Data)`) or function pointer (`fnptr(ref Data)`).
 
 ```scatty
 Color 

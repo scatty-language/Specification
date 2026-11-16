@@ -68,12 +68,12 @@ may not user.IsBanned and (user.Age > 18 or user.HasConsent)
 * MUST evaluate `==` and `!=` between two standalone `T weak` expressions by comparing their trivial fields (or `equality`-marked fields) and comparing the ARC Control Block identity of each underlying Owning Type pointer without dereferencing target payloads (`true` if both are live and reference the exact same ARC Control Block allocations with matching trivial fields, or if both are in a disposed/`none` state, and `false` otherwise).
 * MUST NOT apply the `equality` modifier to variant payload fields of an untagged union (`tag none`).
 * MUST NOT implicitly generate `==` and `!=` operations for an untagged union (`tag none`) unless at least one shared field declared outside the variants is explicitly marked with the `equality` modifier.
-* MUST provide intrinsic implementations of the standard library `~Hashable` interface (`Hash(@) -> Ulong`) for all primitive types, function pointers (`fn`), tuples whose element types all satisfy `~Hashable`, and collections whose element, key, and value types all satisfy `~Hashable`.
+* MUST provide intrinsic implementations of the standard library `~Hashable` interface (`Hash(@) -> Ulong`) for all primitive types, raw function pointers (`fnptr`), tuples whose element types all satisfy `~Hashable`, and collections whose element, key, and value types all satisfy `~Hashable`.
 * MUST automatically synthesize a compile-time `~Hashable` implementation for any `Data` type that supports `==` and whose equality-participating fields all satisfy `~Hashable`.
 * MUST compute the synthesized `Hash(@) -> Ulong` value of a `Data` instance exclusively from the exact same fields (and active discriminant tag and variant payload fields) evaluated by its `==` operator, guaranteeing that `a == b` implies `a.Hash() == b.Hash()`.
 * MUST NOT manually implement or override `~Hashable` or `Hash(@) -> Ulong` on any user-defined `Data` type or extension block.
 * MUST canonicalize floating-point values (`Float` and `Double`) during `Hash(@) -> Ulong` evaluation by mapping `-0.0` and `+0.0` to an identical bit representation and mapping all `NaN` bit patterns to a single canonical `NaN` representation.
-* MUST compute `Hash(@) -> Ulong` on a function pointer (`fn`) from its raw code address.
+* MUST compute `Hash(@) -> Ulong` on a raw function pointer (`fnptr`) from its raw code address.
 * MUST compute `Hash(@) -> Ulong` on ordered collections (`[T]`, `[T; N]`, `Array<T>`, `[K -> V]`, and their `soa` counterparts) sequentially across all elements in index order.
 * MUST compute `Hash(@) -> Ulong` on unordered hashed collections (`[$: T]` and `[K: V]`) using a commutative (order-independent) hash aggregation across all elements or key-value pairs.
 * MUST NOT synthesize or implement `~Hashable` for a standalone `T weak` type, an untagged union (`tag none`) lacking `equality`-marked shared fields, or a `Data` type containing `T weak` fields without at least one explicit `equality`-marked field.
@@ -344,6 +344,8 @@ result: Int = optInt!.Max(5);
 * MUST evaluate `sizeof` and `alignof` on a variant subtype (`Data::Variant`) or a guarded type (`Type^Guard`) to the exact byte size and byte alignment of the underlying base `Data` type.
 * MUST resolve `sizeof` and `alignof` applied to a generic type parameter (`sizeof T`, `alignof T`) at compile time during monomorphization for each concrete type argument.
 * MUST reject applying `sizeof` or `alignof` directly to a bare `~Interface` type at compile time.
+* MUST evaluate `sizeof` and `alignof` on a raw function pointer (`fnptr`) to `sizeof Usize` and `alignof Usize`.
+* MUST evaluate `sizeof` and `alignof` on a stack closure (`fn`) to `2 * sizeof Usize` and `alignof Usize`.
 
 ```scatty
 Vector(X: Int, Y: Int);

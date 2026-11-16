@@ -35,7 +35,7 @@ data2 := MyData { MyFloat: 0.0, 0, true };
 * MAY omit any field, including those without default values, from the `struct_init_body` when `zeroed` or `noinit` is applied.
 * MUST confine the use of the `zeroed` modifier to within an `unsafe` block or `unsafe` method if any field omitted from the initialization (or any nested element within the recursive memory layout of its shared fields or active variant payload) is:
   * A non-optional Owning Type (`~Disposable`),
-  * A non-optional function pointer (`fn`),
+  * A non-optional function pointer (`fnptr`),
   * A guarded type (`Type^Guard`) whose zero-initialized value does not satisfy the guard's `must` invariant at compile time,
   * A nested tagged `Data` type whose first declared variant has a non-zero discriminant tag (`!= 0`), or
   * A nested variant subtype (`Data::Variant`) whose discriminant tag is non-zero (`!= 0`).
@@ -58,7 +58,7 @@ HttpResponse
 {
     StatusCode: Int;
     RequestUrl: String;
-    Callback: fn(Int);
+    Callback: fnptr(Int);
 }
 
 Account 
@@ -69,7 +69,7 @@ Account
 // Valid in safe code: all fields are Trivial, Option ('None' == 0x0), or satisfied by 0 ('0 >= 0')
 stats := PacketStats { } zeroed;
 
-// ERROR: 'HttpResponse' contains a nested non-optional Owning Type ('Array<Char>' inside 'String') and 'fn' pointer
+// ERROR: 'HttpResponse' contains a nested non-optional Owning Type ('Array<Char>' inside 'String') and 'fnptr' pointer
 badResponse := HttpResponse { } zeroed;
 
 // ERROR: 'Account.Id' has guard '^Positive' which evaluates to false for 0 at compile time

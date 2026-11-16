@@ -137,6 +137,12 @@ ClearList(ref myList);
 * MAY hold multiple read-only slices (`[T..]`) of the same source collection simultaneously.
 * MUST treat an active mutable slice (`[ref T..]`) as an exclusive `ref` borrow of the entire source collection for the duration of the mutable slice's lexical liveness (from slice creation through its final use).
 * MUST NOT read, mutate, reassign, or create another slice from a source collection while a mutable slice (`[ref T..]`) borrowed from it remains live, except through that mutable slice itself.
+* MUST treat a variable, parameter, or `@` receiver captured for read-only access by an active stack closure (`fn`), or an instance bound to an `fn` via a non-mutating method (`instance.Method` with `@`), as a shared read-only borrow for the duration of the closure's lexical liveness (from closure creation through its final invocation or use).
+* MUST NOT mutate, reassign, switch variants on, or take a `ref`, `[ref T..]`, or mutating-closure borrow of a variable while any read-only closure borrowing it remains live.
+* MAY hold multiple read-only closures and read-only slices borrowing the same variable simultaneously, and MAY read the variable directly in the enclosing scope while read-only closures borrowing it remain live.
+* MUST treat a variable, parameter, or `ref @` receiver captured for mutation or `ref` passing by an active stack closure (`fn`), or an instance bound to an `fn` via a mutating method (`instance.Method` with `ref @`), as an exclusive `ref` borrow for the duration of the closure's lexical liveness (from closure creation through its final invocation or use).
+* MUST NOT read, mutate, reassign, or borrow in another closure or slice a variable that is exclusively borrowed by an active mutating closure while that closure remains live, except by invoking that closure itself.
+* MUST NOT pass the same mutating closure (or two closures that exclusively borrow overlapping variables) simultaneously to two or more parameters within the same method invocation.
 
 ```scatty
 Process(ref a: Vector, b: Vector) { }
@@ -185,6 +191,43 @@ mutSlice[0] = 100;
 // ERROR: Cannot read 'nums' directly while 'mutSlice' is still live
 Console.WriteLine(nums[0]);
 mutSlice[1] = 200;
+
+RunTwice(op: fn(Int)) 
+{
+    op(1);
+    op(2);
+}
+
+RunPair(a: fn(Int), b: fn(Int)) 
+{
+    a(1);
+    b(2);
+}
+
+threshold := 10;
+check := (x: Int) => x > threshold;
+
+// Valid: 'threshold' is borrowed read-only by 'check'; reading is permitted
+Console.WriteLine(threshold);
+
+// ERROR: Cannot mutate 'threshold' while 'check' is still used below
+threshold = 20;
+isOk := check(15);
+
+total := 0;
+accumulate := (x: Int) => { total += x; };
+
+RunTwice(accumulate);
+
+// ERROR: Cannot read or mutate 'total' directly while 'accumulate' is still live
+Console.WriteLine(total);
+accumulate(5);
+
+// ERROR: Cannot pass 'accumulate' (which holds an exclusive borrow of 'total') twice in one call
+RunPair(accumulate, accumulate);
+
+// Valid: 'accumulate' is no longer used below this point; 'total' is accessible again
+Console.WriteLine(total); // Output: 8
 ```
 
 ## Resource Cleanup and Disposal
