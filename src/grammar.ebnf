@@ -107,16 +107,16 @@ const_decl
     ::= identifier ":" type "::" expression ";"
 
 var_decl
-    ::= local_id [ ":" type [ static_modifier ] ] ( "=" | "=^" | ":=" ) ( expression | cascade_chain ) [ "strict" ] ";"
+    ::= local_id ( ":=" | ":" type [ static_modifier ] ( "=" | "=^" ) ) ( expression | cascade_chain | stage_expr ) [ "strict" ] ";"
 
 static_modifier
     ::= "static" | "astatic" | "gstatic"
 
 method_decl
-    ::= type_identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver ] [ parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
+    ::= type_identifier [ "?" ] [ "<" type_params ">" ] "(" [ receiver [ "," parameter_list ] | parameter_list ] ")" { method_modifier } [ "->" return_type ] ( body | ";" )
 
 receiver
-    ::= [ "ref" ] "@" [ receiver_constraint ] [ "," ]
+    ::= [ "ref" ] "@" [ receiver_constraint ]
 
 receiver_constraint
     ::= "::" public_id
@@ -267,7 +267,7 @@ continue_stmt
     ::= "continue" ";"
 
 return_stmt
-    ::= "return" [ expression | cascade_chain ] ";"
+    ::= "return" [ expression | cascade_chain | stage_expr ] ";"
 
 cascade_stmt
     ::= [ assignable_path assignment_operator ] cascade_chain [ "strict" ] ";"
@@ -358,8 +358,10 @@ assignable_path
     ::= ( "@" | identifier [ "<" type_args ">" ] ) { "." type_identifier | index_access | force_unwrap }
 
 stage_stmt
-    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] [ "->" stage_output_list ]
-        ( block [ "strict" ";" ] | "=>" statement )
+    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ]
+        ( "->" stage_output_list ( block | "=>" statement )
+        | block [ "strict" ";" ]
+        | "=>" statement )
 
 stage_expr
     ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] "->" stage_output_list block
@@ -372,7 +374,7 @@ stage_output_list
     ::= stage_output { "," stage_output }
 
 stage_output
-    ::= local_id [ ":" type ] ( "=" | "=^" | ":=" ) expression
+    ::= local_id ( ":=" | ":" type ( "=" | "=^" ) ) expression
 
 stage_expand_stmt
     ::= stage_header "in" iterator [ "by" type_identifier ] ";"
@@ -587,14 +589,13 @@ primary_expr
       | contextual_expr
       | lambda_expr
       | match_expr
-      | stage_expr
       | concurrent_expr
       | tuple_expr
       | collection_init
       | struct_init_expr
       | type_qualifier_expr
       | path_expr
-      | "(" expression ")"
+      | "(" ( expression | stage_expr ) ")"
 
 path_expr
     ::= identifier
