@@ -162,6 +162,7 @@ primary_type
       | collection_type
       | tuple_type
       | type_path
+      | "(" type ")"
 
 type_suffix
     ::= "^" type_identifier [ "<" type_args ">" ]
@@ -626,10 +627,10 @@ tuple_expr_elem
 type_qualifier_expr
     ::= primitive_type
       | collection_type [ "soa" ]
-      | "(" ( collection_type | type_path ) "soa" ")"
+      | type_path "soa"
 
 collection_init
-    ::= [ collection_type [ "soa" ] | type_path "soa" ] "{" [ collection_elem_list ] "}" [ init_modifier ]
+    ::= [ ( collection_type | type_path ) [ "soa" ] ] "{" [ collection_elem_list ] "}" [ init_modifier ]
 
 collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]
@@ -759,7 +760,7 @@ raw_string_literal
     ::= '"""' { raw_char } '"""'
 
 raw_char
-    ::= source_char | new_line
+    ::= source_char | new_line (* Any sequence of characters not containing '"""' *)
 
 escape_sequence
     ::= "\" ( simple_escape | numeric_escape )
