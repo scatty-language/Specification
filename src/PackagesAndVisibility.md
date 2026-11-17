@@ -51,7 +51,7 @@ features = ["steam", "telemetry"]
 ### Conditional Scope Narrowing and Coverage
 
 * MUST assign every source file a conditional compilation scope defined by the set of suffix tags in its file name; an unsuffixed `.cat` file possesses the universal (unconstrained) scope.
-* MUST permit a source file with conditional scope `CallerScope` to reference a declaration from a narrower conditional scope `TargetScope` if and only if `CallerScope` includes all suffix constraints of `TargetScope` (e.g., `App.windows.arm64.cat` MAY reference declarations from `App.windows.cat` and `App.cat`).
+* MUST permit a source file with conditional scope `CallerScope` to reference a declaration from a broader or equal conditional scope `TargetScope` if and only if `CallerScope` includes all suffix constraints of `TargetScope` (e.g., `App.windows.arm64.cat` MAY reference declarations from `App.windows.cat` and `App.cat`).
 * MUST permit a broader or universal source file (e.g., `Console.cat`) to reference a conditionally compiled declaration if and only if an identical declaration signature is provided across all branches of the corresponding mutually exclusive target or flag group declared in the package manifest (e.g., implemented in both `Console.windows.cat` and `Console.linux.cat`).
 * MUST reject compilation if a source file in a general or broader scope references a declaration that exists only in a narrower conditional scope without exhaustive coverage across the target group.
 
