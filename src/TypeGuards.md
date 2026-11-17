@@ -125,8 +125,8 @@ ProcessAge((rawValue + 20) as ^);
 
 match rawValue as? Int^Positive 
 {
-    .Some(val) => ProcessAge(val),
-    .None => Console.WriteLine("Invalid!")
+    .Some(val) => ProcessAge(val);
+    .None => Console.WriteLine("Invalid!");
 }
 ```
 

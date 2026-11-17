@@ -19,7 +19,7 @@ StatusMessage
 {
     Message: String embed = "Wow";
     ::Success;
-    ::Error(code: Int);
+    ::Error(Code: Int);
 }
 
 Response 

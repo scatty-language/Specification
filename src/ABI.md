@@ -37,20 +37,20 @@
 
 ## Tagged Unions and Niche Optimization
 
-### Default Tagged `Data` Layout
+### Default Tagged Data Layout
 
 * MUST lay out a tagged `Data` type (`Data` declaring variants without `tag none`) that omits the `extern` modifier as follows:
   1. Variant Payload Union: All declared variant payloads share a single contiguous memory union aligned to the maximum alignment of all declared variant payloads and sized to the maximum byte footprint of all declared variant payloads. Within each individual variant payload, multiple payload fields MUST be ordered using the Default Optimized Layout rules.
   2. Discriminant Tag Placement: If the Shared Fields or trailing padding of the Variant Payload Union contains an unused alignment padding hole across all variants whose size and alignment can accommodate the Discriminant Tag (`Int` by default, or `tag Type`), the compiler MUST place the Discriminant Tag inside the first such padding hole. Otherwise, the compiler MUST treat the Discriminant Tag and the Variant Payload Union as pseudo-fields and order them alongside the Shared Fields by descending alignment (`alignof`).
 
-### Sequential `extern` Tagged `Data` Layout
+### Sequential `extern` Tagged Data Layout
 
 * MUST lay out a tagged `Data` type declared with the `extern` modifier sequentially in three contiguous regions without overlapping or tail-padding reuse:
   1. Shared Fields: All physical instance fields declared outside the variants, placed sequentially in declaration order starting at byte `0`.
   2. Discriminant Tag: The active variant tag (`Int` by default, or the explicit scalar integer type specified via `tag Type`), aligned to the tag type's natural boundary immediately following the Shared Fields.
   3. Variant Payload Union: A single shared memory region aligned to the maximum alignment of all declared variant payloads and sized to the maximum byte footprint of all declared variant payloads, with payload fields inside each variant laid out sequentially in declaration order.
 
-### Untagged Unions (`tag none`)
+### Untagged Unions
 
 * MUST omit the Discriminant Tag (`0` bytes) when `tag none` is declared.
 

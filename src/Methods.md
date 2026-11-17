@@ -311,8 +311,8 @@ GetIdentity() -> Matrix
 ## `extern` Methods
 
 * MAY declare a method with the `extern` modifier (`Method(...) extern [calling_convention] -> ReturnType`).
-* MAY specify an explicit calling convention identifier (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, or `sysv64`) immediately following the `extern` keyword on a method declaration or `fn` type.
-* MUST treat the calling convention identifiers (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, and `sysv64`) as contextual modifiers valid exclusively after `extern` on methods and `fn` types; they MUST NOT be reserved as global keywords.
+* MAY specify an explicit calling convention identifier (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, or `sysv64`) immediately following the `extern` keyword on a method declaration or `fnptr` type.
+* MUST treat the calling convention identifiers (`system`, `stdcall`, `fastcall`, `vectorcall`, `win64`, and `sysv64`) as contextual modifiers valid exclusively after `extern` on methods and `fnptr` types. They MUST NOT be reserved as global keywords.
 * MUST NOT specify a calling convention identifier after `extern` on a `Data` declaration.
 * MUST compile a method declared with an unqualified `extern` modifier using the target platform's default C calling convention (`cdecl` / `ccc`) instead of the internal `fastcc` calling convention.
 * MUST compile a method declared with `extern <calling_convention>` using the specified hardware calling convention defined in the ABI rules.
