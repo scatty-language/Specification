@@ -36,10 +36,10 @@ data2 := MyData { MyFloat: 0.0, 0, true };
 * MUST confine the use of the `zeroed` modifier to within an `unsafe` block or `unsafe` method if any field omitted from the initialization (or any nested element within the recursive memory layout of its shared fields or active variant payload) is:
   * A non-optional Owning Type (`~Disposable`),
   * A non-optional function pointer (`fnptr`),
-  * A guarded type (`Type^Guard`) whose zero-initialized value does not satisfy the guard's `must` invariant at compile time,
+  * A guarded type (`Type^Guard`) whose zero-initialized value does not satisfy the guard's `where` invariant at compile time,
   * A nested tagged `Data` type whose first declared variant has a non-zero discriminant tag (`!= 0`), or
   * A nested variant subtype (`Data::Variant`) whose discriminant tag is non-zero (`!= 0`).
-* MAY apply the `zeroed` modifier in safe code when all omitted fields in the target `Data` type's recursive memory layout are unguarded Trivial Types (with discriminant tag `0` for nested tagged types), Option types (`T?`), weak references (`T weak`), or guarded types (`Type^Guard`) whose `must` invariant evaluates to `true` for a zero-initialized value at compile time.
+* MAY apply the `zeroed` modifier in safe code when all omitted fields in the target `Data` type's recursive memory layout are unguarded Trivial Types (with discriminant tag `0` for nested tagged types), Option types (`T?`), weak references (`T weak`), or guarded types (`Type^Guard`) whose `where` invariant evaluates to `true` for a zero-initialized value at compile time.
 * MUST leave the memory of any omitted field entirely uninitialized (containing arbitrary garbage data) when the `noinit` modifier is applied.
 * MUST confine the use of the `noinit` modifier to within an `unsafe` block or `unsafe` method.
 

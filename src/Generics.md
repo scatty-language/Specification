@@ -26,7 +26,7 @@ PrinterData<T: ~Printable>
 * MAY declare a default compile-time constant expression for a constant generic parameter (`<N: Int = 1>`).
 * MUST evaluate all constant generic arguments at compile time.
 * MAY supply a literal, a compile-time constant (`::`), an in-scope constant generic parameter, or a parenthesized compile-time constant expression (`(N * 2)`) as a constant generic argument.
-* MUST evaluate the governing `must` invariant at compile time when a constant generic parameter is annotated with a type guard (`<N: Int^Positive>`) and reject compilation if the supplied, inferred, or default constant value violates the invariant.
+* MUST evaluate the governing `where` invariant at compile time when a constant generic parameter is annotated with a type guard (`<N: Int^Positive>`) and reject compilation if the supplied, inferred, or default constant value violates the invariant.
 * MUST treat a constant generic parameter within the body of the generic declaration as an immutable compile-time constant (`::`) of its declared type.
 * MUST consider two instantiations of a generic type identical if and only if all type arguments match and all constant generic arguments evaluate to the exact same compile-time values.
 
@@ -35,7 +35,7 @@ PrinterData<T: ~Printable>
 * MAY omit explicit generic arguments when invoking a generic method or instantiating a generic `Data` type if all type and constant generic parameters can be inferred from the call-site arguments or possess default values.
 * MUST automatically infer a constant generic parameter `N` from the static type of a supplied argument (such as passing an expression of type `[Int; 4]` to a parameter of type `[Int; N]`).
 * MUST automatically infer a constant generic parameter `N` from the element count of a positional collection initializer (`{ expr1, expr2, ... }`) passed to a parameter of type `[T; N]`.
-* MUST reject a positional collection initializer Containing a `_ = expr` wildcard fallback when `N` is not explicitly specified or known from an expected type.
+* MUST reject a positional collection initializer сontaining a `_ = expr` wildcard fallback when `N` is not explicitly specified or known from an expected type.
 
 ```scatty
 ^Positive = Int where @ > 0;

@@ -197,7 +197,7 @@ InspectDynamic(a: ~Equatable, b: ~Equatable, ref s: ~Serializer)
 ReadOnlyMemoryStream : ~Stream 
 {
     _data: [Byte];
-    Length: Long => @._data.Length as Long;
+    Length: Long => @._data.Count as Long;
 
     Read(ref @, buffer: [ref Byte..]) throws -> Int => 0;
 }

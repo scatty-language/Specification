@@ -67,9 +67,8 @@ Wrapper<T>
 
 wrapper := Wrapper<Int> { List: [Int].New(), WowCount: 0, ListB: [Int].New() };
 
-wrapper.List.Add(1);
-
-// Calls 'wrapper.List.Add' if unambiguous
+// ERROR: Calls 'wrapper.Add' if unambiguous
+wrapper.Add(1);
 ```
 
 ## Operator Forwarding and Primitive Types

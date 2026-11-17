@@ -76,7 +76,7 @@
 
 * MUST represent a `T weak` variable, parameter, or field where `T` is an Owning Type (`~Disposable`) as a single pointer (`sizeof Usize`) referencing the target's ARC Control Block allocation, or `0x0` when unattached (`none`).
 * MUST lay out any `Data` type that does not implement `~Disposable` inline according to standard `Data` layout rules without an ARC Control Block header, even if it contains Owning Type or `weak` fields.
-* MUST lay out a `T weak` variable, parameter, or field where `T` is a non `~Disposable` `Data` type inline with the exact same byte size and field offsets as `T`, representing each recursively nested Owning Type field as a pointer (`sizeof Usize`) to its respective ARC Control Block allocation (or `0x0` when initialized to `none`).
+* MUST lay out a `T weak` variable, parameter, or field where `T` is a non-`~Disposable` `Data` type inline with the exact same byte size and field offsets as `T`, representing each recursively nested Owning Type field as a pointer (`sizeof Usize`) to its respective ARC Control Block allocation (or `0x0` when initialized to `none`).
 
 ## Dynamic Dispatch and Virtual Method Tables
 
@@ -155,8 +155,8 @@
 ## Exception Propagation ABI
 
 * MUST allocate a 16-byte-aligned, 128-byte exception buffer in Thread-Local Storage (TLS) for each thread.
-* MUST NOT reserve or modify the error indicator register (`swifterror`) in methods or `fn` pointers declared with `extern`.
-* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn` pointers declared with the `throws` modifier:
+* MUST NOT reserve or modify the error indicator register (`swifterror`) in methods or `fnptr` pointers declared with `extern`.
+* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn`/`fnptr` pointers declared with the `throws` modifier:
   * Upon a non-throwing return, the callee MUST set the error indicator register to `0x0` and populate the normal return register or `sret` RVO buffer.
   * Upon executing `throw`, the callee MUST write the exception value bitwise into the 128-byte TLS exception buffer, set the error indicator register to the non-null address of the TLS exception buffer, execute frame-local `undo` and ARC / `~Disposable` cleanup, and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
 
@@ -188,4 +188,4 @@
 | `0` | `data_ptr` | `Usize` | Pointer to the first contiguous `T` element (`0x0` when empty) |
 | `sizeof Usize` | `length` | `Usize` | Element count (zero-extended from `Int`) |
 
-* MUST compile a slice parameter (`local_id: T...`) with the exact same binary parameter signature as `[T..]`, guaranteeing binary ABI compatibility between a method declaring `T...` and a function pointer `fn(..., [T..])`.
+* MUST compile a slice parameter (`local_id: T...`) with the exact same binary parameter signature as `[T..]`, guaranteeing binary ABI compatibility between a method declaring `T...` and a raw function pointer `fnptr(..., [T..])`.

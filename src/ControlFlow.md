@@ -372,7 +372,7 @@ match (request.Method, user.IsAuthenticated)
 ### Type Guard Patterns and `and` Clauses
 
 * MAY specify a type guard pattern (`^Identifier` or `^Identifier<TypeArgs>`) as a match arm pattern or nested sub-pattern when the type guard is applicable to the target type.
-* MUST evaluate the type guard's `must` invariant against the target value at runtime and match if the invariant evaluates to `true`.
+* MUST evaluate the type guard's `where` invariant against the target value at runtime and match if the invariant evaluates to `true`.
 * MUST implicitly refine the static type of the matched expression or field to `BaseType^Guard` within the body of a matching arm.
 * MAY attach an `and Condition` clause to a match arm following its pattern list.
 * MUST evaluate the `and` condition to `Bool`.

@@ -119,7 +119,7 @@ Vector
 ### Constrained Receivers
 
 * MAY constrain an instance receiver to a specific variant subtype (`@::Variant` or `ref @::Variant`) or a type guard (`@^Guard` or `ref @^Guard`).
-* MUST declare a variant-constrained receiver (`@::Variant` or `ref @::Variant`) exclusively within a `Data` type that declares `::Variant` or within a `+Type` extension of that `Data` type.
+* MUST declare a variant-constrained receiver (`@::Variant` or `ref @::Variant`) exclusively within a `Data` type that declares `::Variant` or within a `Type with { ... }` extension of that `Data` type.
 * MUST NOT declare a variant-constrained receiver on an untagged union (`tag none`) or within an `~Interface` declaration.
 * MUST require the type guard in a guard-constrained receiver (`@^Guard` or `ref @^Guard`) to be applicable to the enclosing `Data` or `~Interface` type.
 * MUST statically type `@` as `Data::Variant` within the body of a method declaring `@::Variant` or `ref @::Variant`, exposing both shared members of `Data` and the payload fields of `::Variant`.
@@ -342,7 +342,7 @@ MathCallbacks
     // SIMD vector register calling convention
     TransformVector(v: Vector, scale: Float) extern vectorcall -> Vector 
     {
-        return Vector { X: (v.X as Float * scale) as Int, Y: (v.Y as Float * ale) as Int };
+        return Vector { X: (v.X as Float * scale) as Int, Y: (v.Y as Float * scale) as Int };
     }
 }
 ```
@@ -509,7 +509,7 @@ processor: fnptr(Bill::Init) -> Bill::Closed = Bill.Process;
 // ERROR: Nominal calling convention mismatch ('extern' vs 'extern system')
 badProc: fnptr(Vector, Vector) extern system -> Float = MathCallbacks.ComputeDistance;
 
-// ERROR: 'fnptr' cannot capture local variable ' factor'
+// ERROR: 'fnptr' cannot capture local variable 'factor'
 factor := 10;
 badPtr: fnptr(Int) -> Int = x => x * factor;
 ```
