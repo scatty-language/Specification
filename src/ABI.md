@@ -121,21 +121,16 @@
 
 ### Parameter Passing and Return Values
 
+* MUST NOT allocate a return register for any method, `fn` closure, or `fnptr` pointer that omits the `-> ReturnType` clause.
 * For non-`extern` (`fastcc`) methods, `fn` closures, and `fnptr` pointers:
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size is less than or equal to `sizeof Usize` directly by value in CPU registers.
   * MUST pass non-`ref` parameters (including immutable `@` receivers) whose byte size exceeds `sizeof Usize` via a hidden read-only pointer in a CPU register, pointing to the caller's source instance when unaliased or to a caller-allocated temporary stack copy when rvalue or call-site value materialization is required.
   * MUST pass a stack closure (`fn`) as two pointer-sized words (`env_ptr`, `code_ptr`) in CPU registers.
-  * MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers, and values exceeding `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register.
+  * MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers, and values exceeding `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register pointing to caller-allocated stack memory.
 * For `extern` methods and `fnptr(...) extern [calling_convention]` pointers:
   * MUST pass by-value parameters and return values according to the resolved hardware calling convention's register classification, Homogeneous Floating-Point / Vector Aggregate (HFA/HVA) rules, and stack-passing rules (using caller-allocated temporary copies when call-site value materialization is required).
   * MUST pass `ref` parameters and `ref @` receivers as a direct memory address (`Usize`) in the corresponding pointer register or stack slot dictated by the resolved `extern` calling convention.
   * MUST pass polymorphic interface parameters (`~Interface`), stack closures (`fn`), and slices (`[T..]`, `[ref T..]`) as 2-word structures according to the resolved `extern` calling convention's rules for 2-word aggregates.
-
-### Return Values
-
-* MUST NOT allocate a return register for methods that omit the `-> ReturnType` clause.
-* MUST return values whose byte size is less than or equal to `sizeof Usize` directly in CPU return registers.
-* MUST return values whose byte size exceeds `sizeof Usize` via Return Value Optimization (RVO) using a hidden structure-return (`sret`) pointer register pointing to caller-allocated stack memory.
 
 ## Stack Closures and Function Pointers ABI
 

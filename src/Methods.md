@@ -275,10 +275,13 @@ ProcessVector(pos.Add(a)..Add(b));
 * MUST lazily materialize a local copy (via bitwise copy for Trivial Types or ARC retain and Copy-on-Write detachment for Owning Types) at the exact point of assignment or mutation if a standard (non-`ref`) parameter is mutated or stored within the method body.
 * MUST NOT declare or return references (`ref`) from methods.
 * MUST return all `Data` by value.
-* MUST physically return values within CPU registers if the return type's evaluated memory footprint is less than or equal to the target architecture's native pointer size.
-* MUST intrinsically apply Return Value Optimization (RVO) if the return type's evaluated memory footprint exceeds the target architecture's native pointer size.
-* MUST implicitly pass a hidden pointer to a pre-allocated stack block from the caller during RVO.
-* MUST construct and write the returned value directly into the caller's pre-allocated memory during RVO, guaranteeing zero physical memory copying overhead.
+* For non-`extern` methods:
+  * MUST physically return values within CPU registers if the return type's evaluated memory footprint is less than or equal to the target architecture's native pointer size.
+  * MUST intrinsically apply Return Value Optimization (RVO) if the return type's evaluated memory footprint exceeds the target architecture's native pointer size.
+  * MUST implicitly pass a hidden pointer to a pre-allocated stack block from the caller during RVO.
+  * MUST construct and write the returned value directly into the caller's pre-allocated memory during RVO, guaranteeing zero physical memory copying overhead.
+* For `extern` methods:
+  * MUST pass parameters and return values according to the resolved hardware calling convention defined in the ABI specification.
 
 ```scatty
 // Footprint: 4 bytes (<= 8-byte pointer).
