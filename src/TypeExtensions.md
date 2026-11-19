@@ -10,16 +10,21 @@
 
 ## Encapsulation and Access Rights
 
-* MUST permit an extension block to access private and internal members of the target type if the extension is declared within the same package as the target type.
-* MUST restrict an extension block's access to public members of the target type if the target type is imported from an external package.
+* MUST permit an extension block to access private members (`_name`) of the target type if and only if the extension block is declared in the same source file as the target type's primary declaration or in a narrower conditional compilation file sharing the exact same `<BaseName>` within the same directory.
+* MUST permit an extension block to access internal members (`Name_`) of the target type if and only if the extension block is declared within the same package as the target type.
+* MUST restrict an extension block's access to public members (`Name`) of the target type if the target type is imported from an external package.
 
 ```scatty
+// File: MyData.cat (PACKAGE: Core)
 MyData 
 {
     _count: Int;
-    Increment(ref @) => @._count = @._count + 1;
+    Step_: Int = 1;
+
+    Increment(ref @) => @._count = @._count + @.Step_;
 }
 
+// Valid: same file as 'MyData' primary declaration; MAY access '_count' and 'Step_'
 MyData with 
 {
     Count: Int => @._count;
@@ -39,4 +44,14 @@ data := MyData { 1 };
 validData := data as MyData^ValidData;
 
 email := "test@example.com" as String^Email;
+
+// File: Other.cat (PACKAGE: Core — different <BaseName>)
+MyData with 
+{
+    // Valid: 'Step_' is internal to package 'Core'
+    NextStep(@) -> Int => @.Step_;
+
+    // ERROR: '_count' is private to 'MyData.*.cat' files
+    LeakCount(@) -> Int => @._count;
+}
 ```
