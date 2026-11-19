@@ -172,7 +172,6 @@ playerC := playerA + playerB;
   * `a > b` evaluates as `a.Compare(b) > 0`
   * `a <= b` evaluates as `a.Compare(b) <= 0`
   * `a >= b` evaluates as `a.Compare(b) >= 0`
-* MUST require custom `Data` types to implement the `~Comparable` interface to perform ordered comparisons.
 
 ```scatty
 ~Comparable 

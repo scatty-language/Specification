@@ -87,7 +87,7 @@ Update(y: 10, ref vec, 5);
 * MUST NOT switch the active variant of `@` via `=::` or assign a different variant to `@` within a method declaring a variant-constrained receiver (`ref @::Variant`).
 * MUST NOT invoke a mutating instance method (`ref @`) on an unbound temporary rvalue expression as a standalone statement where the mutated copy is immediately discarded.
 
-```Scatty
+```scatty
 Vector
 {
     X: Int;

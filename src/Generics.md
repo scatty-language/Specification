@@ -35,7 +35,7 @@ PrinterData<T: ~Printable>
 * MAY omit explicit generic arguments when invoking a generic method or instantiating a generic `Data` type if all type and constant generic parameters can be inferred from the call-site arguments or possess default values.
 * MUST automatically infer a constant generic parameter `N` from the static type of a supplied argument (such as passing an expression of type `[Int; 4]` to a parameter of type `[Int; N]`).
 * MUST automatically infer a constant generic parameter `N` from the element count of a positional collection initializer (`{ expr1, expr2, ... }`) passed to a parameter of type `[T; N]`.
-* MUST reject a positional collection initializer сontaining a `_ = expr` wildcard fallback when `N` is not explicitly specified or known from an expected type.
+* MUST reject a positional collection initializer containing a `_ = expr` wildcard fallback when `N` is not explicitly specified or known from an expected type.
 
 ```scatty
 ^Positive = Int where @ > 0;
