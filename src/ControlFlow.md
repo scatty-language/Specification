@@ -193,10 +193,13 @@ SomeData
 ## Staged Iteration
 
 * MAY declare a staged iteration pipeline over a collection or range using `item in iterable { ... }` or `item in iterable => Statement;` without a leading loop keyword.
-* MAY prefix the stage binding with `ref` (`ref item in collection { ... }`) to mutate collection elements in-place.
-* MAY unpack tuple elements in the stage header using a destructuring pattern (`(a, b) in iterable { ... }`), requiring the binding count to match the tuple element count and permitting `_` to discard elements.
+* MUST treat all non-`ref` stage bindings (`item in iterable` and destructured bindings `(a, b) in iterable`) as immutable read-only views for the duration of each iteration.
+* MUST NOT reassign a non-`ref` stage binding, mutate its fields, switch its active variant via `=::`, pass it or its fields as `ref` arguments, or invoke mutating (`ref @`) methods on it.
+* MAY prefix a single-identifier stage binding with `ref` (`ref item in collection { ... }`) to declare a mutable in-place slot binding over `collection`.
+* MUST unpack tuple elements in the stage header using a destructuring pattern (`(a, b) in iterable { ... }`), requiring the binding count to match the tuple element count and permitting `_` to discard elements.
 * MUST evaluate the upper bound of a range expression (`start..end` or `start..end..step`) as exclusive.
-* MAY delegate the execution schedule of a pipeline using the `by` modifier (`item in iterable by Schedule { ... }`), resolving the identifier to a type implementing the `~Iterator` interface.
+* MAY delegate the execution schedule of a non-`ref` pipeline using the `by` modifier (`item in iterable by Schedule { ... }`), resolving the identifier to a type implementing the `~Iterator` interface.
+* MUST NOT combine a `ref` stage binding with the `by` schedule modifier.
 * MAY omit both the stage binding and the iterable (`in { ... }`) to declare an unbounded loop that executes repeatedly until terminated via `break`, `return`, or `throw`.
 * MAY use `break` inside an `in` block to immediately terminate the entire pipeline.
 * MAY use `continue` inside an `in` block to immediately skip the remainder of the current iteration and advance the innermost active stage.
@@ -230,6 +233,70 @@ in
 }
 ```
 
+### Iteration Protocol Resolution
+
+* MUST resolve a stage source lacking a `by` modifier according to the following descending priority order:
+  1. Built-in range expressions (`start..end` or `start..end..step`) for non-`ref` iteration only.
+  2. Built-in collections (`[T]`, `[T; N]`, `Array<T>`, `[T..]`, `[ref T..]`, `String`, `RuneString`, `[K -> V]`, `[T] soa`, `[T; N] soa`, `Array<T> soa`, `[$: T]`, and `[K: V]`).
+  3. Any `Data` type (or constrained generic parameter) implementing `~IndirectIndexable<TCursor, TValue>`, traversing cursors via `FirstCursor` and `NextCursor` and reading elements via `GetAt`.
+  4. Any `Data` type (or constrained generic parameter) that does not implement `~IndirectIndexable` and implements `~Indexable<Int, TValue>` together with the weak contract `Count: Int`, evaluating `Count` once prior to loop entry and traversing integer indices `0..Count` via `Get`.
+* MUST reject an `in` iteration source at compile time if it implements multiple distinct specializations of `~IndirectIndexable`, or implements multiple distinct specializations of `~Indexable<Int, T>` without `~IndirectIndexable`.
+* MUST evaluate `Get` or `GetAt` once per iteration to bind the immutable stage variable in a non-`ref` loop over a custom `Data` type.
+
+### Mutable `ref` Stage Bindings
+
+* MUST require the target `collection` of a `ref` stage (`ref item in collection` or `ref inner in collection;`) to be a mutable lvalue path governed by the Law of Exclusivity.
+* MUST permit `ref item in collection` exclusively on:
+  * Built-in contiguous addressable collections: `[T]`, `[T; N]`, `Array<T>`, `[ref T..]`, `RuneString`, and `[K -> V]`.
+  * Built-in `soa` collections: `[T] soa`, `[T; N] soa`, and `Array<T> soa`.
+  * `String` exclusively within an `unsafe` block or `unsafe` method.
+  * Any `Data` type implementing `~IndirectIndexable<TCursor, TValue>` with the weak contract `SetAt`.
+  * Any `Data` type (not implementing `~IndirectIndexable`) implementing `~Indexable<Int, TValue>` with both weak contracts `Count` and `Set`.
+* MUST reject `ref item in collection` at compile time on ranges, read-only slices (`[T..]`), `String` outside `unsafe`, hashed collections (`[$: T]`, `[K: V]`), custom `Data` types omitting `Set` / `SetAt`, `static` or `astatic` storage, rvalue expressions, and pipelines declaring a `by` schedule modifier.
+* MUST evaluate any index expressions within `collection`'s lvalue path (such as `matrix[GetRow()]`) exactly once prior to entering the loop.
+* MUST bind `item` in `ref item in collection` as an in-place slot alias corresponding to the active element:
+  * On built-in contiguous addressable collections, accesses and mutations of `item` operate directly on the element's memory slot without bounds checking.
+  * On built-in `soa` collections, accesses and mutations of `item` operate identically to indexed `soa` access (`collection[_i]`): field accesses and leaf-field `ref` borrows target the parallel arrays directly, whole-element assignment performs Scatter, whole-element reads perform Gather, and passing the whole element by `ref` (`ref item`) or invoking a `ref @` method directly on `item` MUST be rejected at compile time.
+  * On custom `~IndirectIndexable<TCursor, TValue>` types with `SetAt` and custom `~Indexable<Int, TValue>` types with `Count` and `Set`, reads of `item` invoke `GetAt` / `Get`, and mutations of `item` unpack into the read-modify-write sequences defined in the Indexing Operator specification, propagating `throws` according to the concrete `Get` / `Set` / `GetAt` / `SetAt` signatures.
+* MUST NOT bind a mutating instance method (`item.MutatingMethod`) directly as a stack closure (`fn`) when `item` aliases a whole `soa` element or an element of a custom `~Indexable` or `~IndirectIndexable` type.
+* MUST enforce standard `TypeGuards` rules on `item` when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks.
+* MUST evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref` stage (on normal completion, `break`, `return`, or exception propagation) when `collection` itself or an enclosing container along its path is governed by a type guard, obeying active build-mode validation rules or checking in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
+
+```scatty
+// Range iteration (0 through 9); 'i' is immutable
+i in 0..10 
+{
+    Console.WriteLine(i);
+}
+
+// Reverse range with step (10 down to 1)
+i in 10..0..-1 
+{
+    Console.WriteLine(i);
+}
+
+// Non-'ref' iteration: 'enemy' is an immutable read-only view
+enemy in enemies 
+{
+    Console.WriteLine(enemy.Hp);
+    enemy.Hp -= 10; // ERROR: 'enemy' is immutable
+}
+
+// Mutable slot iteration on built-in collections (including 'soa')
+ref enemy in enemies 
+{
+    where enemy.Hp > 0;
+    enemy.Hp -= 10;
+}
+
+// Unbounded conditional loop using 'in { ... }'
+in 
+{
+    must x < 100 or break;
+    x += 10;
+}
+```
+
 ### Filter Stages and Flattened Inner Stages
 
 * MAY place one or more filter gates (`where Condition;` or `where { Condition; ... }`) at any point inside an `in` pipeline block.
@@ -239,6 +306,7 @@ in
 * MUST bring variables bound via `:=` and type narrowings proven via `is` inside a `where` gate into scope for all subsequent statements below that gate within the `in` block.
 * MAY place one or more stage expansion statements (`inner in iterable;`) inside an `in` block to flatten nested collections without nested blocks.
 * MUST iterate over the expanded `iterable` for each upstream element that reaches the `inner in iterable;` stage, bringing `inner` into scope for all subsequent statements in the `in` block.
+* MUST permit a mutable flattened inner stage (`ref inner in iterable;`) if and only if `iterable` is a mutable lvalue path rooted in a mutable outer variable or an enclosing `ref` stage binding, rejecting `ref inner in outer.Items;` when `outer` is an immutable non-`ref` stage binding.
 
 ```scatty
 dept in company.Departments 
@@ -252,6 +320,14 @@ dept in company.Departments
     where task.IsOverdue;
 
     Console.WriteLine("\(dept.Name): \(emp.Name) -> \(task.Title)");
+}
+
+ref dept in company.Departments 
+{
+    ref emp in dept.Employees;
+    where emp.Role is .Engineer;
+
+    emp.Bonus += 500;
 }
 ```
 
@@ -278,8 +354,8 @@ dept in company.Departments
 * MUST scope output bindings declared in an expression-level `in` pipeline to the pipeline body. They MUST NOT be hoisted into the enclosing lexical scope.
 * MUST evaluate an expression-level `in` pipeline declaring a single output binding (`-> result := init`) directly to the final value and static type of that binding upon termination of the pipeline.
 * MUST evaluate an expression-level `in` pipeline declaring two or more output bindings (`-> out1 := init1, out2 := init2`) to a tuple containing the final values of the output bindings in their declaration order upon termination of the pipeline.
-* **MUST** declare a `{ ... }` block body on an expression-level `in` pipeline; an expression-level `in` pipeline **MUST NOT** use the `=> Statement;` body form.
-* **MUST** declare a `{ ... }` block body when applying the `strict` modifier to an `in` pipeline with guarded output bindings (`... { ... } strict;`).
+* MUST declare a `{ ... }` block body on an expression-level `in` pipeline; an expression-level `in` pipeline MUST NOT use the `=> Statement;` body form.
+* MUST declare a `{ ... }` block body when applying the `strict` modifier to an `in` pipeline (`... { ... } strict;`), and MUST reject `strict;` on an `in` pipeline that has neither guarded output bindings nor a `ref` stage over a guarded collection or guarded container path.
 
 ```scatty
 // 1. Statement-level pipeline hoisting multiple output bindings into the enclosing scope

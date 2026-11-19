@@ -156,6 +156,9 @@ match rawValue as? Int^Positive
 * MUST evaluate the runtime invariant check in both Debug and Release modes when the `strict` modifier is applied, triggering an immediate process Abort or Fatal Panic if the invariant evaluates to `false`.
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 * MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`where`, `must!`, `may`, or `match`).
+* MUST treat `item` as a mutable guarded target of type `T^Guard` inside a `ref item in collection` loop when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks for mutations of `item`.
+* MUST allow standard (non-guarded) mutation operators on `item` inside a `ref item in collection` loop when the element type of `collection` is unguarded, even if `collection` itself or an enclosing container along its path is governed by a type guard (`list: [Int]^AllPositive` or `user.Scores` on `user: User^HasScores`).
+* MUST automatically re-evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref item in collection` loop (via normal completion, `break`, `return`, or exception propagation), following the active build-mode validation rules, or enforcing the check in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
 
 ```scatty
 User 
@@ -211,5 +214,30 @@ MutateExamples(
     // 5. Post-'ref' invariant check on 'bounds' ('^ValidRange') triggered even though
     //    the parameter 'val' is itself guarded as 'Int^Positive'
     SetHighValue(ref bounds.Min) strict;
+}
+
+MutateGuardedCollections(
+    ref positiveScores: [Int^Positive],
+    ref nonEmptyList: [Int]^NonEmpty,
+    ref player: User^HasScores
+) 
+{
+    // Guarded element type ('Int^Positive'): 's' requires guarded assignment ('-=^')
+    ref s in positiveScores 
+    {
+        s -=^ 1 strict;
+    }
+
+    // Guarded collection ('[Int]^NonEmpty'): standard mutation inside; checked once on exit
+    ref n in nonEmptyList 
+    {
+        n += 10;
+    } strict;
+
+    // Guarded container ('User^HasScores'): 'player.Scores' checked against '^HasScores' once on exit
+    ref sc in player.Scores 
+    {
+        sc *= 2;
+    } strict;
 }
 ```

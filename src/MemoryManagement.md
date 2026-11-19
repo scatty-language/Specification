@@ -230,6 +230,46 @@ RunPair(accumulate, accumulate);
 Console.WriteLine(total); // Output: 8
 ```
 
+* MUST treat a non-`ref` staged iteration source (`item in col`, `(a, b) in col`, or a flattened inner stage `inner in col;`) as a shared read-only borrow of `col` for the entire duration of that stage when `col` is an lvalue path not rooted in `static`, `astatic`, or `gstatic` storage.
+* MUST NOT mutate, reassign, switch variants on, or take a `ref`, `[ref T..]`, `ref`-stage, or mutating-closure borrow of `col` while any non-`ref` stage borrowing `col` remains active.
+* MAY read `col`, hold read-only slices or read-only closures borrowing `col`, and nest additional non-`ref` stages over `col` while a non-`ref` stage borrowing `col` is active.
+* MUST materialize an isolated local copy (via bitwise copy for Trivial Types or ARC `strongCount` increment for Owning Types and nested Owning Type fields) prior to entering a non-`ref` stage whenever the iterable expression is rooted in `static`, `astatic`, or `gstatic` storage, releasing the spinlock of any spinlock-backed `astatic` storage prior to entering the loop body and releasing the materialized local copy upon stage exit (including `break`, `return`, and `throws` paths).
+* MUST evaluate an rvalue iterable expression once into a temporary local binding held alive for the duration of the non-`ref` stage and release it upon stage exit (including `break`, `return`, and `throws` paths).
+* MUST treat a mutable `ref` staged iteration source (`ref item in col` or a flattened inner stage `ref inner in col;`) as an exclusive `ref` borrow of `col` (or of the entire root collection if `col` is an indexed path) for the entire duration of that stage.
+* MUST NOT read, mutate, reassign, switch variants on, create slices from, iterate over, or pass by `ref` or by value a collection (or any overlapping path) while an active `ref` stage holds an exclusive borrow on it, except through the `ref` stage binding itself.
+* MUST NOT target an rvalue expression, an immutable `@` receiver, an immutable non-`ref` stage binding, or a path rooted in `static` or `astatic` storage as the source of a `ref` stage (`ref item in col` or `ref inner in col;`).
+* MUST evaluate the strong reference count of a built-in Owning Type collection (`[T]`, `Array<T>`, `RuneString`, `[T] soa`, or `Array<T> soa`) prior to entering a `ref` stage (`ref item in col`), detaching a unique deep copy via Copy-on-Write if `strongCount > 1`. Implementations MAY defer Copy-on-Write detachment until the first mutation or address-taking operation on `item` provided observable behavior is identical.
+
+```scatty
+items := [Int] { 1, 2, 3 };
+
+// Valid: shared read-only borrow permits reading 'items' inside the loop
+x in items 
+{
+    Console.WriteLine(x + items.Count);
+
+    // ERROR: Cannot mutate 'items' while borrowed by 'x in items'
+    items.Add(4);
+}
+
+// Valid: exclusive borrow permits mutating elements via 'ref item'
+ref item in items 
+{
+    item *= 2;
+
+    // ERROR: Cannot read or mutate 'items' directly while exclusively borrowed
+    Console.WriteLine(items.Count);
+    items.Add(4);
+}
+
+// Valid: explicit snapshot copy permits mutating 'items' while iterating 'snapshot'
+snapshot := items;
+x in snapshot 
+{
+    items.Add(x * 10);
+}
+```
+
 ## Resource Cleanup and Disposal
 
 * MUST automatically decrement `strongCount` of all local Owning Type variables and all nested Owning Type fields of inline `Data` variables when they exit their lexical scope.

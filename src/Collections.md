@@ -149,6 +149,7 @@ snapshot := soaCol[0];
 * MUST NOT pass a gathered `soa` element by reference (`ref soaCol[i]`).
 * MAY pass an individual primitive field of an indexed `soa` element by reference (`ref soaCol[i].Id`).
 * MAY pass an indexed `soa` element by value.
+* MAY iterate over a `soa` collection using a mutable `ref` stage (`ref entity in soaCol`), treating `entity` as an indexed slot alias (`soaCol[_i]`): field reads and mutations (`entity.Id += 1`), leaf-field `ref` borrows (`ref entity.Id`), whole-element Gather reads, and whole-element Scatter assignments (`entity = newEntity`) are permitted, while passing the whole scattered element by reference (`ref entity`) or invoking a mutating `ref @` method directly on `entity` MUST be rejected at compile time.
 
 ```scatty
 MutateEntity(ref entity: Entity) { }
@@ -166,6 +167,24 @@ MutateId(ref soaCol[0].Id);
 
 // Passes by value (implicit gather on the stack)
 ProcessEntity(soaCol[0]);
+
+soaCol: [Entity] soa = ([Entity] soa).New();
+soaCol.Add(Entity { Id: 1, Position: Vector { X: 10, Y: 10 } });
+
+ref entity in soaCol 
+{
+    // Valid: directly mutates the parallel 'Id' array without Gather/Scatter
+    entity.Id += 1;
+
+    // Valid: passes a leaf field slot by reference
+    MutateId(ref entity.Id);
+
+    // Valid: scatters a new instance into the parallel arrays
+    entity = Entity { Id: 2, Position: Vector { X: 20, Y: 20 } };
+
+    // ERROR: Cannot pass a scattered SoA element by reference as a whole
+    MutateEntity(ref entity);
+}
 ```
 
 ### SoA Iteration

@@ -252,6 +252,65 @@ UpdateHero(ref heroes: [String: Hero], ref grid: Grid)
 }
 ```
 
+### Cursor Indexing
+
+```scatty
+~CursorIndexable<TCursor, TValue> 
+{
+    FirstCursor(@) -> TCursor?;
+    NextCursor(@, cursor: TCursor) -> TCursor?;
+
+    GetAt(@, cursor: TCursor) throws -> TValue;
+    SetAt?(ref @, cursor: TCursor, value: TValue) throws;
+}
+```
+
+* MAY implement `~CursorIndexable<TCursor, TValue>` on a `Data` type whose elements are traversed via cursors rather than contiguous `0..Count` integer indices.
+* MAY omit the `throws` modifier on concrete implementations of `GetAt` or `SetAt` to declare infallible indirect reads or writes.
+* MAY omit the weak contract `SetAt` on a concrete `Data` type implementing `~CursorIndexable<TCursor, TValue>` to expose read-only indirect iteration.
+* MUST resolve `in` iteration (both `item in col` and `ref item in col`) through `~CursorIndexable<TCursor, TValue>` whenever a `Data` type implements it, taking precedence over direct `0..Count` iteration via `~Indexable<Int, TValue>`.
+* MUST evaluate `ref item in col` mutations (compound assignments, field mutations, variant switches, mutating method calls, and `ref` argument bindings) on a custom `Data` type implementing `~CursorIndexable<TCursor, TValue>` with `SetAt` by unpacking each mutation into the single-evaluation read-modify-write sequence:
+  1. Read `_temp := col.GetAt(_cursor)`.
+  2. Apply the mutation or `ref` argument invocation to `_temp`.
+  3. Write the modified value back via `col.SetAt(_cursor, _temp)`.
+
+```scatty
+SparseList<T> : ~Indexable<Int, T>, ~CursorIndexable<Int, T>
+{
+    _slots: [T?];
+    _count: Int;
+
+    Count: Int => @._count;
+
+    Get(@, key: Int) throws -> T 
+    {
+        may val := @._slots[key] => return val;
+        throw Exception.New("Empty slot");
+    }
+
+    Set(ref @, key: Int, value: T) throws 
+    {
+        may @._slots[key] is .None => @._count += 1;
+        @._slots[key] = .Some(value);
+    }
+
+    _nextOccupied(@, start: Int) -> Int? 
+    {
+        i in start..@._slots.Count 
+        {
+            may @._slots[i] is .Some => return .Some(i);
+        }
+        return .None;
+    }
+
+    FirstCursor(@) -> Int? => @._nextOccupied(0);
+    NextCursor(@, cursor: Int) -> Int? => @._nextOccupied(cursor + 1);
+
+    GetAt(@, cursor: Int) throws -> T => @.Get(cursor);
+    SetAt(ref @, cursor: Int, value: T) throws => @.Set(cursor, value);
+}
+```
+
 ## Conditional Operator
 
 * MAY evaluate a conditional expression using the ternary syntax `condition then true_expr : false_expr`.

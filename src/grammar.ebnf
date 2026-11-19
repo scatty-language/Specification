@@ -355,8 +355,7 @@ assignable_path
     ::= ( "@" | path_expr ) { "." type_identifier | index_access | force_unwrap }
 
 stage_stmt
-    ::= stage_clause "->" stage_output_list ( block [ "strict" ";" ] | "=>" statement )
-      | stage_clause ( block | "=>" statement )
+    ::= stage_clause [ "->" stage_output_list ] ( block [ "strict" ";" ] | "=>" statement )
 
 stage_expr
     ::= stage_clause "->" stage_output_list block
