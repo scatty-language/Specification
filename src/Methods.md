@@ -440,29 +440,43 @@ filtered := Filter(nums[..], acc.IsAbove);
 
 ### Non-Escaping Restrictions
 
-* MAY declare an `fn` closure type as a method parameter, anonymous function parameter, or local variable.
-* MUST NOT declare an `fn` closure type as:
-  * A structural or variant payload field of a `Data` type,
+* MAY declare an `fn` closure type or an optional closure type (`fn(...)?` / `Option<fn(...)>`) as a method parameter, anonymous function parameter, or local variable.
+* MAY pass an `fn` closure type as the type argument to `Option<T>` (`fn(...)?` or `Option<fn(...)>`).
+* MUST enforce all non-escaping restrictions and Law of Exclusivity borrow rules of `fn` recursively on `Option<fn(...)>` (and any nested `Option` wrapping it).
+* MUST NOT declare an `fn` closure type or `Option<fn(...)>` as:
+  * A structural or variant payload field of a `Data` type (excluding the `::Some` payload of `Option<T>` itself),
   * A tuple element,
   * A `static`, `astatic`, or `gstatic` variable or field,
-  * A method, anonymous function, or `fnptr` return type (`-> fn(...)`), or
-  * A type argument to a generic `Data` type, collection, or `~Interface`.
-* MUST NOT capture an `fn` variable or parameter into a `spawn` or `rollback` block.
-* MUST NOT reassign a local `fn` variable to a closure or bound method that captures a variable or instance declared in a narrower inner lexical scope than the `fn` variable itself.
+  * A method, anonymous function, or `fnptr` return type (`-> fn(...)` or `-> fn(...)?`), or
+  * A type argument to any generic `Data` type other than `Option<T>`, any collection, or any `~Interface`.
+* MUST NOT capture an `fn` or `Option<fn(...)>` variable or parameter into a `spawn` or `rollback` block.
+* MUST NOT reassign a local `fn` or `Option<fn(...)>` variable to a closure or bound method that captures a variable or instance declared in a narrower inner lexical scope than the variable itself.
 
 ```scatty
+// Valid: optional non-escaping closure parameter
+RunIfPresent(value: Int, callback: fn(Int)? = none) 
+{
+    may cb := callback => cb(value);
+}
+
 // ERROR: 'fn' cannot be returned from a method
 MakeAdder(offset: Int) -> fn(Int) -> Int 
 {
     return x => x + offset;
 }
 
+// ERROR: 'Option<fn(...)>' inherits non-escaping restrictions and cannot be returned
+MakeOptionalAdder(offset: Int) -> (fn(Int) -> Int)? 
+{
+    return .Some(x => x + offset);
+}
+
 // ERROR: Cannot reassign outer 'fn' variable to capture narrower-scoped 'temp'
-outerFn := (x: Int) => x;
+outerFn: (fn(Int) -> Int)? = none;
 may condition 
 {
     temp := 42;
-    outerFn = x => x + temp;
+    outerFn = .Some(x => x + temp);
 }
 ```
 

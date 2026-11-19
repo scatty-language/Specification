@@ -260,11 +260,36 @@ helloBytes: [Char..] = text[0..5];
 
 ### Non-Escaping Restrictions
 
-* MAY declare `[Type..]` and `[ref Type..]` as method parameters, local variables, or stage iteration sources.
-* MUST NOT declare `[Type..]` or `[ref Type..]` as:
-  * A structural or variant payload field of a `Data` type,
+* MAY declare `[Type..]`, `[ref Type..]`, or an optional slice type (`[Type..]?`, `[ref Type..]?`, `Option<[Type..]>`, `Option<[ref Type..]>`) as method parameters or local variables, and MAY use non-optional slices as stage iteration sources.
+* MAY pass `[Type..]` or `[ref Type..]` as the type argument to `Option<T>` (`[Type..]?` or `[ref Type..]?`).
+* MUST enforce all non-escaping restrictions and Law of Exclusivity borrow rules of `[Type..]` and `[ref Type..]` recursively on `Option<[Type..]>` and `Option<[ref Type..]>` (and any nested `Option` wrapping them).
+* MUST NOT declare `[Type..]`, `[ref Type..]`, `Option<[Type..]>`, or `Option<[ref Type..]>` as:
+  * A structural or variant payload field of a `Data` type (excluding the `::Some` payload of `Option<T>` itself),
+  * A tuple element,
   * A `static`, `astatic`, or `gstatic` variable or field,
-  * A method or anonymous function return type (`-> [Type..]`), or
-  * A type argument to a generic `Data` type, collection, or `~Interface`.
-* MUST NOT capture a `[Type..]` or `[ref Type..]` variable into a `spawn` or `rollback` block.
-* MUST NOT reassign a local slice variable to reference a source collection declared in a narrower inner lexical scope than the slice variable itself.
+  * A method, anonymous function, or `fnptr` return type (`-> [Type..]`, `-> [ref Type..]`, `-> [Type..]?`, or `-> [ref Type..]?`), or
+  * A type argument to any generic `Data` type other than `Option<T>`, any collection, or any `~Interface`.
+* MUST NOT capture a `[Type..]`, `[ref Type..]`, `Option<[Type..]>`, or `Option<[ref Type..]>` variable or parameter into a `spawn` or `rollback` block.
+* MUST NOT reassign a local slice or optional slice variable to reference a source collection declared in a narrower inner lexical scope than the variable itself.
+
+```scatty
+// Valid: optional non-escaping slice parameter
+LogHeader(header: [Char..]? = none) 
+{
+    may bytes := header => Console.WriteLine(bytes.Count);
+}
+
+// ERROR: 'Option<[Int..]>' inherits non-escaping restrictions and cannot be returned
+GetOptionalSlice(nums: [Int]) -> [Int..]? 
+{
+    return .Some(nums[..]);
+}
+
+// ERROR: Cannot reassign outer optional slice to reference a narrower-scoped collection
+outerSlice: [Int..]? = none;
+may condition 
+{
+    localNums := [Int] { 1, 2, 3 };
+    outerSlice = .Some(localNums[..]);
+}
+```
