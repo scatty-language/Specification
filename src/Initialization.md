@@ -29,28 +29,19 @@ data2 := MyData { MyFloat: 0.0, 0, true };
 ## Memory Initialization Modifiers
 
 * MAY explicitly bypass initialization exhaustiveness checks using the `zeroed` or `noinit` modifiers.
+* MUST confine the use of both the `zeroed` and `noinit` modifiers exclusively to within an `unsafe` block or `unsafe` method.
+* MUST reject any use of `zeroed` or `noinit` outside an `unsafe` block or `unsafe` method at compile time, regardless of the target type's fields or memory layout.
 * MUST zero-initialize the entire allocated memory of the instance prior to executing the `struct_init_body` when the `zeroed` modifier is applied.
 * MUST initialize the discriminant tag to the tag value of the first declared variant when `zeroed` is applied to an unnarrowed tagged `Data` type (`Type { ... } zeroed`).
 * MUST initialize the discriminant tag to the specified variant's tag value when `zeroed` is applied to a variant constructor (`Type::Variant { ... } zeroed`).
 * MAY omit any field, including those without default values, from the `struct_init_body` when `zeroed` or `noinit` is applied.
-* MUST confine the use of the `zeroed` modifier to within an `unsafe` block or `unsafe` method if any field omitted from the initialization (or any nested element within the recursive memory layout of its shared fields or active variant payload) is:
-  * A non-optional Owning Type (`~Disposable`),
-  * A non-optional function pointer (`fnptr`),
-  * A guarded type (`Type^Guard`) whose zero-initialized value does not satisfy the guard's `where` invariant at compile time,
-  * A nested tagged `Data` type whose first declared variant has a non-zero discriminant tag (`!= 0`), or
-  * A nested variant subtype (`Data::Variant`) whose discriminant tag is non-zero (`!= 0`).
-* MAY apply the `zeroed` modifier in safe code when all omitted fields in the target `Data` type's recursive memory layout are unguarded Trivial Types (with discriminant tag `0` for nested tagged types), Option types (`T?`), weak references (`T weak`), or guarded types (`Type^Guard`) whose `where` invariant evaluates to `true` for a zero-initialized value at compile time.
 * MUST leave the memory of any omitted field entirely uninitialized (containing arbitrary garbage data) when the `noinit` modifier is applied.
-* MUST confine the use of the `noinit` modifier to within an `unsafe` block or `unsafe` method.
 
 ```scatty
-^NonNegative = Int where @ >= 0;
-^Positive    = Int where @ > 0;
-
 PacketStats 
 {
     Sequence: Int;
-    BytesSent: Int^NonNegative;
+    BytesSent: Int;
     OptionalTag: String?;
 }
 
@@ -61,22 +52,15 @@ HttpResponse
     Callback: fnptr(Int);
 }
 
-Account 
-{
-    Id: Int^Positive;
-}
+// ERROR: 'zeroed' requires an 'unsafe' block or 'unsafe' method
+badStats := PacketStats { } zeroed;
 
-// Valid in safe code: all fields are Trivial, Option ('None' == 0x0), or satisfied by 0 ('0 >= 0')
-stats := PacketStats { } zeroed;
-
-// ERROR: 'HttpResponse' contains a nested non-optional Owning Type ('Array<Char>' inside 'String') and 'fnptr' pointer
-badResponse := HttpResponse { } zeroed;
-
-// ERROR: 'Account.Id' has guard '^Positive' which evaluates to false for 0 at compile time
-badAccount := Account { } zeroed;
+// ERROR: 'noinit' requires an 'unsafe' block or 'unsafe' method
+badResponse := HttpResponse { } noinit;
 
 unsafe 
 {
+    stats := PacketStats { } zeroed;
     rawResponse := HttpResponse { } zeroed;
     fastResponse := HttpResponse { } noinit;
 }

@@ -43,7 +43,7 @@ arr[0] = 10;
 * MUST initialize all `N` elements of `[Type; N]` upon instantiation via:
   * A positional initializer list (`{ e1, e2, ... }`) containing exactly `N` elements,
   * An indexed initializer list containing a wildcard fallback (`{ 0 = val, _ = defaultVal }`), or
-  * The `zeroed` or `noinit` memory initialization modifiers (`[Type; N] {} zeroed` or `[Type; N] {} noinit`), subject to standard `zeroed` and `noinit` safety rules.
+  * The `zeroed` or `noinit` memory initialization modifiers (`[Type; N] {} zeroed` or `[Type; N] {} noinit`) exclusively within an `unsafe` block or `unsafe` method.
 * MUST infer the constant generic parameter `N` from the element count of a positional initializer list (`{ e1, e2, ... }`) when passed to a target typed as `[Type; N]`.
 * MUST NOT resize, append to, or remove elements from a `[Type; N]` instance.
 
@@ -55,8 +55,11 @@ x: [Int; 2] = { 10, 20 };
 y := x;
 y[0] = 99;
 
-// Zero-initialized inline array of 64 bytes in safe code
-buffer := [Byte; 64] {} zeroed;
+// Zero-initialized inline array of 64 bytes (requires 'unsafe')
+unsafe 
+{
+    buffer := [Byte; 64] {} zeroed;
+}
 
 Matrix<N: Int^Positive = 16> 
 {
