@@ -80,7 +80,7 @@
 
 ## Dynamic Dispatch and Virtual Method Tables
 
-* MUST represent a polymorphic interface reference (`item: ~Interface`, `ref item: ~Interface`, or `catch e: ~Exception`) as a 2-word fat pointer (`2 * sizeof Usize`):
+* MUST represent a polymorphic interface reference (`item: ~Interface`, `ref item: ~Interface`, `catch e: ~Exception`, or `catch ref e: ~Exception`) as a 2-word fat pointer (`2 * sizeof Usize`):
 
 | Offset (bytes) | Field | Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -149,11 +149,26 @@
 
 ## Exception Propagation ABI
 
-* MUST allocate a 16-byte-aligned, 128-byte exception buffer in Thread-Local Storage (TLS) for each thread.
+* MUST lay out every exception slot—including the Thread-Local Storage (TLS) exception buffer, each frame-local `try` / `catch` exception slot, each frame-local `undo` exception slot, and each `concurrent throws` cancellation slot—as a 16-byte-aligned, 128-byte structure:
+
+| Offset (bytes) | Field | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `0` | `vtable_ptr` | `Usize` | Pointer to the static `(BaseType, ~Exception)` `vtable` (`0x0` when empty); followed by 4 padding bytes on 32-bit targets |
+| `8` | `type_id` | `Ulong` | Unique 64-bit compile-time type identifier of the concrete base exception `Data` type |
+| `16` | `payload` | `[Byte; 112]` | 16-byte-aligned inline storage for the concrete exception value (`sizeof T <= 112`, `alignof T <= 16`) |
+
+* MUST allocate one 128-byte exception slot in Thread-Local Storage (TLS) for each thread.
+* MUST assign a unique 64-bit `type_id` (`Ulong`) to each concrete base `Data` type implementing `~Exception`, distinct across packages, declarations, and monomorphized generic instantiations.
+* MUST store the `vtable_ptr` and `type_id` of the underlying base `Data` type when throwing an expression statically typed as a variant subtype (`Data::Variant`) or a guarded type (`Data^Guard`).
+* MUST store the single ARC pointer (`sizeof Usize`) at offset `16` (`payload`) when throwing an Owning Type (`~Disposable`) exception.
 * MUST NOT reserve or modify the error indicator register (`swifterror`) in methods or `fnptr` pointers declared with `extern`.
-* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn`/`fnptr` pointers declared with the `throws` modifier:
+* MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn` / `fnptr` pointers declared with the `throws` modifier:
   * Upon a non-throwing return, the callee MUST set the error indicator register to `0x0` and populate the normal return register or `sret` RVO buffer.
-  * Upon executing `throw`, the callee MUST write the exception value bitwise into the 128-byte TLS exception buffer, set the error indicator register to the non-null address of the TLS exception buffer, execute frame-local `undo` and ARC / `~Disposable` cleanup, and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
+  * Upon executing `throw`, the callee MUST write `vtable_ptr` at offset `0`, `type_id` at offset `8`, and the exception value bitwise into `payload` at offset `16` of the TLS exception slot, set the error indicator register to the non-null base address of the TLS exception slot, execute frame-local `undo` and ARC / `~Disposable` cleanup, and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
+* MUST clear an exception slot by setting `vtable_ptr` at offset `0` to `0x0`.
+* MUST match `catch [ref] e: ConcreteType`, `ConcreteType::Variant`, `ConcreteType^Guard`, and `ConcreteType::Variant^Guard` by comparing `type_id` at offset `8` against the target base `Data` type's `type_id`.
+* MUST construct the 2-word fat pointer for `catch [ref] e: ~Exception` and `catch [ref] e: ~Exception^Guard` with `data_ptr` equal to the address of `payload` (`slot_ptr + 16`) and `vtable_ptr` loaded from offset `0` of the exception slot.
+* MUST perform exception slot cleanup by reading `dispose_fn` from word `2` of the `vtable` referenced by `vtable_ptr` and, if `dispose_fn` is non-null (`!= 0x0`), invoking `dispose_fn` with the address of `payload` (`slot_ptr + 16`).
 
 ## Static Storage and Spinlock ABI
 

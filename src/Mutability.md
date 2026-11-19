@@ -3,6 +3,7 @@
 * MUST treat all local variables and standard method parameters as mutable by default.
 * MUST treat the instance receiver (`@`) as immutable by default unless explicitly declared as `ref @`.
 * MUST treat non-`ref` stage iteration bindings (`item in iterable` and `(a, b) in iterable`) as immutable read-only views unless explicitly declared as `ref item in collection`.
+* MUST treat non-`ref` `catch` bindings (`catch e: Type`) as immutable read-only views unless explicitly declared as `catch ref e: Type`.
 * MAY reassign variables or mutate their fields freely when declared via `=` or `:=`.
 * MUST isolate mutations to the bound variable without affecting other variables.
 * MUST execute a bitwise copy upon assignment of Trivial Types.

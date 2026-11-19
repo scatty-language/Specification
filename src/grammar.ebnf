@@ -387,7 +387,7 @@ try_catch_stmt
     ::= "try" ( block | "=>" statement ) catch_arm { catch_arm }
 
 catch_arm
-    ::= "catch" [ local_id ":" type ] ( block | "=>" statement )
+    ::= "catch" [ [ "ref" ] local_id ":" type ] ( block | "=>" statement )
 
 try_force_block
     ::= "try!" block

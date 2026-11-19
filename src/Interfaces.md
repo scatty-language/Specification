@@ -94,12 +94,12 @@ Entity : ~Vectorable
 * MAY utilize interfaces via static dispatch (generics) or dynamic dispatch (polymorphic parameters and `catch` bindings).
 * MUST permit static dispatch calls for ANY method or property defined in the Interface.
 * MUST erase the concrete type and memory size at compile time for dynamic dispatch.
-* MUST restrict bare `~Interface` and guarded `~Interface^Guard` types to method parameters (`item: ~Interface` or `ref item: ~Interface`), anonymous function parameters, and `catch` bindings (`catch e: ~Exception`).
+* MUST restrict bare `~Interface` and guarded `~Interface^Guard` types to method parameters (`item: ~Interface` or `ref item: ~Interface`), anonymous function parameters, and `~Exception` `catch` bindings (`catch e: ~Exception`, `catch ref e: ~Exception`, `catch e: ~Exception^Guard`, and `catch ref e: ~Exception^Guard`).
 * MUST NOT declare a bare `~Interface` or `~Interface^Guard` type as a structural or variant payload field, tuple element, local variable (outside `catch` arms), `static`/`astatic`/`gstatic` storage, method return type, or collection element type.
-* MUST treat a non-`ref` interface parameter (`item: ~Interface`) as a read-only polymorphic reference:
+* MUST treat a non-`ref` interface parameter (`item: ~Interface`) or non-`ref` `catch` binding (`catch e: ~Exception`) as a read-only polymorphic reference:
   * MAY read object-safe interface properties and invoke non-mutating (`@`) object-safe interface methods on `item`.
   * MUST NOT invoke mutating (`ref @`) interface methods on `item`, reassign `item`, or pass `item` as a `ref` argument.
-* MUST treat a `ref` interface parameter (`ref item: ~Interface`) as a mutable polymorphic reference that MAY invoke both non-mutating (`@`) and mutating (`ref @`) object-safe interface methods in-place on the caller's instance.
+* MUST treat a `ref` interface parameter (`ref item: ~Interface`) or `ref` `catch` binding (`catch ref e: ~Exception`) as a mutable polymorphic reference that MAY invoke both non-mutating (`@`) and mutating (`ref @`) object-safe interface methods in-place on the underlying instance and MUST NOT be reassigned via `=`.
 * MUST permit dynamic dispatch calls ONLY for object-safe interface members:
   * An interface method is object-safe if and only if it declares an instance receiver (`@` or `ref @`), declares zero method-level generic parameters (`<...>`), and does not reference the self type (`@`) directly or nested within any non-receiver parameter type or return type.
   * An interface property is object-safe if and only if its declared type does not reference the self type (`@`) directly or nested within a compound type.
@@ -171,7 +171,7 @@ InspectDynamic(a: ~Equatable, b: ~Equatable, ref s: ~Serializer)
 ### Dynamic Resolution and Type Guards
 
 * MUST represent an unimplemented weak contract member as a null slot (`0x0`) within the interface's virtual method table (`vtable`) during dynamic dispatch.
-* MUST NOT invoke or read an unverified weak contract member directly (`item.Method()` or `item.Property`) on an unguarded polymorphic interface parameter (`item: ~Interface` or `ref item: ~Interface`), a `catch` binding (`catch e: ~Interface`), or an unconstrained generic parameter (`T: ~Interface`).
+* MUST NOT invoke or read an unverified weak contract member directly (`item.Method()` or `item.Property`) on an unguarded polymorphic interface parameter (`item: ~Interface` or `ref item: ~Interface`), a `catch` binding (`catch e: ~Exception` or `catch ref e: ~Exception`), or an unconstrained generic parameter (`T: ~Interface`).
 * MAY verify the presence of a weak contract member at runtime using the `is` operator (`must item is .Method` or `must item is .Property`), which checks that the corresponding `vtable` slot is non-null and implicitly refines `item` within the conditional branch.
 * MAY declare type guards over an interface (`^Guard = ~Interface where @ is .Member` or `^Guard = @ where @ is .Member`) at the file's top level.
 * MAY invoke a weak contract member conditionally using the `?` suffix (`item.Method?(args)` or `item.Property?`):
