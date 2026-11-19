@@ -132,7 +132,8 @@ result := t1 + t2;
 ## Embedded Field Operator Delegation
 
 * MUST delegate `==`, `!=`, and `~Hashable` (`Hash(@) -> Ulong`) to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type supports equality and `~Hashable`.
-* MUST delegate arithmetic operators to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type defines arithmetic operators.
+* MUST delegate arithmetic operators (`+`, `-`, `*`, `/`, `%`, `+=`, `-=`, `*=`, `/=`, `%=`) to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type supports arithmetic operators.
+* MUST require both operands of a delegated arithmetic operator to evaluate to the exact same parent `Data` type, yielding an instance of the parent `Data` type whose embedded field holds the operation result and whose remaining fields are copied from the left-hand operand.
 * MUST shadow and override embedded field operators and `~Hashable` delegation if the parent type explicitly declares any `equality` or `math` fields.
 * MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators or `~Hashable` implementations and the parent type does not explicitly shadow them.
 
@@ -159,7 +160,7 @@ playerA := Player { Physics: PhysicsData { Velocity: 5.0f, Hash: 1 }, Name: "A" 
 playerB := Player { Physics: PhysicsData { Velocity: 2.0f, Hash: 1 }, Name: "B" };
 
 isSamePhysics := playerA == playerB;
-playerC := playerA + playerB;
+playerC := playerA + playerB; // Player { Physics: PhysicsData { Velocity: 7.0f, Hash: 1 }, Name: "A" }
 ```
 
 ## Relational Operations
