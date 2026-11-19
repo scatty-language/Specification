@@ -16,8 +16,9 @@ top_level_declaration
       | const_decl
 
 data_decl
-    ::= type_identifier [ "<" type_params ">" ] [ ":" interfaces ] [ "tag" tag_type ]
-        ( [ "extern" ] "{" { member } "}" | "(" [ short_field_list ] ")" [ "extern" ] ";" )
+    ::= type_identifier [ "<" type_params ">" ] [ ":" interfaces ]
+        ( [ "tag" tag_type ] [ "extern" ] "{" { member } "}"
+        | "(" [ short_field_list ] ")" [ "extern" ] ";" )
 
 interfaces
     ::= interface_type { "," interface_type }
@@ -86,13 +87,10 @@ parent_list
     ::= guard_parent { "," guard_parent }
 
 guard_parent
-    ::= "^" type_identifier [ "<" guard_type_args ">" ]
+    ::= guard_path
 
-guard_type_args
-    ::= guard_type_arg { "," guard_type_arg }
-
-guard_type_arg
-    ::= type_arg
+guard_path
+    ::= "^" { type_identifier "::" } type_identifier [ "<" type_args ">" ]
 
 type_alias_decl
     ::= type_identifier [ "<" type_params ">" ] "=" type ";"
@@ -120,7 +118,7 @@ receiver
 
 receiver_constraint
     ::= "::" public_id
-      | "^" type_identifier [ "<" type_args ">" ]
+      | guard_path
 
 parameter_list
     ::= parameter { "," parameter }
@@ -161,11 +159,12 @@ primary_type
       | primitive_type
       | collection_type
       | tuple_type
+      | interface_type
       | type_path
       | "(" type ")"
 
 type_suffix
-    ::= "^" type_identifier [ "<" type_args ">" ]
+    ::= guard_path
       | "?"
       | "weak"
       | "soa"
@@ -206,7 +205,10 @@ type_parameter
     ::= type_identifier [ ":" constraint_list ] [ "=" type ]
 
 const_parameter
-    ::= type_identifier ":" type [ "=" expression ]
+    ::= type_identifier ":" const_param_type [ "=" const_arg ]
+
+const_param_type
+    ::= ( primitive_type | type_path ) { guard_path }
 
 constraint_list
     ::= interface_type { "," interface_type }
@@ -225,11 +227,11 @@ const_arg
 const_expr_arg
     ::= literal
       | signed_numeric_literal
-      | lowercase_id
+      | lowercase_id (* escaped_keyword matches via type_path *)
       | "(" expression ")"
 
 type_path
-    ::= [ "~" ] type_identifier [ "<" type_args ">" ] { "::" [ "~" ] type_identifier [ "<" type_args ">" ] }
+    ::= type_identifier [ "<" type_args ">" ] { "::" type_identifier [ "<" type_args ">" ] }
 
 statement
     ::= var_decl
@@ -268,7 +270,7 @@ continue_stmt
     ::= "continue" ";"
 
 return_stmt
-    ::= "return" [ expression | cascade_chain | stage_expr ] ";"
+    ::= "return" [ expression | cascade_chain | stage_expr [ "strict" ] ] ";"
 
 cascade_stmt
     ::= [ assignable_path assignment_operator ] cascade_chain [ "strict" ] ";"
@@ -287,7 +289,7 @@ fall_stmt
     ::= "fall" ";"
 
 destructure_stmt
-    ::= destructure_pattern ( "=" | ":=" ) expression ";"
+    ::= destructure_pattern ( "=" | ":=" ) ( expression | stage_expr ) [ "strict" ] ";"
 
 destructure_pattern
     ::= "(" destructure_target "," destructure_target { "," destructure_target } ")"
@@ -321,8 +323,7 @@ may_stmt
     ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
 
 may_tail
-    ::= "may" condition ( block | "=>" statement ) [ "or" may_tail ]
-      | block
+    ::= block
       | "=>" statement
       | statement
 
@@ -330,42 +331,39 @@ condition_block
     ::= "{" condition ";" { condition ";" } "}"
 
 condition
-    ::= condition_clause { "and" condition_clause }
+    ::= conditional_expr
+      | condition_binding_chain
 
-condition_clause
+condition_binding_chain
+    ::= { prefix_control_expr "and" } condition_bind_clause { "and" condition_chain_clause }
+
+condition_chain_clause
+    ::= condition_bind_clause
+      | prefix_control_expr
+
+condition_bind_clause
     ::= conditional_binding
       | conditional_assignment
-      | condition_expr
 
 conditional_binding
-    ::= local_id ":=" condition_rhs
+    ::= local_id ":=" prefix_control_expr
 
 conditional_assignment
-    ::= assignable_path ( "=" | "=^" ) condition_rhs
-
-condition_rhs
-    ::= condition_coalesce_expr [ "then" expression ":" condition_rhs ]
-
-condition_coalesce_expr
-    ::= prefix_control_expr [ "??" condition_coalesce_expr ]
-
-condition_expr
-    ::= condition_or_coalesce_expr [ "then" expression ":" condition_expr ]
-
-condition_or_coalesce_expr
-    ::= prefix_control_expr { "or" prefix_control_expr } [ "??" condition_or_coalesce_expr ]
+    ::= assignable_path ( "=" | "=^" ) prefix_control_expr
 
 assignable_path
-    ::= ( "@" | identifier [ "<" type_args ">" ] ) { "." type_identifier | index_access | force_unwrap }
+    ::= ( "@" | path_expr ) { "." type_identifier | index_access | force_unwrap }
 
 stage_stmt
-    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ]
-        ( "->" stage_output_list ( block | "=>" statement )
-        | block [ "strict" ";" ]
-        | "=>" statement )
+    ::= stage_clause "->" stage_output_list ( block [ "strict" ";" ] | "=>" statement )
+      | stage_clause ( block | "=>" statement )
 
 stage_expr
-    ::= [ stage_header ] "in" [ iterator ] [ "by" type_identifier ] "->" stage_output_list block
+    ::= stage_clause "->" stage_output_list block
+
+stage_clause
+    ::= stage_header "in" iterator [ "by" type_path ]
+      | "in"
 
 stage_header
     ::= [ "ref" ] local_id
@@ -378,7 +376,7 @@ stage_output
     ::= local_id ( ":=" | ":" type ( "=" | "=^" ) ) expression
 
 stage_expand_stmt
-    ::= stage_header "in" iterator [ "by" type_identifier ] ";"
+    ::= stage_header "in" iterator [ "by" type_path ] ";"
 
 iterator
     ::= range_expr | expression
@@ -447,13 +445,13 @@ tuple_pattern
     ::= "(" sub_pattern "," sub_pattern { "," sub_pattern } ")"
 
 guard_pattern
-    ::= "^" type_identifier [ "<" type_args ">" ]
+    ::= guard_path
 
 expression
     ::= assignment_expr
 
 assignment_expr
-    ::= assignable_path assignment_operator assignment_expr
+    ::= assignable_path assignment_operator ( assignment_expr | stage_expr )
       | assignable_path "=::" variant_switch_rhs
       | conditional_expr
 
@@ -483,31 +481,31 @@ prefix_control_operator
     ::= "not" | "try?" | "try!"
 
 relational_expr
-    ::= bitwise_expr { relational_operator { prefix_control_operator } bitwise_expr }
+    ::= bitwise_expr { relational_operator bitwise_expr }
 
 relational_operator
     ::= "<" | ">" | "<=" | ">=" | "==" | "!="
 
 bitwise_expr
-    ::= shift_expr { bitwise_operator { prefix_control_operator } shift_expr }
+    ::= shift_expr { bitwise_operator shift_expr }
 
 bitwise_operator
     ::= "bitand" | "bitor" | "bitxor"
 
 shift_expr
-    ::= additive_expr { shift_operator { prefix_control_operator } additive_expr }
+    ::= additive_expr { shift_operator additive_expr }
 
 shift_operator
     ::= "bitshl" | "bitshr"
 
 additive_expr
-    ::= multiplicative_expr { additive_operator { prefix_control_operator } multiplicative_expr }
+    ::= multiplicative_expr { additive_operator multiplicative_expr }
 
 additive_operator
     ::= "+" | "-"
 
 multiplicative_expr
-    ::= type_op_expr { multiplicative_operator { prefix_control_operator } type_op_expr }
+    ::= type_op_expr { multiplicative_operator type_op_expr }
 
 multiplicative_operator
     ::= "*" | "/" | "%"
@@ -548,10 +546,10 @@ nameof_expr
     ::= "nameof" nameof_target
 
 nameof_target
-    ::= "^" type_identifier [ "<" type_args ">" ]
-      | ( primitive_type | type_path ) [ "^" type_identifier [ "<" type_args ">" ] ] { "." type_identifier [ "<" type_args ">" ] }
-      | "@" [ "::" public_id ] [ "^" type_identifier [ "<" type_args ">" ] ] { "." type_identifier [ "<" type_args ">" ] }
-      | lowercase_id { "." type_identifier [ "<" type_args ">" ] }
+    ::= guard_path
+      | ( primitive_type | interface_type | type_path ) [ guard_path ] { "." type_identifier [ "<" type_args ">" ] }
+      | "@" [ "::" public_id ] [ guard_path ] { "." type_identifier [ "<" type_args ">" ] }
+      | lowercase_id { "." type_identifier [ "<" type_args ">" ] } (* escaped_keyword matches via type_path *)
 
 postfix_expr
     ::= primary_expr { postfix_operation }
@@ -596,7 +594,7 @@ primary_expr
       | struct_init_expr
       | type_qualifier_expr
       | path_expr
-      | "(" ( expression | stage_expr ) ")"
+      | "(" ( expression | stage_expr [ "strict" ] ) ")"
 
 path_expr
     ::= identifier
@@ -792,7 +790,7 @@ tab
     ::= "\t"
 
 new_line
-    ::= "\n" | "\r" | "\r\n"
+    ::= "\n" | "\r\n"
 
 uppercase_letter
     ::= "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"

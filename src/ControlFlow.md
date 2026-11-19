@@ -4,7 +4,8 @@
 
 * MUST evaluate a `Condition` expression to `Bool`.
 * MUST interpret an unparenthesized `{` token in the header of a `may`, `in`, or `match` construct as the opening delimiter of the construct's body block.
-* MUST enclose any structural initialization expression containing a `{ ... }` body (`StructInitBody`) in parentheses (`(Type { ... })`) when evaluated inside a `where`, `must`, `must!`, `may`, `in`, or `match` header.
+* MUST enclose any structural initializer (`Type { ... }` or `.Variant { ... }`), collection initializer (`[T] { ... }`, `Type { ... }`, or `{ ... }`), copy-update expression (`expr with { ... }`), structural variant pattern (`expr is .Variant { ... }`), or anonymous function (`params => body`) in parentheses `(...)` when evaluated inside a `where`, `must`, `must!`, `may`, `in`, `match`, `spawn by`, or `rollback by` header.
+* MUST enclose any right-hand expression containing `and`, `or`, `??`, or `then ... :` in parentheses `(...)` when used inside a conditional binding (`:=`) or conditional assignment (`=` or `=^`).
 
 ### Guard Gates
 
@@ -277,6 +278,8 @@ dept in company.Departments
 * MUST scope output bindings declared in an expression-level `in` pipeline to the pipeline body. They MUST NOT be hoisted into the enclosing lexical scope.
 * MUST evaluate an expression-level `in` pipeline declaring a single output binding (`-> result := init`) directly to the final value and static type of that binding upon termination of the pipeline.
 * MUST evaluate an expression-level `in` pipeline declaring two or more output bindings (`-> out1 := init1, out2 := init2`) to a tuple containing the final values of the output bindings in their declaration order upon termination of the pipeline.
+* **MUST** declare a `{ ... }` block body on an expression-level `in` pipeline; an expression-level `in` pipeline **MUST NOT** use the `=> Statement;` body form.
+* **MUST** declare a `{ ... }` block body when applying the `strict` modifier to an `in` pipeline with guarded output bindings (`... { ... } strict;`).
 
 ```scatty
 // 1. Statement-level pipeline hoisting multiple output bindings into the enclosing scope
@@ -294,7 +297,7 @@ order in orders -> paidCount := 0, totalRevenue := 0.0f, vipOrders := [Int].New(
 Console.WriteLine("Count: \(paidCount), Revenue: \(totalRevenue), VIPs: \(vipOrders.Count)");
 
 // 2. Early termination reading an output binding mid-pipeline
-item in cargoItems -> currentWeight := 0.0f, loadedItems: [Item] = {}
+item in cargoItems -> currentWeight := 0.0f, loadedItems: [Item] = ({})
 {
     must currentWeight + item.Weight <= 50.0f or break;
 
