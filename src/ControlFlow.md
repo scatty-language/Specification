@@ -238,9 +238,9 @@ in
 * MUST resolve a stage source lacking a `by` modifier according to the following descending priority order:
   1. Built-in range expressions (`start..end` or `start..end..step`) for non-`ref` iteration only.
   2. Built-in collections (`[T]`, `[T; N]`, `Array<T>`, `[T..]`, `[ref T..]`, `String`, `RuneString`, `[K -> V]`, `[T] soa`, `[T; N] soa`, `Array<T> soa`, `[$: T]`, and `[K: V]`).
-  3. Any `Data` type (or constrained generic parameter) implementing `~IndirectIndexable<TCursor, TValue>`, traversing cursors via `FirstCursor` and `NextCursor` and reading elements via `GetAt`.
-  4. Any `Data` type (or constrained generic parameter) that does not implement `~IndirectIndexable` and implements `~Indexable<Int, TValue>` together with the weak contract `Count: Int`, evaluating `Count` once prior to loop entry and traversing integer indices `0..Count` via `Get`.
-* MUST reject an `in` iteration source at compile time if it implements multiple distinct specializations of `~IndirectIndexable`, or implements multiple distinct specializations of `~Indexable<Int, T>` without `~IndirectIndexable`.
+  3. Any `Data` type (or constrained generic parameter) implementing `~CursorIndexable<TCursor, TValue>`, traversing cursors via `FirstCursor` and `NextCursor` and reading elements via `GetAt`.
+  4. Any `Data` type (or constrained generic parameter) that does not implement `~CursorIndexable` and implements `~Indexable<Int, TValue>` together with the weak contract `Count: Int`, evaluating `Count` once prior to loop entry and traversing integer indices `0..Count` via `Get`.
+* MUST reject an `in` iteration source at compile time if it implements multiple distinct specializations of `~CursorIndexable`, or implements multiple distinct specializations of `~Indexable<Int, T>` without `~CursorIndexable`.
 * MUST evaluate `Get` or `GetAt` once per iteration to bind the immutable stage variable in a non-`ref` loop over a custom `Data` type.
 
 ### Mutable `ref` Stage Bindings
@@ -250,15 +250,15 @@ in
   * Built-in contiguous addressable collections: `[T]`, `[T; N]`, `Array<T>`, `[ref T..]`, `RuneString`, and `[K -> V]`.
   * Built-in `soa` collections: `[T] soa`, `[T; N] soa`, and `Array<T> soa`.
   * `String` exclusively within an `unsafe` block or `unsafe` method.
-  * Any `Data` type implementing `~IndirectIndexable<TCursor, TValue>` with the weak contract `SetAt`.
-  * Any `Data` type (not implementing `~IndirectIndexable`) implementing `~Indexable<Int, TValue>` with both weak contracts `Count` and `Set`.
+  * Any `Data` type implementing `~CursorIndexable<TCursor, TValue>` with the weak contract `SetAt`.
+  * Any `Data` type (not implementing `~CursorIndexable`) implementing `~Indexable<Int, TValue>` with both weak contracts `Count` and `Set`.
 * MUST reject `ref item in collection` at compile time on ranges, read-only slices (`[T..]`), `String` outside `unsafe`, hashed collections (`[$: T]`, `[K: V]`), custom `Data` types omitting `Set` / `SetAt`, `static` or `astatic` storage, rvalue expressions, and pipelines declaring a `by` schedule modifier.
 * MUST evaluate any index expressions within `collection`'s lvalue path (such as `matrix[GetRow()]`) exactly once prior to entering the loop.
 * MUST bind `item` in `ref item in collection` as an in-place slot alias corresponding to the active element:
   * On built-in contiguous addressable collections, accesses and mutations of `item` operate directly on the element's memory slot without bounds checking.
   * On built-in `soa` collections, accesses and mutations of `item` operate identically to indexed `soa` access (`collection[_i]`): field accesses and leaf-field `ref` borrows target the parallel arrays directly, whole-element assignment performs Scatter, whole-element reads perform Gather, and passing the whole element by `ref` (`ref item`) or invoking a `ref @` method directly on `item` MUST be rejected at compile time.
-  * On custom `~IndirectIndexable<TCursor, TValue>` types with `SetAt` and custom `~Indexable<Int, TValue>` types with `Count` and `Set`, reads of `item` invoke `GetAt` / `Get`, and mutations of `item` unpack into the read-modify-write sequences defined in the Indexing Operator specification, propagating `throws` according to the concrete `Get` / `Set` / `GetAt` / `SetAt` signatures.
-* MUST NOT bind a mutating instance method (`item.MutatingMethod`) directly as a stack closure (`fn`) when `item` aliases a whole `soa` element or an element of a custom `~Indexable` or `~IndirectIndexable` type.
+  * On custom `~CursorIndexable<TCursor, TValue>` types with `SetAt` and custom `~Indexable<Int, TValue>` types with `Count` and `Set`, reads of `item` invoke `GetAt` / `Get`, and mutations of `item` unpack into the read-modify-write sequences defined in the Indexing Operator specification, propagating `throws` according to the concrete `Get` / `Set` / `GetAt` / `SetAt` signatures.
+* MUST NOT bind a mutating instance method (`item.MutatingMethod`) directly as a stack closure (`fn`) when `item` aliases a whole `soa` element or an element of a custom `~Indexable` or `~CursorIndexable` type.
 * MUST enforce standard `TypeGuards` rules on `item` when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks.
 * MUST evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref` stage (on normal completion, `break`, `return`, or exception propagation) when `collection` itself or an enclosing container along its path is governed by a type guard, obeying active build-mode validation rules or checking in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
 
