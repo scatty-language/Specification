@@ -36,7 +36,7 @@ Console.windows.arm64.cat
 Console.debug.windows.arm64.cat
 Renderer.vulkan.release.windows.amd64.cat
 
-// Invalid: violates canonical order (<os> placed before <mode> or <arch> before <os>)
+// ERROR: violates canonical order (<os> placed before <mode> or <arch> before <os>)
 Console.windows.debug.cat       // ERROR: <mode> MUST precede <os>
 Console.arm64.windows.cat       // ERROR: <os> MUST precede <arch>
 Renderer.windows.vulkan.cat     // ERROR: <custom> MUST precede <os>

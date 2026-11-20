@@ -452,7 +452,21 @@ expression
 assignment_expr
     ::= assignable_path assignment_operator ( assignment_expr | stage_expr )
       | assignable_path "=::" variant_switch_rhs
+      | try_catch_expr
+
+try_catch_expr
+    ::= "try" conditional_expr catch_expr_arm { catch_expr_arm }
       | conditional_expr
+
+catch_expr_arm
+    ::= "catch" [ [ "ref" ] local_id ":" type ] ( "=>" catch_expr_body | block )
+
+catch_expr_body
+    ::= conditional_expr
+      | "throw" [ conditional_expr ]
+      | "return" [ conditional_expr ]
+      | "break"
+      | "continue"
 
 variant_switch_rhs
     ::= public_id [ variant_payload_init_body ]
@@ -633,7 +647,7 @@ collection_elem_list
     ::= collection_elem { "," collection_elem } [ "," ]
 
 collection_elem
-    ::= [ collection_elem_key "=" ] conditional_expr
+    ::= [ collection_elem_key "=" ] try_catch_expr
 
 collection_elem_key
     ::= logical_or_expr | "_"

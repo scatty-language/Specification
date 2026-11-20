@@ -21,7 +21,8 @@
 | 11 | Logical OR | `or` | Left-to-right |
 | 12 | Coalescing | `??` | Right-to-left |
 | 13 | Conditional | `then ... :` | Right-to-left |
-| 14 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
+| 14 | Try-Catch | `try ... catch` | Non-associative |
+| 15 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
 
 * MUST evaluate operators with equal precedence from left to right, except coalescing (`??`), conditional (`then ... :`), and assignment operators which MUST evaluate from right to left.
 
@@ -122,12 +123,12 @@ result := t1 + t2;
 
 * MUST require both operands of binary arithmetic operators (`+`, `-`, `*`, `/`, `%`) on primitive numeric types to evaluate to the exact same numeric type.
 * MUST reject at compile time any constant integer expression that overflows the target type's representable range or divides/modulos by `0`.
-* MUST immediately trigger runtime Abort or Fatal Panic mechanics in both Debug and Release modes when an integer division (`/`) or remainder (`%`) operation is evaluated with a divisor of `0` at runtime.
-* MUST evaluate floating-point (`Float` and `Double`) division by `0.0` according to IEEE 754 semantics, yielding `+Infinity`, `-Infinity`, or `NaN` without panicking.
+* MUST throw `DivisionByZeroError` in both Debug and Release modes when an integer division (`/`) or remainder (`%`) operation is evaluated with a divisor of `0` at runtime (propagating in `throws` contexts, interceptable via `try` / `catch` or `try?`, or immediately triggering Abort or Fatal Panic mechanics if uncaught in a non-throwing context).
+* MUST evaluate floating-point (`Float` and `Double`) division by `0.0` according to IEEE 754 semantics, yielding `+Infinity`, `-Infinity`, or `NaN` without throwing.
 * MUST enforce the following build-mode semantics for runtime integer arithmetic overflow (`+`, `-`, `*`, unary `-`, and signed `MinValue / -1`):
-  * In Debug mode, the compiler MUST detect signed and unsigned integer overflow at runtime and immediately trigger a Fatal Panic.
+  * In Debug mode, the compiler MUST detect signed and unsigned integer overflow at runtime and throw `OverflowError` (propagating in `throws` contexts, interceptable via `try` / `catch` or `try?`, or triggering Fatal Panic if uncaught in a non-throwing context).
   * In Release mode, the compiler MUST wrap integer overflow using two's complement modular arithmetic by default (with `MinValue % -1` evaluating to `0`).
-  * Implementations MUST provide a compiler configuration flag that retains runtime integer overflow checks in Release mode, triggering an immediate process Abort upon overflow.
+  * Implementations MUST provide a compiler configuration flag that retains runtime integer overflow checks in Release mode, throwing `OverflowError` upon overflow (triggering immediate process Abort if uncaught in a non-throwing context).
 
 ## Embedded Field Operator Delegation
 
@@ -211,8 +212,8 @@ playerC := playerA + playerB; // Player { Physics: PhysicsData { Velocity: 7.0f,
 
 * MAY omit the `throws` modifier on a concrete `Get(@, key: TKey) -> TValue` implementation to declare an infallible index read.
 * MUST invoke `Get` directly without requiring a `throws` context when applying `col[key]` to a statically known infallible implementation.
-* MUST invoke `Get` and propagate any thrown exception as a `throws` expression (or immediately trigger Abort/Panic in a non-throwing method) when applying `col[key]` to a fallible implementation.
-* MAY invoke `.At(key)` to safely query a fallible indexable collection and receive `TValue?` (`Option::Some` if valid, or `Option::None` if out of bounds or unmapped) without throwing an exception.
+* MUST invoke `Get` and propagate any thrown error as a `throws` expression (or immediately trigger Abort/Panic in a non-throwing method) when applying `col[key]` to a fallible implementation.
+* MAY invoke `.At(key)` to safely query a fallible indexable collection and receive `TValue?` (`Option::Some` if valid, or `Option::None` if out of bounds or unmapped) without throwing an error.
 
 ### Writing and In-Place Mutation by Index
 
@@ -285,7 +286,7 @@ SparseList<T> : ~Indexable<Int, T>, ~CursorIndexable<Int, T>
     Get(@, key: Int) throws -> T 
     {
         may val := @._slots[key] => return val;
-        throw Exception.New("Empty slot");
+        throw Error.New("Empty slot");
     }
 
     Set(ref @, key: Int, value: T) throws 

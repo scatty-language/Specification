@@ -17,12 +17,13 @@
 * MUST NOT use named arguments for individual elements passed to a `Type...` parameter, except when passing a single `[Type..]` slice by parameter name (`local_id: sliceExpr`).
 * MUST evaluate positional arguments supplied to a `Type...` parameter into a contiguous caller-allocated temporary stack buffer prior to invocation and pass a `[Type..]` view referencing that stack buffer.
 * MUST pass an empty `[Type..]` slice (`data_ptr = 0x0`, `length = 0`) without stack buffer allocation when zero arguments are supplied to a `Type...` parameter.
-* MUST decrement the ARC `strongCount` (and invoke `Dispose` where applicable) for any materialized temporary Owning Type elements in the caller-allocated stack buffer immediately after the invocation returns, including on exception propagation (`throws`) paths.
+* MUST decrement the ARC `strongCount` (and invoke `Dispose` where applicable) for any materialized temporary Owning Type elements in the caller-allocated stack buffer immediately after the invocation returns, including on error propagation (`throws`) paths.
 
 ```scatty
 Logger 
 {
-    // Declares a slice parameter of 'Int'; 'metrics' has type '[Int..]'
+    // Declares a slice parameter of 'Int'
+    // 'metrics' has type '[Int..]'
     LogMetrics(prefix: String, metrics: Int...) 
     {
         m in metrics 
@@ -271,7 +272,7 @@ ProcessVector(pos.Add(a)..Add(b));
 * MUST execute call-site value materialization in the following sequence:
   1. Evaluate the argument expression into an isolated caller-allocated temporary stack slot (via bitwise copy for Trivial Types and ARC `strongCount` increment for Owning Types and nested Owning Type fields) prior to passing any `ref` / `ref @` address or hidden read-only pointer.
   2. Pass the CPU register value or hidden read-only pointer referencing the isolated temporary stack slot to the callee.
-  3. Decrement the ARC `strongCount` (and invoke `Dispose` where applicable) of the materialized temporary immediately after the call returns, including on exception propagation paths.
+  3. Decrement the ARC `strongCount` (and invoke `Dispose` where applicable) of the materialized temporary immediately after the call returns, including on error propagation paths.
 * MUST lazily materialize a local copy (via bitwise copy for Trivial Types or ARC retain and Copy-on-Write detachment for Owning Types) at the exact point of assignment or mutation if a standard (non-`ref`) parameter is mutated or stored within the method body.
 * MUST NOT declare or return references (`ref`) from methods.
 * MUST return all `Data` by value.
@@ -356,7 +357,7 @@ MathCallbacks
 * MUST NOT allocate heap memory or ARC Control Blocks when constructing, copying, or invoking an `fn` closure.
 * MAY declare the `throws` modifier on an `fn` type (`fn(...) throws -> ReturnType`).
 * MUST NOT declare the `extern` modifier or calling convention specifiers on an `fn` type.
-* MAY assign or pass a non-throwing closure, method, or `fnptr` to an `fn` type declared with `throws`.
+* MAY assign or pass a non-throwing closure, method, or `fnptr` to an `fn` type declared with `throws`. Compiler MUST emit a forwarding thunk that clears the error indicator register (`swifterror = 0x0`) per the ABI specification.
 * MUST NOT assign or pass a `throws` closure, method, or `fnptr` to an `fn` type that omits `throws`.
 * MAY implicitly convert a non-`extern` stateless function pointer (`fnptr(...) -> ReturnType`), static method (`Type.StaticMethod`), or unbound instance method (`Type.InstanceMethod`, mapping `@` or `ref @` to the first parameter of `fn`) to a compatible `fn` type.
 
@@ -497,7 +498,7 @@ may condition
 * MAY infer the exact `extern` calling convention on a stateless anonymous function when initialized in a context expecting an `fnptr(...) extern [calling_convention]` type.
 * MAY declare the `throws` modifier on a non-`extern` `fnptr` type (`fnptr(...) throws -> ReturnType`).
 * MUST NOT combine the `extern` and `throws` modifiers on an `fnptr` type.
-* MAY assign a non-throwing stateless method or anonymous function to an `fnptr` type declared with `throws`.
+* MAY assign a non-throwing stateless method, non-throwing `fnptr`, or non-throwing stateless anonymous function to an `fnptr` type declared with `throws`; the compiler MUST emit a `fastcc` forwarding thunk that clears the error indicator register (`swifterror = 0x0`) and store the thunk's code address in the resulting `fnptr` per the ABI specification (or compile a directly initialized anonymous function with the `throws` ABI).
 * MUST NOT assign a `throws` method or throwing anonymous function to an `fnptr` type that omits `throws`.
 * MAY assign unbound instance methods (`Type.Method`) to `fnptr` pointers by implicitly mapping the method receiver (`@` or `ref @`) to the first explicitly typed parameter in the `fnptr` signature.
 * MUST map a constrained receiver (`@::Variant` or `@^Guard`) to the corresponding constrained parameter type (`Data::Variant` or `Type^Guard`) as the first parameter of the `fnptr` signature.

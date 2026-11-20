@@ -24,8 +24,8 @@
 ## Top-Level Error Handling
 
 * MAY declare the `Run` method with the `throws` modifier.
-* MUST trigger runtime Abort and Panic mechanics if an unhandled exception escapes a `throws` entry point.
-* MUST return a non-zero exit code to the operating system if execution terminates via an unhandled exception or process abort.
+* MUST trigger runtime Abort and Panic mechanics if an unhandled error escapes a `throws` entry point.
+* MUST return a non-zero exit code to the operating system if execution terminates via an unhandled error or process abort.
 
 ```scatty
 // Minimal Entry Point

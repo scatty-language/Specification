@@ -76,7 +76,7 @@ staticSoa: [Entity; 16] soa = { _ = Entity { Id: 0, PosX: 0.0f } };
 * MUST require the element type of a Hash Set (`[$: Type]`) and the key type of a Hash Map (`[KeyType: ValueType]`) to satisfy the `~Hashable` interface and support structural equality (`==`).
 * MUST reject at compile time any `[$: Type]` or `[KeyType: ValueType]` instantiation whose element or key type is `T weak` or a `Data` type that does not synthesize `~Hashable` (such as an untagged union `tag none` or a `Data` type with `T weak` fields lacking explicit `equality`-marked fields).
 * MUST compute bucket hashes in `[$: Type]` and `[KeyType: ValueType]` via the `Hash(@) -> Ulong` method of `~Hashable` and resolve key equivalence via the `==` operator.
-* MUST throw an exception (or trigger Abort/Panic in a non-throwing method) upon accessing an unmapped key via the index operator (`map[key]`).
+* MUST throw an error (or trigger Abort/Panic in a non-throwing method) upon accessing an unmapped key via the index operator (`map[key]`).
 * MAY use `.At(key)` to safely query a key and return `ValueType?` (`Option::Some` or `Option::None`) without throwing.
 
 ```scatty
@@ -273,7 +273,7 @@ helloBytes: [Char..] = text[0..5];
 ### Slice Bounds and Operations
 
 * MUST evaluate the lower bound `start` as inclusive (defaulting to `0` when omitted) and the upper bound `end` as exclusive (defaulting to the source collection's element count when omitted).
-* MUST throw an exception (or immediately trigger Abort or Fatal Panic mechanics in a non-throwing context) if `start < 0`, `end < start`, or `end` exceeds the source collection's element count.
+* MUST throw an error (or immediately trigger Abort or Fatal Panic mechanics in a non-throwing context) if `start < 0`, `end < start`, or `end` exceeds the source collection's element count.
 * MUST evaluate a range slice where `start == end` and `0 <= start <= Count` to a valid empty slice with a length of `0`.
 * MUST NOT mutate elements, assign to an index (`slice[i] = val`), invoke `ref @` methods on elements, or borrow elements via `ref` (`ref slice[i]` or `ref item in slice`) on a read-only slice (`[Type..]`).
 * MAY mutate elements in-place, assign to an index (`slice[i] = val`), invoke `ref @` methods on elements, and borrow elements via `ref` (`ref slice[i]` or `ref item in slice`) on a mutable slice (`[ref Type..]`).

@@ -5,7 +5,7 @@
 * MUST evaluate the `where` clause expression to a pure, side-effect-free `Bool`.
 * MUST compile each type guard `where` clause as a non-throwing predicate.
 * MAY invoke `throws` methods (directly or via `try?` or `try!`) within a `where` clause expression without a compile-time error.
-* MUST immediately trigger runtime Abort or Fatal Panic mechanics if an uncaught exception is thrown during the evaluation of a `where` clause.
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics if an uncaught error is thrown during the evaluation of a `where` clause.
 * MUST explicitly specify the base type being guarded immediately following the `=` token.
 * MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a type guard declaration.
 * MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `where` expression.
@@ -26,7 +26,7 @@ Validator
 {
     CheckStrict(val: Int) throws -> Bool
     {
-        may val < 0 => throw Exception.New("Negative");
+        may val < 0 => throw Error.New("Negative");
         return val > 0;
     }
 
@@ -39,7 +39,7 @@ Validator
 // Valid: compiled as a non-throwing predicate; triggers Abort/Panic if 'CheckStrict' throws
 ^StrictPositive = Int where Validator.CheckStrict(@);
 
-// Valid: 'TryValidate' catches internal exceptions via 'try?' and returns 'Bool'
+// Valid: 'TryValidate' catches internal errors via 'try?' and returns 'Bool'
 ^SafePositive = Int where Validator.TryValidate(@);
 ```
 
@@ -111,9 +111,9 @@ may rawAcc is Account^Solvent
   * If the compile-time evaluation yields `true`, the compiler MUST elide all runtime validation branches.
   * If the compile-time evaluation yields `false`, the compiler MUST reject the expression with a compile-time error (or evaluate `as?` directly to `Option::None`).
 * MUST evaluate the invariant and implicitly narrow the type within conditional branches, `and` condition chains, and subsequent statements following an unconditional early-exit branch when using the `is` and `is not` operators.
-* MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and throw a `CastException` upon failure when using the `as` operator.
+* MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and throw `CastError` upon failure when using the `as` operator.
+* MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and immediately trigger runtime Abort or Fatal Panic mechanics (bypassing any enclosing `catch` handlers) upon failure when using the `as!` operator.
 * MUST validate the invariant at runtime and yield `Option<BaseType^Guard>` when using the `as?` operator.
-* MUST validate the invariant at runtime (in both Debug and Release modes, unless proven at compile time) and immediately trigger runtime Abort or Fatal Panic mechanics upon failure when using the `as!` operator.
 * MUST bypass runtime validation and force compiler acceptance when using the `assume` operator.
 * MUST confine the use of the `assume` operator exclusively to within an `unsafe` block or `unsafe` method.
 * MAY substitute the explicit target type with the contextual guard symbol (`^`) following `as`, `as?`, `as!`, or `assume` when the expected guarded type is statically known from context (explicitly typed declarations, assignments, method parameter types, `return` statements, or structural field initializers).
@@ -128,7 +128,7 @@ may rawValue is Int^Positive
     ProcessAge(rawValue);
 }
 
-// Throws 'CastException' if rawValue <= 0
+// Throws 'CastError' if rawValue <= 0
 valid := rawValue as Int^Positive;
 
 // Aborts/Panics immediately if rawValue <= 0
@@ -170,18 +170,21 @@ match rawValue as? Int^Positive
 * MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) - along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
   * Invoking any mutating (`ref @`) method on `instance` (or `@`) or on any of its direct or nested fields or indexed elements (e.g., `list.Clear()` on `list: [Int]^NonEmpty`, or `user.Scores.Clear()` on `user: Profile^HasScores`), or
   * Passing `instance` (or `@`) or any of its direct or nested fields or indexed elements as a `ref` argument to any method parameter, regardless of whether the target parameter is typed as an unguarded base type or a guarded type.
-* MUST also re-evaluate the `where` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active exception.
+* MUST also re-evaluate the `where` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active error:
+  1. Preserve the active propagating error in a frame-local cleanup save slot (clearing the active error slot indicator and TLS error slot) prior to evaluating the `where` invariant.
+  2. If all enclosing `where` invariants evaluate to `true`, restore the saved error into the TLS error slot and continue error propagation.
+  3. If any enclosing `where` invariant evaluates to `false`, dispose the saved error (invoking `dispose_fn` when non-null) and throw `InvariantError`.
 * MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` / post-`ref @` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
-  * In Debug mode, the compiler MUST evaluate the governing `where` invariant at runtime immediately after the mutation and trigger a Fatal Panic if the invariant evaluates to `false`.
+  * In Debug mode, the compiler MUST evaluate the governing `where` invariant at runtime immediately after the mutation and throw `InvariantError` if the invariant evaluates to `false` (propagating in `throws` contexts, interceptable via `try` / `catch`, or triggering Fatal Panic if uncaught in a non-throwing context).
   * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
-  * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, triggering an immediate process Abort upon invariant violation.
+  * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, throwing `InvariantError` upon invariant violation (triggering immediate process Abort if uncaught in a non-throwing context).
 * MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
-* MUST evaluate the runtime invariant check in both Debug and Release modes when the `strict` modifier is applied, triggering an immediate process Abort or Fatal Panic if the invariant evaluates to `false`.
+* MUST evaluate the runtime invariant check in both Debug and Release modes when the `strict` modifier is applied, throwing `InvariantError` if the invariant evaluates to `false` (propagating in `throws` contexts, interceptable via `try` / `catch`, or immediately triggering Abort or Fatal Panic mechanics if uncaught in a non-throwing context).
 * MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
 * MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`where`, `must!`, `may`, or `match`).
 * MUST treat `item` as a mutable guarded target of type `T^Guard` inside a `ref item in collection` loop when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks for mutations of `item`.
 * MUST allow standard (non-guarded) mutation operators on `item` inside a `ref item in collection` loop when the element type of `collection` is unguarded, even if `collection` itself or an enclosing container along its path is governed by a type guard (`list: [Int]^AllPositive` or `user.Scores` on `user: User^HasScores`).
-* MUST automatically re-evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref item in collection` loop (via normal completion, `break`, `return`, or exception propagation), following the active build-mode validation rules, or enforcing the check in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
+* MUST automatically re-evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref item in collection` loop (via normal completion, `break`, `return`, or error propagation), following the active build-mode validation rules, or enforcing the check in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
 
 ```scatty
 User 

@@ -351,3 +351,10 @@ UpdateState() throws
 ### Variant Array Cleanup
 
 * MUST decrement the strong reference count (and invoke `Dispose` where applicable) for all `VariantCount` elements when a variant array (`[K -> V]`) containing Owning Type elements (or `Option::Some` payloads in `[K -> V?]`) is destroyed.
+
+## Out-of-Memory Handling
+
+* MUST throw `OutOfMemoryError` if the heap allocator fails to satisfy an allocation request during Owning Type (`~Disposable`) instantiation, Copy-on-Write deep cloning, `with` Copy-Update on an Owning Type, dynamic collection allocation or growth, runtime `String` interpolation, or `String` / `RuneString` conversion.
+* MUST construct and throw `OutOfMemoryError` directly within the pre-allocated 128-byte TLS error slot without performing any heap allocation.
+* MUST propagate `OutOfMemoryError` in `throws` contexts (and permit interception via `try` / `catch` or `try?`), or immediately trigger Abort or Fatal Panic mechanics if uncaught in a non-throwing context.
+* MUST immediately trigger Abort or Fatal Panic mechanics if an uncaught error (including `OutOfMemoryError`) occurs during the execution of `Dispose(ref @)`.

@@ -110,9 +110,9 @@ regex := """\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""";
 
 json := """
     {
-        "name": "Scatty",
+        "name": "Cat",
         "version": 1.0,
-        "features": ["Exceptions", "Generics"]
+        "features": ["Tail", "Ears"]
     }
     """;
 

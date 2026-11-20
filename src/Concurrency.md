@@ -78,7 +78,7 @@ concurrent
 * MUST implicitly return the evaluated value of a single-expression `spawn` body (`spawn => Expression;`).
 * MUST require an explicit `return Expression;` statement to yield a value from a block-bodied `spawn` task (`spawn { ... }`).
 * MUST scope any `return` statement inside a `spawn` or `rollback` block to that task's body; a `spawn` block MUST NOT return directly from the enclosing method.
-* MUST require every `catch` arm attached to a value-yielding `spawn` statement to either yield a fallback value of type `T` or rethrow an exception.
+* MUST require every `catch` arm attached to a value-yielding `spawn` statement to either yield a fallback value of type `T` or rethrow an error.
 * MUST collect and order the evaluated results in the returned `[T]` array according to the sequential order in which the tasks were spawned.
 
 ```scatty
@@ -97,29 +97,29 @@ results: [Int] = concurrent
 
 ## Error Handling and Cancellation
 
-* MUST immediately abort the process if an unhandled exception escapes a `spawn` block inside a non-throwing `concurrent` block.
+* MUST immediately abort the process if an unhandled error escapes a `spawn` block inside a non-throwing `concurrent` block.
 * MAY attach one or more `catch` arms to a `spawn` statement.
-* MUST suppress exception propagation and prevent scope cancellation if a thrown exception is caught by a `catch` arm attached to the `spawn` statement.
+* MUST suppress error propagation and prevent scope cancellation if a thrown error is caught by a `catch` arm attached to the `spawn` statement.
 * MAY declare a `concurrent` block with the `throws` modifier.
-* MUST transition a `concurrent throws` block into a `Cancelled` state immediately upon any unhandled exception escaping a child task.
+* MUST transition a `concurrent throws` block into a `Cancelled` state immediately upon any unhandled error escaping a child task.
 * MUST cooperatively signal cancellation to all sibling tasks upon entering the `Cancelled` state.
-* MUST move the 128-byte exception slot (metadata header and payload) of the first unhandled exception that triggered cancellation into the `concurrent throws` cancellation slot and clear the failing task's TLS exception slot (`vtable_ptr = 0x0`).
-* MUST await completion of all tasks in the scope (including execution of applicable `rollback` blocks) and move the 128-byte exception slot from the `concurrent throws` cancellation slot into the calling thread's TLS exception slot to propagate the exception when a `concurrent throws` block is cancelled.
-* MUST discard any subsequent unhandled exception thrown by a sibling task after the `concurrent throws` scope has already entered the `Cancelled` state:
-  1. Read `dispose_fn` from word `2` of the task's TLS exception slot `vtable_ptr`.
-  2. If `dispose_fn` is `0x0`, clear the task's TLS exception slot (`vtable_ptr = 0x0`).
-  3. If `dispose_fn` is non-null (`!= 0x0`), move the 128-byte exception slot from the task's TLS exception slot into a task-local temporary exception slot, clear the task's TLS exception slot (`vtable_ptr = 0x0`), and invoke `dispose_fn` on the temporary slot's payload.
+* MUST move the 128-byte error slot (metadata header and payload) of the first unhandled error that triggered cancellation into the `concurrent throws` cancellation slot and clear the failing task's TLS error slot (`vtable_ptr = 0x0`).
+* MUST await completion of all tasks in the scope (including execution of applicable `rollback` blocks) and move the 128-byte error slot from the `concurrent throws` cancellation slot into the calling thread's TLS error slot to propagate the error when a `concurrent throws` block is cancelled.
+* MUST discard any subsequent unhandled error thrown by a sibling task after the `concurrent throws` scope has already entered the `Cancelled` state:
+  1. Read `dispose_fn` from word `2` of the task's TLS error slot `vtable_ptr`.
+  2. If `dispose_fn` is `0x0`, clear the task's TLS error slot (`vtable_ptr = 0x0`).
+  3. If `dispose_fn` is non-null (`!= 0x0`), move the 128-byte error slot from the task's TLS error slot into a task-local temporary error slot, clear the task's TLS error slot (`vtable_ptr = 0x0`), and invoke `dispose_fn` on the temporary slot's payload.
 
 ## Rollback Blocks
 
 * MAY attach a `rollback` block to a `spawn` statement.
-* MUST execute a `rollback` block if and only if its associated `spawn` task completed normally (without throwing an unhandled exception) and the enclosing `concurrent` scope subsequently entered a `Cancelled` state.
+* MUST execute a `rollback` block if and only if its associated `spawn` task completed normally (without throwing an unhandled error) and the enclosing `concurrent` scope subsequently entered a `Cancelled` state.
 * MUST capture outer variables referenced inside a `rollback` block by value.
 * MAY reference local variables declared at the top-level scope of the associated `spawn` block (including variables bound via top-level `must!` gates or `must ... or` gates whose fallback clause unconditionally throws) within the `rollback` block.
 * MUST preserve by value any top-level `spawn` local variables referenced by the `rollback` block upon normal completion of the `spawn` task.
 * MUST reject compilation if a `rollback` block references a local variable declared in the associated `spawn` block and the `spawn` block contains a `return` statement, a standalone `must` gate, or a non-throwing `must ... or` gate preceding or declaring that variable.
-* MUST NOT allow exceptions to escape from a `rollback` block.
-* MUST immediately abort the process if an exception escapes from a `rollback` block.
+* MUST NOT allow errors to escape from a `rollback` block.
+* MUST immediately abort the process if an error escapes from a `rollback` block.
 * MAY declare a resilience strategy for a `rollback` block using the `by` modifier.
 * MUST resolve the expression supplied to a `rollback by` modifier to a type implementing the `~SpawnStrategy` interface.
 
@@ -132,7 +132,7 @@ concurrent throws
     {
         fileId := Storage.Upload(fileData);
     } 
-    catch e: ~Exception 
+    catch e: ~Error 
     {
         Logger.Warn("Upload failed completely");
     }
@@ -143,7 +143,7 @@ concurrent throws
 
     spawn 
     {
-        throw Exception.New("Database disconnected");
+        throw Error.New("Database disconnected");
     }
 }
 ```

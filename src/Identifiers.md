@@ -32,7 +32,7 @@ Engine_
 _cacheSize
 index
 
-// Invalid:
+// ERROR:
 1stValue
 _Data
 Data__

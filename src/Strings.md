@@ -12,7 +12,7 @@
 * MUST return a single 8-bit `Char` upon indexing.
 * MUST yield 8-bit `Char` elements during standard iteration.
 * MUST enforce valid UTF-8 encoding during mutation operations.
-* MUST panic or throw an exception if a malformed byte sequence is injected.
+* MUST panic or throw an error if a malformed byte sequence is injected.
 
 ## `RuneString`
 

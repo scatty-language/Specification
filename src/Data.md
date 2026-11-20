@@ -72,7 +72,7 @@ NetworkHeader extern
 * MUST acquire the per-field atomic spinlock, increment `strongCount` for the Owning Type (or any nested Owning Type fields) or copy the memory (for Trivial Types), and release the spinlock when reading a spinlock-backed `astatic` field.
 * MUST evaluate all right-hand side expressions, variant payload arguments, and method arguments (including call-site value materialization) prior to acquiring the per-field atomic spinlock when executing an assignment, compound assignment, field mutation, variant switch (`=::`), or mutating method call (`ref @`) on a spinlock-backed `astatic` field.
 * MUST hold the per-field atomic spinlock for the duration of the memory update or mutating method call (`ref @`) on a spinlock-backed `astatic` field.
-* MUST release the per-field atomic spinlock immediately upon completion of the guarded operation on both normal execution and exception propagation (`throws`) paths, prior to decrementing `strongCount` or invoking `Dispose` on any replaced Owning Type instances.
+* MUST release the per-field atomic spinlock immediately upon completion of the guarded operation on both normal execution and error propagation (`throws`) paths, prior to decrementing `strongCount` or invoking `Dispose` on any replaced Owning Type instances.
 * MUST record the owning thread identifier in the per-field atomic spinlock while held and immediately trigger runtime Abort or Fatal Panic mechanics if the same thread attempts a reentrant read, write, or mutation on that `astatic` field prior to spinlock release.
 * MUST restrict all reads, mutations, and references to `gstatic` fields exclusively to `unsafe` blocks or `unsafe` methods.
 * MUST NOT pass a `static` or `astatic` field directly as a `ref` argument to a method parameter.
@@ -130,7 +130,7 @@ Option<T>
     Unwrap(@) throws -> T 
     {
         may @ is .Some(val) => return val;
-        throw Exception.New("Unwrapped None");
+        throw Error.New("Unwrapped None");
     }
 }
 ```

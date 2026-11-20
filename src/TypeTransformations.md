@@ -23,9 +23,9 @@
 ## Fallible Transformations
 
 * MUST declare the `throws` modifier on the concrete `Cast(@) throws -> T` method implementation to declare a fallible transformation.
-* MUST invoke `Cast` and propagate any thrown exception as a `throws` expression when applying the `as` operator.
-* MUST invoke `Cast`, intercept any thrown exception, and evaluate to `T?` (`Option::Some` on success, `Option::None` on failure) when applying the `as?` operator.
-* MUST invoke `Cast` and immediately trigger runtime Abort or Fatal Panic mechanics if an exception is thrown when applying the `as!` operator.
+* MUST invoke `Cast` and propagate any thrown error as a `throws` expression when applying the `as` operator.
+* MUST invoke `Cast`, intercept any thrown error, and evaluate to `T?` (`Option::Some` on success, `Option::None` on failure) when applying the `as?` operator.
+* MUST invoke `Cast` and immediately trigger runtime Abort or Fatal Panic mechanics if an error is thrown when applying the `as!` operator.
 
 ## Primitive Types Transformation
 
