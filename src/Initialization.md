@@ -73,6 +73,8 @@ unsafe
 * MAY omit the `struct_init_body` during new instance construction if and only if the `Data` type declares no shared fields or if all shared fields possess default values.
 * MUST omit the `variant_payload_init_body` if the variant declares no payload fields.
 * MUST NOT assign a payload field via named assignment if its declaration omits an identifier.
+* MAY instantiate a `Data` type possessing an accessible embedded variant field via a forwarded variant constructor (`Parent::Variant[(args)] [{ struct_init_body }]` or contextual `.Variant[(args)] [{ struct_init_body }]`) if and only if every `Data` type strictly below `Parent` along the embedded variant field chain declares default values for all of its structural fields other than its own embedded variant field (or declares zero such fields), unless `zeroed` or `noinit` is applied within an `unsafe` block or `unsafe` method.
+* MUST treat the embedded variant field of `Parent` as already assigned prior to evaluating `struct_init_body` in a forwarded variant constructor, rejecting explicit assignment to that field inside `struct_init_body` and skipping it during positional field binding.
 
 ```scatty
 HttpResponse
@@ -106,6 +108,7 @@ option2 := Option::Some(42);
 * MUST preserve the current values of all shared fields on the target instance during an in-place variant switch (`=::`) without re-evaluating or resetting shared field default values.
 * MUST NOT apply the `=::` operator to a variable, field, or parameter that is statically typed or flow-narrowed to a specific variant subtype (`Data::Variant`).
 * MUST replace the entire `Data` instance—including all shared fields—when assigning a variant constructor using the standard assignment operator (`=`).
+* MAY apply the `=::` operator to an initialized mutable variable or field of a `Data` type possessing an accessible embedded variant field, updating the embedded variant field's active discriminant tag and payload in-place while preserving all shared fields of both the enclosing `Data` type and the embedded variant chain.
 
 ```scatty
 Session 

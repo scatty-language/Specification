@@ -46,6 +46,8 @@ Console.WriteLine(testConfig.Port);    // Output: 9000
 * MUST release or dispose any Owning Type payload fields (and nested Owning Type fields of inline payload types) belonging to the outgoing active variant if the `with` expression is optimized to mutate an rvalue or uniquely referenced Owning Type instance (`strongCount == 1`) in-place.
 * MUST statically type the result of `instance with ::Variant(...)` as the narrowed variant subtype `Data::Variant` (which implicitly downgrades to the base `Data` type when bound via `:=`).
 * MUST NOT apply a variant update (`with ::Variant`) to an untagged union (`tag none`).
+* MAY apply `with ::Variant[(args)]` (with or without an accompanying `CopyUpdateBody`) to a `Data` type possessing an accessible embedded variant field, preserving all shared fields of both the enclosing `Data` type and the embedded variant chain not explicitly overwritten in the `CopyUpdateBody`, and yielding the forwarded variant subtype `Parent::Variant`.
+* MUST reject assigning to the embedded variant field itself inside a `CopyUpdateBody` accompanying `with ::Variant[(args)]`.
 
 ```scatty
 Bill 

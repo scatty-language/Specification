@@ -189,6 +189,7 @@ SomeData
 * MUST apply type narrowing to all subsequent statements in the enclosing lexical scope whenever a `may` branch testing a negated condition (`may expr is not Target => return;`) unconditionally terminates execution of the current scope via `return`, `throw`, `break`, or `continue`.
 * MUST narrow an expression of a tagged `Data` type to the single remaining variant subtype (`Data::Variant`) in the `or` branch or following an unconditional early-exit branch or `where` / `must` / `must!` gate if all other declared variants of that `Data` type are excluded.
 * MUST immediately invalidate flow-sensitive type narrowing on a mutable variable or field at the point where it is reassigned, switched via `=::`, or passed as a `ref` argument to a method that may mutate its active variant or violate its type guard invariant.
+* MUST invalidate flow-sensitive narrowing to a forwarded variant subtype (`Parent::Variant`) whenever any embedded field along the variant-forwarding chain is reassigned, switched via `=::`, or passed as a `ref` argument to a method that can mutate its active variant.
 
 ## Staged Iteration
 
@@ -411,11 +412,12 @@ netTotal := order in orders -> sum := 0.0f
 * MUST bind a positional pattern argument (`sub_pattern`) to the first declared variant payload field not yet matched within the variant pattern, dynamically shifting the expected sequence when a named pattern argument is evaluated.
 * MUST require a variant pattern containing only positional pattern arguments to match the exact payload field count of the variant, using `_` to discard unused fields.
 * MAY omit remaining unmatched payload fields in a variant pattern when at least one named pattern argument is specified.
-* MAY match structural or shared fields of a `Data` type by field identifier using `{ FieldName: sub_pattern }`, either standalone or following a variant pattern (`.Variant(...) { FieldName: sub_pattern }`), and omit remaining fields.
+* MAY match accessible structural or shared fields of a `Data` type - including unambiguous accessible forwarded structural fields of embedded fields - by field identifier using `{ FieldName: sub_pattern }`, either standalone or following a variant pattern (`.Variant(...) { FieldName: sub_pattern }`), and omit remaining fields; matching an ambiguous forwarded field MUST be rejected at compile time.
 * MAY specify multiple comma-separated patterns (`pattern1, pattern2`) on a single match arm.
 * MUST require every pattern in a comma-separated pattern list (`pattern1, pattern2`) to bind the exact same set of `local_id` identifiers with identical static types if any local variable bindings are declared.
 * MUST implicitly refine the matched expression and any matched fields to the evaluated variant subtype or type guard within the match arm.
 * MUST evaluate every match arm to the exact same return type if the `match` construct is utilized as an expression.
+* MUST resolve variant patterns (`.Variant`) applied to a `Data` type possessing an accessible embedded variant field against its forwarded variants and refine the matched subject to `Parent::Variant` within the matching arm.
 
 ```scatty
 match response 

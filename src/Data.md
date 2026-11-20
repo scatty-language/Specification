@@ -120,6 +120,7 @@ Application
 * MAY declare variant-specific payloads.
 * MAY omit payload field identifiers.
 * MUST automatically assign 1-based positional identifiers (`Item1`, `Item2`, ...) to variant payload fields declared without an explicit identifier.
+* MUST NOT declare variants (`::Variant`) within a `Data` type that declares an embedded variant field.
 
 ```scatty
 Option<T> 
@@ -155,6 +156,8 @@ Option<T>
   * Reassign the entire `ref` binding via `=`, or
   * Forward the `ref` binding to another method, `fn` closure, or `fnptr` pointer that may mutate the active variant.
 * MUST reject at compile time passing a `Data::Variant` expression by `ref` to any `ref Data` method that mutates the active variant or to an indirect stack closure (`fn(ref Data)`) or function pointer (`fnptr(ref Data)`).
+* MUST treat a forwarded variant path (`Parent::Variant`) exposed through an accessible embedded variant field as a variant subtype of `Parent` with identical physical layout to `Parent`, subject to all rules in `EmbeddedFields`.
+* MUST NOT reassign, apply `=::` to, or pass by `ref` to a variant-mutating method, `fn` closure, or `fnptr` pointer any embedded field along the variant-forwarding chain while the enclosing `Parent` expression is statically typed or narrowed to `Parent::Variant`.
 
 ```scatty
 Color 

@@ -338,8 +338,8 @@ tier := points >= 100 then "Gold" : points >= 50 then "Silver" : "Bronze";
 * MAY apply the optional chaining operators (`?.` and `?[...]`) to any expression of an Option type (`T?`) or a weak reference type (`T weak`).
 * MUST reject applying `?.` or `?[...]` to a non-optional, non-weak type at compile time.
 * MUST evaluate the left-hand target expression once:
-    * If the target evaluates to `Option::Some(val)` (or a live `T weak` where all underlying `strongCount > 0`), the compiler MUST unwrap (or temporarily promote) `val` and evaluate the remainder of the postfix chain.
-    * If the target evaluates to `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`), the compiler MUST short-circuit and skip the entire remaining postfix chain (`.A.B.C()`), immediately yielding `Option::None` (or performing a no-op if the final member returns void).
+  * If the target evaluates to `Option::Some(val)` (or a live `T weak` where all underlying `strongCount > 0`), the compiler MUST unwrap (or temporarily promote) `val` and evaluate the remainder of the postfix chain.
+  * If the target evaluates to `Option::None` (or a disposed `T weak` where any underlying `strongCount == 0`), the compiler MUST short-circuit and skip the entire remaining postfix chain (`.A.B.C()`), immediately yielding `Option::None` (or performing a no-op if the final member returns void).
 * MUST wrap a non-optional return value `R` of an optionally chained expression into `R?` (`Option<R>`).
 * MUST flatten the result of an optionally chained expression to `R?` (rather than `R??`) if the invoked member already returns an optional type `R?`.
 * MAY invoke a mutating (`ref @`) method via `?.` on a mutable `T?` lvalue variable, mutating the underlying `Some` payload in-place if present.
@@ -441,6 +441,7 @@ badInterfaceSize := sizeof ~Printable;
   * `static`, `astatic`, or `gstatic` fields,
   * Fields accessed through an intermediate Owning Type (`~Disposable`), `weak` reference, or `soa` collection, or
   * Bare `~Interface` types.
+* MAY apply `offsetof` to a forwarded variant payload field (`offsetof Parent::Variant.PayloadField`) if and only if every embedded field along the variant-forwarding chain is an inline non-`~Disposable` `Data` type, evaluating at compile time to the cumulative byte offset from byte `0` of `Parent`.
 
 ```scatty
 HttpResponse 
@@ -458,7 +459,7 @@ errCodeOffset := offsetof HttpResponse::Error.Code; // Byte offset of 'Code' ins
 
 ### `tagof`
 
-* MAY apply `tagof` to an expression of a tagged `Data` type or variant subtype (`tagof instance`, `tagof @`), or to a variant type path (`tagof Data::Variant`).
+* MAY apply `tagof` to an expression of a tagged `Data` type, a `Data` type exposing an accessible embedded variant field, or a variant subtype (`tagof instance`, `tagof @`), or to a direct or forwarded variant type path (`tagof Data::Variant`).
 * MUST evaluate `tagof` to the declared discriminant tag type of the target `Data` type (`Int` by default, or the explicit scalar integer primitive `T` specified via `tag T`).
 * MUST evaluate `tagof Data::Variant` (and `tagof expr` when `expr` is a compile-time constant or statically narrowed to `Data::Variant`) at compile time as a constant expression yielding that variant's discriminant tag value.
 * MUST read and return the active discriminant tag value at runtime when `tagof` is applied to an unnarrowed runtime instance of a tagged `Data` type.
