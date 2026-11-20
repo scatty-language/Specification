@@ -103,8 +103,12 @@ results: [Int] = concurrent
 * MAY declare a `concurrent` block with the `throws` modifier.
 * MUST transition a `concurrent throws` block into a `Cancelled` state immediately upon any unhandled exception escaping a child task.
 * MUST cooperatively signal cancellation to all sibling tasks upon entering the `Cancelled` state.
-* MUST await completion of all tasks in the scope (including execution of applicable `rollback` blocks) and propagate the first unhandled exception that triggered cancellation through the calling thread's TLS exception buffer when a `concurrent throws` block is cancelled.
-* MUST release and discard any subsequent unhandled exceptions thrown by sibling tasks after the `concurrent throws` scope has already entered the `Cancelled` state.
+* MUST move the 128-byte exception slot (metadata header and payload) of the first unhandled exception that triggered cancellation into the `concurrent throws` cancellation slot and clear the failing task's TLS exception slot (`vtable_ptr = 0x0`).
+* MUST await completion of all tasks in the scope (including execution of applicable `rollback` blocks) and move the 128-byte exception slot from the `concurrent throws` cancellation slot into the calling thread's TLS exception slot to propagate the exception when a `concurrent throws` block is cancelled.
+* MUST discard any subsequent unhandled exception thrown by a sibling task after the `concurrent throws` scope has already entered the `Cancelled` state:
+  1. Read `dispose_fn` from word `2` of the task's TLS exception slot `vtable_ptr`.
+  2. If `dispose_fn` is `0x0`, clear the task's TLS exception slot (`vtable_ptr = 0x0`).
+  3. If `dispose_fn` is non-null (`!= 0x0`), move the 128-byte exception slot from the task's TLS exception slot into a task-local temporary exception slot, clear the task's TLS exception slot (`vtable_ptr = 0x0`), and invoke `dispose_fn` on the temporary slot's payload.
 
 ## Rollback Blocks
 

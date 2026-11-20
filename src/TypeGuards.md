@@ -3,6 +3,9 @@
 * MUST declare a type guard at the file's top level using the prefix `^` operator (`^Identifier = TargetType where Expression;`).
 * MUST NOT declare a type guard within a `Data` declaration, an `~Interface` declaration, or a `with` extension block.
 * MUST evaluate the `where` clause expression to a pure, side-effect-free `Bool`.
+* MUST compile each type guard `where` clause as a non-throwing predicate.
+* MAY invoke `throws` methods (directly or via `try?` or `try!`) within a `where` clause expression without a compile-time error.
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics if an uncaught exception is thrown during the evaluation of a `where` clause.
 * MUST explicitly specify the base type being guarded immediately following the `=` token.
 * MAY specify a `Data` type, an `~Interface` type, a generic type parameter, or `@` as the `TargetType` of a type guard declaration.
 * MAY specify `@` as the `TargetType` to create a universal type guard applicable to any type supporting the operations in the `where` expression.
@@ -18,6 +21,26 @@
 ^Email = String where @.Contains("@");
 
 ^Writable = ~Stream where @ is .Write;
+
+Validator
+{
+    CheckStrict(val: Int) throws -> Bool
+    {
+        may val < 0 => throw Exception.New("Negative");
+        return val > 0;
+    }
+
+    TryValidate(val: Int) -> Bool
+    {
+        return (try? Validator.CheckStrict(val)) ?? false;
+    }
+}
+
+// Valid: compiled as a non-throwing predicate; triggers Abort/Panic if 'CheckStrict' throws
+^StrictPositive = Int where Validator.CheckStrict(@);
+
+// Valid: 'TryValidate' catches internal exceptions via 'try?' and returns 'Bool'
+^SafePositive = Int where Validator.TryValidate(@);
 ```
 
 ## Type Guard Inheritance and Composition

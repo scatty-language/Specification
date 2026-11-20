@@ -149,7 +149,7 @@
 
 ## Exception Propagation ABI
 
-* MUST lay out every exception slot—including the Thread-Local Storage (TLS) exception buffer, each frame-local `try` / `catch` exception slot, each frame-local `undo` exception slot, and each `concurrent throws` cancellation slot—as a 16-byte-aligned, 128-byte structure:
+* MUST lay out every exception slot—including the Thread-Local Storage (TLS) exception slot, each frame-local `try` / `catch` exception slot, each frame-local cleanup save slot, each frame-local or task-local temporary disposal slot, and each `concurrent throws` cancellation slot—as a 16-byte-aligned, 128-byte structure:
 
 | Offset (bytes) | Field | Type | Description |
 | :--- | :--- | :--- | :--- |
@@ -164,8 +164,9 @@
 * MUST NOT reserve or modify the error indicator register (`swifterror`) in methods or `fnptr` pointers declared with `extern`.
 * MUST reserve a dedicated error indicator register (`swifterror` / error slot pointer register) across all non-`extern` methods and `fn` / `fnptr` pointers declared with the `throws` modifier:
   * Upon a non-throwing return, the callee MUST set the error indicator register to `0x0` and populate the normal return register or `sret` RVO buffer.
-  * Upon executing `throw`, the callee MUST write `vtable_ptr` at offset `0`, `type_id` at offset `8`, and the exception value bitwise into `payload` at offset `16` of the TLS exception slot, set the error indicator register to the non-null base address of the TLS exception slot, execute frame-local `undo` and ARC / `~Disposable` cleanup, and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
+  * Upon executing `throw`, the callee MUST write `vtable_ptr` at offset `0`, `type_id` at offset `8`, and the exception value bitwise into `payload` at offset `16` of the TLS exception slot, set the error indicator register to the non-null base address of the TLS exception slot, execute exception-path cleanup (preserving the TLS exception slot in a frame-local cleanup save slot whenever `undo`, `catch`-slot disposal, or user-defined `~Disposable` cleanup executes), and return via a standard `ret` instruction while leaving the primary return register or `sret` RVO buffer uninitialized (`noinit`).
 * MUST clear an exception slot by setting `vtable_ptr` at offset `0` to `0x0`.
+* MUST move an exception between two 128-byte exception slots by copying the 16-byte header and payload bitwise into the destination slot and clearing `vtable_ptr` at offset `0` in the source slot to `0x0`.
 * MUST match `catch [ref] e: ConcreteType`, `ConcreteType::Variant`, `ConcreteType^Guard`, and `ConcreteType::Variant^Guard` by comparing `type_id` at offset `8` against the target base `Data` type's `type_id`.
 * MUST construct the 2-word fat pointer for `catch [ref] e: ~Exception` and `catch [ref] e: ~Exception^Guard` with `data_ptr` equal to the address of `payload` (`slot_ptr + 16`) and `vtable_ptr` loaded from offset `0` of the exception slot.
 * MUST perform exception slot cleanup by reading `dispose_fn` from word `2` of the `vtable` referenced by `vtable_ptr` and, if `dispose_fn` is non-null (`!= 0x0`), invoking `dispose_fn` with the address of `payload` (`slot_ptr + 16`).

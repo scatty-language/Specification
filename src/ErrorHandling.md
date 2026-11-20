@@ -59,19 +59,27 @@ Some() throws
 * MUST transfer ownership of the Owning Type (if `~Disposable`) or any nested Owning Type and `T weak` fields (respecting the active discriminant tag for tagged `Data` types) into the TLS exception slot without modifying `strongCount` or `weakCount` when the thrown expression is an rvalue.
 * MUST atomically increment `strongCount` (for an Owning Type exception or nested Owning Type fields) and `weakCount` (for nested `T weak` fields, respecting the active discriminant tag for tagged `Data` types) when the thrown expression is an lvalue.
 * MUST propagate thrown exceptions via deterministic frame-return propagation without table-driven stack unwinding:
-  1. Upon executing `throw`, the active frame MUST populate the 128-byte TLS exception slot, set the active exception slot indicator (register or pointer to the TLS slot), execute any activated frame-local `undo` statements and local ARC / `~Disposable` cleanup, and return to the caller with an uninitialized (`noinit`) return value payload.
-  2. Immediately following any `throws` invocation, the caller MUST inspect the active exception slot indicator: if clear (null), normal execution continues; if set, the caller MUST ignore the `noinit` return payload and either intercept the exception (`catch` or `try?`), trigger Abort/Panic (in a non-throwing context or `try!`), or execute its own activated `undo` statements and local ARC / `~Disposable` cleanup and return `noinit` to its caller.
+  1. Upon executing `throw`, the active frame MUST populate the 128-byte TLS exception slot, set the active exception slot indicator (register or pointer to the TLS slot), execute exception-path cleanup for the exited scopes, and either transfer control to an enclosing `try` / `catch` construct or return to the caller with an uninitialized (`noinit`) return value payload.
+  2. Immediately following any `throws` invocation, the caller MUST inspect the active exception slot indicator: if clear (null), normal execution continues; if set, the caller MUST ignore the `noinit` return payload and either intercept the exception (`catch` or `try?`), trigger Abort/Panic (in a non-throwing context or `try!`), or execute its own exception-path cleanup and return `noinit` to its caller.
+* MUST protect the active propagating exception during exception-path cleanup whenever exiting a scope executes any activated `undo` statement, releases a `catch` construct's frame-local exception slot, or destroys a local value whose cleanup executes user-defined `Dispose` code:
+  1. Allocate a dedicated 128-byte frame-local cleanup save slot per lexical cleanup nesting level, isolated from all `try` / `catch` frame-local exception slots.
+  2. Move the 128-byte exception slot from the TLS exception slot into the frame-local cleanup save slot and clear the active exception slot indicator and TLS exception slot (`vtable_ptr = 0x0`) once prior to executing the scope's exception-path cleanup.
+  3. Execute all activated `undo` statements, local ARC / `~Disposable` cleanups, and enclosing `catch` slot cleanups in reverse declaration (LIFO) order while the TLS exception slot remains clear.
+  4. Move the 128-byte exception slot from the frame-local cleanup save slot back into the TLS exception slot and restore the active exception slot indicator upon completing exception-path cleanup, prior to transferring control to an enclosing `try` / `catch` construct or returning to the caller.
+* Implementations MAY elide allocation of and moves through the frame-local cleanup save slot on an exception-cleanup path when statically guaranteed that neither an `undo` statement nor any cleanup operation on that path accesses the TLS exception slot.
 * MUST allocate a dedicated, isolated 128-byte frame-local exception slot for each lexical `try` / `catch` nesting level within a method frame.
 * MUST restrict the filter type of a typed `catch` arm (`catch [ref] e: Type`) to:
   * `~Exception` or `~Exception^Guard`, or
   * A concrete `Data` type implementing `~Exception`, optionally narrowed to a tagged variant subtype (`Data::Variant`) and/or governed by a type guard (`^Guard`).
 * MUST reject at compile time any `catch` arm whose filter type is an interface other than `~Exception` (or `~Exception^Guard`), a concrete `Data` type not implementing `~Exception`, a variant subtype of an untagged union (`tag none`), or any non-`Data` type.
-* MUST evaluate `catch` arms sequentially from top to bottom and execute the first matching arm:
-  * `catch [ref] e: ConcreteType` matches when the active exception's `type_id` equals the `type_id` of `ConcreteType`.
-  * `catch [ref] e: ConcreteType::Variant` matches when the active exception's `type_id` equals the `type_id` of `ConcreteType` and the active discriminant tag in the exception payload equals `tagof ConcreteType::Variant`.
+* MUST move the 128-byte exception slot (metadata header and payload) from the TLS exception slot into the `try` / `catch` construct's dedicated 128-byte frame-local exception slot and clear the active exception slot indicator and TLS exception slot (`vtable_ptr = 0x0`) upon entering `catch` dispatch, prior to evaluating any `catch` arm filter or type guard `where` clause.
+* MUST evaluate `catch` arms sequentially from top to bottom against the frame-local exception slot and execute the first matching arm:
+  * `catch [ref] e: ConcreteType` matches when the frame-local slot's `type_id` equals the `type_id` of `ConcreteType`.
+  * `catch [ref] e: ConcreteType::Variant` matches when the frame-local slot's `type_id` equals the `type_id` of `ConcreteType` and the active discriminant tag in the slot's payload equals `tagof ConcreteType::Variant`.
   * `catch [ref] e: ~Exception` matches any active exception.
   * A parameterless `catch` arm matches any active exception.
-* MUST move the 128-byte exception slot (metadata header and payload) from the TLS exception slot into the `try` / `catch` construct's dedicated 128-byte frame-local exception slot and clear the active exception slot indicator and TLS exception slot upon entering a matching `catch` arm.
+* MUST move the 128-byte exception slot from the frame-local exception slot back into the TLS exception slot, restore the active exception slot indicator, and continue exception propagation (or trigger Abort/Panic in a non-throwing context) if no `catch` arm matches.
+* Implementations MAY defer moving the exception slot into the frame-local exception slot until a `catch` arm matches when no `catch` arm of that `try` / `catch` construct evaluates a type guard `where` clause.
 * MUST treat a non-`ref` `catch` binding (`catch e: Type`) as an immutable read-only view of the `catch` construct's frame-local exception slot for both concrete `Data` types and `~Exception`:
   * MUST NOT reassign `e`, mutate its fields, switch its active variant via `=::`, pass `e` or its fields as `ref` arguments, or invoke mutating (`ref @`) methods on `e`.
 * MAY declare a mutable `catch` binding by prefixing the identifier with `ref` (`catch ref e: Type`):
@@ -80,10 +88,13 @@ Some() throws
   * In-place mutations performed through a `catch ref e` binding MUST modify the frame-local exception slot directly and persist if the exception is rethrown via a parameterless `throw;` statement.
 * MAY omit the variable identifier and type in a `catch` arm to define a catch-all block.
 * MAY execute a parameterless `throw;` statement within a `catch` block to rethrow the active exception.
-* MUST move the 128-byte exception slot (metadata header and payload) from the innermost enclosing `catch` construct's frame-local exception slot back into the TLS exception slot when executing a parameterless `throw;` statement.
+* MUST move the 128-byte exception slot (metadata header and payload) from the innermost enclosing `catch` construct's frame-local exception slot back into the TLS exception slot and clear the frame-local exception slot (`vtable_ptr = 0x0`) when executing a parameterless `throw;` statement.
 * MUST NOT execute a parameterless `throw;` statement outside of a `catch` block.
-* MUST invoke the `dispose_fn` recorded in word `2` of the frame-local exception slot's `vtable_ptr` (when non-null) on the slot's payload upon exiting the `catch` block via normal completion, control-flow transfer (`return`, `break`, `continue`), or propagation of a newly thrown exception (`throw Expression;` or an uncaught `throws` invocation), omitting cleanup only when the intercepted exception is rethrown via a parameterless `throw;` statement.
-* MUST invoke the `dispose_fn` recorded in word `2` of the TLS exception slot's `vtable_ptr` (when non-null) on the slot's payload and clear the TLS exception slot when an active exception is intercepted by `try?`.
+* MUST invoke the `dispose_fn` recorded in word `2` of the frame-local exception slot's `vtable_ptr` (when non-null) on the slot's payload and clear the frame-local exception slot (`vtable_ptr = 0x0`) upon exiting the `catch` block via normal completion, control-flow transfer (`return`, `break`, `continue`), or propagation of a newly thrown exception (`throw Expression;` or an uncaught `throws` invocation), omitting cleanup only when the intercepted exception is rethrown via a parameterless `throw;` statement.
+* MUST dispose an active exception intercepted by `try?` as follows:
+  1. Read `dispose_fn` from word `2` of the TLS exception slot's `vtable_ptr`.
+  2. If `dispose_fn` is `0x0`, clear the active exception slot indicator and TLS exception slot (`vtable_ptr = 0x0`).
+  3. If `dispose_fn` is non-null (`!= 0x0`), move the 128-byte exception slot from the TLS exception slot into a frame-local temporary exception slot, clear the active exception slot indicator and TLS exception slot (`vtable_ptr = 0x0`), and invoke `dispose_fn` on the temporary slot's payload.
 
 ```scatty
 AppError : ~Exception
@@ -170,10 +181,10 @@ InvalidCatches() throws
 * MUST NOT apply `try?` to non-throwing expressions.
 * MUST evaluate `try?` to `T?` (`Option<T>`) when applied to an expression returning a value of type `T`.
 * MUST yield `Option::Some` containing the returned value upon successful completion of a value-returning expression.
-* MUST intercept any thrown exception, clear the TLS exception buffer, and yield `Option::None` if a value-returning expression throws.
+* MUST intercept and dispose any thrown exception (moving out of and clearing the TLS exception slot prior to invoking a non-null `dispose_fn`) and yield `Option::None` if a value-returning expression throws.
 * MUST evaluate `try?` to `Bool` when applied to an expression returning void.
 * MUST yield `true` upon successful completion of a void-returning expression.
-* MUST intercept any thrown exception, clear the TLS exception buffer, and yield `false` if a void-returning expression throws.
+* MUST intercept and dispose any thrown exception (moving out of and clearing the TLS exception slot prior to invoking a non-null `dispose_fn`) and yield `false` if a void-returning expression throws.
 
 ```scatty
 FetchUser(id: Int) throws -> User 
@@ -284,8 +295,7 @@ HandleRequest() throws
 * MUST execute multiple activated `undo` statements within the same lexical block in reverse order of declaration (Last-In, First-Out).
 * MUST execute activated `undo` statements and local variable ARC / `~Disposable` cleanup in reverse declaration order, executing each `undo` statement prior to destroying any local variables declared above it in the same block.
 * MUST evaluate and mutate local variables, `ref` parameters, and `ref @` receivers within an `undo` body directly against the active stack frame's state during exception propagation prior to frame return.
-* MUST move the active exception from the TLS exception buffer into a dedicated 128-byte frame-local `undo` exception slot—isolated from any enclosing `catch` construct's frame-local exception slot—prior to executing an `undo` statement, and clear the active exception slot indicator and TLS exception buffer for the duration of the `undo` body.
-* MUST move the exception from the dedicated frame-local `undo` exception slot back into the TLS exception buffer and restore the active exception slot indicator upon completion of the `undo` statement.
+* MUST keep the active propagating exception preserved in the frame-local cleanup save slot—with the active exception slot indicator and TLS exception slot cleared—throughout the execution of all activated `undo` statements and interleaved local ARC / `~Disposable` cleanups, restoring the exception into the TLS exception slot upon completion of that scope's exception-path cleanup.
 * MUST NOT invoke a `throws` method within an `undo` body unless wrapped in `try?`, `try!`, or a `try` / `catch` construct that handles all exceptions within the `undo` scope.
 * MUST NOT execute a `throw`, `return`, `break`, `continue`, or `fall` statement that exits an `undo` body.
 
