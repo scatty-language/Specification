@@ -9,10 +9,10 @@
 | Level | Category | Operators | Associativity |
 | :--- | :--- | :--- | :--- |
 | 1 | Primary Access | `.`, `?.`, `!`, `::`, `()`, `[]`, `with` | Left-to-right |
-| 2 | Unary & Introspection | `+`, `-`, `bitnot`, `sizeof`, `alignof`, `offsetof`, `nameof`, `tagof` | Right-to-left |
+| 2 | Unary & Introspection | `+`, `-`, `-&`, `bitnot`, `sizeof`, `alignof`, `offsetof`, `nameof`, `tagof` | Right-to-left |
 | 3 | Type & Casting | `as`, `as?`, `as!`, `assume`, `is`, `is not`, `^` | Left-to-right |
-| 4 | Multiplicative | `*`, `/`, `%` | Left-to-right |
-| 5 | Additive | `+`, `-` | Left-to-right |
+| 4 | Multiplicative | `*`, `*&`, `/`, `%` | Left-to-right |
+| 5 | Additive | `+`, `+&`, `-`, `-&` | Left-to-right |
 | 6 | Shift | `bitshl`, `bitshr` | Left-to-right |
 | 7 | Bitwise | `bitand`, `bitxor`, `bitor` | Left-to-right |
 | 8 | Relational & Equality | `<`, `>`, `<=`, `>=`, `==`, `!=` | Left-to-right |
@@ -22,9 +22,9 @@
 | 12 | Coalescing | `??` | Right-to-left |
 | 13 | Conditional | `then ... :` | Right-to-left |
 | 14 | Try-Catch | `try ... catch` | Non-associative |
-| 15 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
+| 15 | Assignment | `=`, `:=`, `+=`, `-=`, `*=`, `/=`, `%=`, `+&=`, `-&=`, `*&=`, `=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, `=::` | Right-to-left |
 
-* MUST evaluate operators with equal precedence from left to right, except coalescing (`??`), conditional (`then ... :`), and assignment operators which MUST evaluate from right to left.
+* MUST evaluate operators with equal precedence from left to right, except unary operators (level 2), logical negation and control (level 9), coalescing (`??`), conditional (`then ... :`), and assignment operators (level 15), which MUST evaluate from right to left.
 
 ```scatty
 result := a + b as Float == c * d; 
@@ -100,41 +100,79 @@ sameHash := userA.Hash() == userB.Hash(); // true
 * MUST NOT apply the `math` modifier to variant payload fields.
 * MUST require fields marked with `math` to be of a type that supports native arithmetic operators.
 * MUST automatically derive `+`, `-`, `*`, `/`, `%` and their corresponding compound assignments (`+=`, `-=`, `*=`, `/=`, `%=`) for `Data` types declaring at least one field marked with `math`.
-* MUST require both operands of derived arithmetic operations to be of the exact same `Data` type.
-* MUST evaluate derived arithmetic operations by applying the operator pairwise to corresponding `math` marked fields.
+* MUST automatically derive `+&`, `-&`, `*&` and their corresponding compound assignments (`+&=`, `-&=`, `*&=` ) for `Data` types declaring at least one field marked with `math` if and only if every `math`-marked field is of a type supporting wrapping integer arithmetic.
+* MUST require both operands of derived arithmetic and wrapping arithmetic operations to be of the exact same `Data` type.
+* MUST evaluate derived arithmetic and wrapping arithmetic operations by applying the operator pairwise to corresponding `math`-marked fields.
 * MUST populate unmarked fields in the resulting instance by copying the values directly from the left-hand operand.
 * MUST NOT apply the `math` modifier to a `T weak` field.
 
 ```scatty
-Transform 
+Transform
 {
     Name: String;
     X: Float math;
     Y: Float math;
 }
 
+GridOffset
+{
+    Tag: String;
+    X: Int math;
+    Y: Int math;
+}
+
 t1 := Transform { Name: "Start", X: 10.0f, Y: 5.0f };
 t2 := Transform { Name: "Offset", X: 5.0f, Y: 5.0f };
+result := t1 + t2;
 
-result := t1 + t2; 
+o1 := GridOffset { Tag: "A", X: Int.MaxValue, Y: 1 };
+o2 := GridOffset { Tag: "B", X: 1, Y: 2 };
+wrapped := o1 +& o2; // Valid: GridOffset { Tag: "A", X: Int.MinValue, Y: 3 }
+
+badWrap := t1 +& t2; // Invalid: Float does not support wrapping arithmetic — MUST be rejected
 ```
 
 ### Arithmetic Overflow and Division by Zero
 
-* MUST require both operands of binary arithmetic operators (`+`, `-`, `*`, `/`, `%`) on primitive numeric types to evaluate to the exact same numeric type.
-* MUST reject at compile time any constant integer expression that overflows the target type's representable range or divides/modulos by `0`.
-* MUST throw `DivisionByZeroError` in both Debug and Release modes when an integer division (`/`) or remainder (`%`) operation is evaluated with a divisor of `0` at runtime (propagating in `throws` contexts, interceptable via `try` / `catch` or `try?`, or immediately triggering Abort or Fatal Panic mechanics if uncaught in a non-throwing context).
-* MUST evaluate floating-point (`Float` and `Double`) division by `0.0` according to IEEE 754 semantics, yielding `+Infinity`, `-Infinity`, or `NaN` without throwing.
-* MUST enforce the following build-mode semantics for runtime integer arithmetic overflow (`+`, `-`, `*`, unary `-`, and signed `MinValue / -1`):
-  * In Debug mode, the compiler MUST detect signed and unsigned integer overflow at runtime and throw `OverflowError` (propagating in `throws` contexts, interceptable via `try` / `catch` or `try?`, or triggering Fatal Panic if uncaught in a non-throwing context).
-  * In Release mode, the compiler MUST wrap integer overflow using two's complement modular arithmetic by default (with `MinValue % -1` evaluating to `0`).
-  * Implementations MUST provide a compiler configuration flag that retains runtime integer overflow checks in Release mode, throwing `OverflowError` upon overflow (triggering immediate process Abort if uncaught in a non-throwing context).
+* MUST require both operands of binary arithmetic operators (`+`, `-`, `*`, `/`, `%`, `+&`, `-&`, `*&`) on primitive numeric types to evaluate to the exact same numeric type.
+* MUST classify all standard integer arithmetic operations (`+`, `-`, `*`, `/`, `%`, unary `-`, and compound assignments `+=`, `-=`, `*=`, `/=`, `%=`) as non-throwing operations.
+* MUST reject at compile time any constant integer expression using standard arithmetic operators (`+`, `-`, `*`, `/`, `%`, or unary `-`) that overflows the target type's representable range or divides/modulos by `0`.
+* MUST detect runtime integer division (`/`) and remainder (`%`) by `0` and immediately trigger runtime Abort or Fatal Panic mechanics in both Debug and Release modes, unless the divisor is statically proven non-zero at compile time.
+* MUST detect runtime signed and unsigned integer overflow on `+`, `-`, `*`, unary `-`, `+=`, `-=`, `*=`, and signed `MinValue / -1` (including when the divisor is a constant `-1`) and immediately trigger runtime Abort or Fatal Panic mechanics in both Debug and Release modes, unless the operation is statically proven not to overflow at compile time.
+* MUST evaluate signed `MinValue % -1` to `0` in both Debug and Release modes without triggering overflow or hardware exceptions.
+* MUST evaluate floating-point (`Float` and `Double`) arithmetic and division by `0.0` according to IEEE 754 semantics, yielding `+Infinity`, `-Infinity`, or `NaN` without aborting or throwing.
+
+### Wrapping Integer Arithmetic
+
+* MAY apply the wrapping arithmetic operators (`+&`, `-&`, `*&`, unary `-&`, and compound assignments `+&=`, `-&=`, `*&=` ) exclusively to scalar integer primitive types (`Int`, `Uint`, `Long`, `Ulong`, `Size`, `Usize`, `Byte`) and to `Data` types that derive or delegate wrapping arithmetic.
+* MUST NOT apply wrapping arithmetic operators to `Float`, `Double`, or non-integer types.
+* MUST NOT define wrapping division or remainder operators.
+* MUST evaluate wrapping arithmetic operators as non-throwing operations using two's complement modular arithmetic with zero overflow traps in both Debug and Release modes.
+* MUST evaluate unary `-&x` as `0 -& x` using two's complement modular negation (yielding `Int.MinValue` for `-&Int.MinValue`).
+* MUST permit compile-time constant expressions using wrapping arithmetic operators to wrap according to two's complement modular arithmetic without triggering a compile-time overflow error.
+
+```scatty
+// Compile-time constant wrapping
+MinFromMax: Int :: Int.MaxValue +& 1;  // Evaluates to Int.MinValue (-2_147_483_648)
+NegMin: Int     :: -&Int.MinValue;     // Evaluates to Int.MinValue (-2_147_483_648)
+
+HashStep(seed: Uint, value: Uint) -> Uint
+{
+    h := seed *& 1664525u +& 1013904223u;
+    h +&= value;
+    return h;
+}
+
+// Invalid: Float does not support wrapping operators — MUST be rejected
+badFloat := 1.0f +& 2.0f;
+```
 
 ## Embedded Field Operator Delegation
 
 * MUST delegate `==`, `!=`, and `~Hashable` (`Hash(@) -> Ulong`) to an embedded field (`Field: Type embed`) if the parent type declares zero `equality` fields and the embedded field type supports equality and `~Hashable`.
-* MUST delegate arithmetic operators (`+`, `-`, `*`, `/`, `%`, `+=`, `-=`, `*=`, `/=`, `%=`) to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type supports arithmetic operators.
-* MUST require both operands of a delegated arithmetic operator to evaluate to the exact same parent `Data` type, yielding an instance of the parent `Data` type whose embedded field holds the operation result and whose remaining fields are copied from the left-hand operand.
+* MUST delegate standard arithmetic operators (`+`, `-`, `*`, `/`, `%`, `+=`, `-=`, `*=`, `/=`, `%=`) to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type supports standard arithmetic operators.
+* MUST delegate wrapping arithmetic operators (`+&`, `-&`, `*&`, `+&=`, `-&=`, `*&=` ) to an embedded field (`Field: Type embed`) if the parent type declares zero `math` fields and the embedded field type supports wrapping arithmetic operators.
+* MUST require both operands of a delegated arithmetic or wrapping arithmetic operator to evaluate to the exact same parent `Data` type, yielding an instance of the parent `Data` type whose embedded field holds the operation result and whose remaining fields are copied from the left-hand operand.
 * MUST shadow and override embedded field operators and `~Hashable` delegation if the parent type explicitly declares any `equality` or `math` fields.
 * MUST reject compilation with an error if multiple embedded fields within the same type expose conflicting operators or `~Hashable` implementations and the parent type does not explicitly shadow them.
 

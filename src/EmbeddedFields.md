@@ -257,11 +257,12 @@ wrapper.Add(1);
 ## Operator Forwarding and Primitive Types
 
 * MUST delegate `==`, `!=`, and `~Hashable` (`Hash(@) -> Ulong`) to an embedded field if the parent `Data` type declares zero `equality` fields and the embedded field's type supports equality and `~Hashable`, in accordance with `Operators`.
-* MUST delegate arithmetic operators (`+`, `-`, `*`, `/`, `%` and compound assignments `+=`, `-=`, `*=`, `/=`, `%=`) to an embedded field (including an embedded primitive field) if the parent `Data` type declares zero `math` fields and the embedded field's type supports arithmetic operators.
-* MUST require both operands of a delegated binary arithmetic operator or compound assignment to evaluate to the exact same parent `Data` type.
-* MUST evaluate a delegated binary arithmetic operator by applying the operator to the corresponding embedded fields of both operands, copying all remaining non-delegated fields from the left-hand operand, and yielding a new instance of the parent `Data` type.
-* MUST evaluate a delegated compound assignment operator (`+=`, `-=`, `*=`, `/=`, `%=`) by applying the operator in-place to the left-hand operand's embedded field using the right-hand operand's embedded field, leaving all other fields of the left-hand operand unchanged.
-* MUST shadow and override embedded field operator delegation if the parent `Data` type explicitly declares any `math` fields (for arithmetic operators) or `equality` fields (for equality and `~Hashable`).
+* MUST delegate standard arithmetic operators (`+`, `-`, `*`, `/`, `%` and compound assignments `+=`, `-=`, `*=`, `/=`, `%=`) to an embedded field (including an embedded primitive field) if the parent `Data` type declares zero `math` fields and the embedded field's type supports standard arithmetic operators.
+* MUST delegate wrapping arithmetic operators (`+&`, `-&`, `*&` and compound assignments `+&=`, `-&=`, `*&=` ) to an embedded field (including an embedded primitive field) if the parent `Data` type declares zero `math` fields and the embedded field's type supports wrapping arithmetic operators.
+* MUST require both operands of a delegated binary arithmetic or wrapping arithmetic operator (or compound assignment) to evaluate to the exact same parent `Data` type.
+* MUST evaluate a delegated binary arithmetic or wrapping arithmetic operator by applying the operator to the corresponding embedded fields of both operands, copying all remaining non-delegated fields from the left-hand operand, and yielding a new instance of the parent `Data` type.
+* MUST evaluate a delegated compound assignment operator (`+=`, `-=`, `*=`, `/=`, `%=`, `+&=`, `-&=`, `*&=` ) by applying the operator in-place to the left-hand operand's embedded field using the right-hand operand's embedded field, leaving all other fields of the left-hand operand unchanged.
+* MUST shadow and override embedded field operator delegation if the parent `Data` type explicitly declares any `math` fields (for standard and wrapping arithmetic operators) or `equality` fields (for equality and `~Hashable`).
 * MUST NOT implicitly typecast or subtype the parent `Data` type to the type of its embedded field.
 * MUST NOT mix the parent `Data` type and the embedded field's type as operands of a delegated operator.
 
@@ -279,12 +280,15 @@ scoreB := Score { Value: 20, IsRanked: false };
 // Result is 'Score { Value: 30, IsRanked: true }'
 totalScore: Score = scoreA + scoreB;
 
-// ERROR: both operands MUST have the exact same type ('Score'); cannot mix 'Score' and 'Int'
+// Valid: delegates wrapping addition to embedded 'Int' field
+wrappedScore: Score = scoreA +& scoreB;
+
+// Invalid: both operands MUST have the exact same type ('Score') — MUST be rejected
 badScore := scoreA + 5;
 
 ProcessInt(val: Int) { }
 
-// ERROR: 'Score' does not implicitly convert to 'Int'
+// Invalid: 'Score' does not implicitly convert to 'Int' — MUST be rejected
 ProcessInt(scoreA);
 
 // Valid: explicit access to the embedded field

@@ -164,37 +164,33 @@ match rawValue as? Int^Positive
 
 ### Field Mutations and In-Place Operations on Guarded Variables
 
+* MUST classify statement-level guarded variable declarations (`=^`), guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, post-`ref` / post-`ref @` invariant re-evaluations, and post-`ref`-stage loop exit checks as non-throwing operations.
 * MUST NOT mutate a direct or nested field or indexed element of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) using standard assignment operators (`instance.Field = val`, `instance.Items[i] = val`).
 * MUST require guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) when mutating any direct or nested field or indexed element of a variable governed by a type guard (`instance.Field =^ val`, `instance.Sub.Field +=^ val`), re-evaluating all enclosing `^Guard` invariants along the mutated path from innermost to outermost after updating the target.
-* MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any direct or nested field or indexed element of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant according to the active build-mode validation rules.
-* MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`) - along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
+* MUST require guarded assignment operators (`@.Field =^ val`, `@.Field +=^ val`) when mutating any direct or nested field or indexed element of `@` within a method declaring a `ref @^Guard` receiver, re-evaluating the `^Guard` invariant after updating the target.
+* MUST automatically re-evaluate the `where` invariant of a guarded variable (`instance: Type^Guard`) or guarded receiver (`ref @^Guard`)—along with any intermediate guarded fields along the accessed path, from innermost to outermost—immediately after:
   * Invoking any mutating (`ref @`) method on `instance` (or `@`) or on any of its direct or nested fields or indexed elements (e.g., `list.Clear()` on `list: [Int]^NonEmpty`, or `user.Scores.Clear()` on `user: Profile^HasScores`), or
   * Passing `instance` (or `@`) or any of its direct or nested fields or indexed elements as a `ref` argument to any method parameter, regardless of whether the target parameter is typed as an unguarded base type or a guarded type.
-* MUST also re-evaluate the `where` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active error:
+* MUST evaluate the governing `where` invariant at runtime in both Debug and Release modes for all statement-level guarded variable declarations (`=^`), guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` / post-`ref @` invariant checks whenever the invariant is not statically proven at compile time.
+* MUST immediately trigger runtime Abort or Fatal Panic mechanics (bypassing all `catch` handlers) if any governing `where` invariant evaluates to `false`.
+* MUST re-evaluate the `where` invariant of the guarded variable or guarded receiver (and any intermediate guarded fields along the path) on the error-return path in both Debug and Release modes if a mutating (`ref @`) method invoked on `instance` (or any of its direct or nested fields or indexed elements) or a method accepting `instance` (or any of its direct or nested fields or indexed elements) as a `ref` argument is declared with `throws` and returns an active error:
   1. Preserve the active propagating error in a frame-local cleanup save slot (clearing the active error slot indicator and TLS error slot) prior to evaluating the `where` invariant.
   2. If all enclosing `where` invariants evaluate to `true`, restore the saved error into the TLS error slot and continue error propagation.
-  3. If any enclosing `where` invariant evaluates to `false`, dispose the saved error (invoking `dispose_fn` when non-null) and throw `InvariantError`.
-* MUST enforce the following build-mode validation semantics for all statement-level guarded assignments (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutations, and post-`ref` / post-`ref @` invariant checks (including on error-return paths) when the invariant cannot be statically proven at compile time:
-  * In Debug mode, the compiler MUST evaluate the governing `where` invariant at runtime immediately after the mutation and throw `InvariantError` if the invariant evaluates to `false` (propagating in `throws` contexts, interceptable via `try` / `catch`, or triggering Fatal Panic if uncaught in a non-throwing context).
-  * In Release mode, the compiler MUST elide the runtime invariant check by default, executing the mutation with zero branching overhead.
-  * Implementations MUST provide a compiler configuration flag that retains runtime invariant checks for all guarded mutations in Release mode, throwing `InvariantError` upon invariant violation (triggering immediate process Abort if uncaught in a non-throwing context).
-* MAY append the postfix `strict` modifier to any guarded variable declaration, guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, or mutating `ref` / `ref @` invocation statement.
-* MUST evaluate the runtime invariant check in both Debug and Release modes when the `strict` modifier is applied, throwing `InvariantError` if the invariant evaluates to `false` (propagating in `throws` contexts, interceptable via `try` / `catch`, or immediately triggering Abort or Fatal Panic mechanics if uncaught in a non-throwing context).
-* MUST reject applying the `strict` modifier to a statement that does not involve a guarded variable or guarded mutation.
-* MUST always evaluate the runtime invariant check in both Debug and Release modes when `=^` is used inside a conditional assignment (`where`, `must!`, `may`, or `match`).
+  3. If any enclosing `where` invariant evaluates to `false`, immediately trigger runtime Abort or Fatal Panic mechanics (bypassing all `catch` handlers).
+* MUST evaluate `=^` inside a conditional assignment (`where`, `must`, `must!`, `may`, or `match`) in both Debug and Release modes as `AssignablePath = (Expression) as? T^Guard`, skipping the assignment without aborting if the `where` invariant evaluates to `false`.
 * MUST treat `item` as a mutable guarded target of type `T^Guard` inside a `ref item in collection` loop when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks for mutations of `item`.
-* MUST allow standard (non-guarded) mutation operators on `item` inside a `ref item in collection` loop when the element type of `collection` is unguarded, even if `collection` itself or an enclosing container along its path is governed by a type guard (`list: [Int]^AllPositive` or `user.Scores` on `user: User^HasScores`).
-* MUST automatically re-evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref item in collection` loop (via normal completion, `break`, `return`, or error propagation), following the active build-mode validation rules, or enforcing the check in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
+* MUST permit standard (non-guarded) mutation operators on `item` inside a `ref item in collection` loop when the element type of `collection` is unguarded, even if `collection` itself or an enclosing container along its path is governed by a type guard (`list: [Int]^AllPositive` or `user.Scores` on `user: User^HasScores`).
+* MUST automatically re-evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref item in collection` loop (via normal completion, `break`, `return`, or error propagation) in both Debug and Release modes, unless statically proven at compile time, immediately triggering runtime Abort or Fatal Panic mechanics if any invariant evaluates to `false`.
 
 ```scatty
-User 
+User
 {
     Name: String;
     Age: Int;
     Scores: [Int];
 }
 
-Range 
+Range
 {
     Min: Int^Positive;
     Max: Int^Positive;
@@ -205,14 +201,14 @@ Range
 ^NonEmpty   = [Int] where @.Count > 0;
 ^ValidRange = Range where @.Min < @.Max;
 
-ResetUser(ref u: User) 
+ResetUser(ref u: User)
 {
     u.Age = 5;
 }
 
-SetHighValue(ref val: Int^Positive) 
+SetHighValue(ref val: Int^Positive)
 {
-    val =^ 1000 strict;
+    val =^ 1000;
 }
 
 MutateExamples(
@@ -221,49 +217,52 @@ MutateExamples(
     ref player: User^HasScores,
     ref list: [Int]^NonEmpty,
     ref bounds: Range^ValidRange
-) 
+)
 {
-    // 1. Default guarded scalar mutation: checked in Debug, elided in default Release
-    age -=^ 10;
+    // 1. Guarded scalar and field mutations: checked in both Debug and Release (Aborts/Panics on failure)
+    age -=^ 5;
+    adult.Age =^ 21;
 
-    // 2. Strict guarded mutation: enforced at runtime in BOTH Debug and Release modes
-    age -=^ 5 strict;
-    adult.Age =^ 21 strict;
+    // 2. Post-'ref @' and post-'ref' invariant checks on the root variable
+    list.RemoveAt(0);
+    ResetUser(ref adult);
 
-    // 3. Strict post-'ref @' and post-'ref' invariant checks on the root variable
-    list.RemoveAt(0) strict;
-    ResetUser(ref adult) strict;
+    // 3. Post-'ref @' invariant check triggered by mutating a nested field ('player.Scores')
+    player.Scores.Clear();
 
-    // 4. Post-'ref @' invariant check triggered by mutating a nested field ('player.Scores')
-    player.Scores.Clear() strict;
-
-    // 5. Post-'ref' invariant check on 'bounds' ('^ValidRange') triggered even though
+    // 4. Post-'ref' invariant check on 'bounds' ('^ValidRange') triggered even though
     //    the parameter 'val' is itself guarded as 'Int^Positive'
-    SetHighValue(ref bounds.Min) strict;
+    SetHighValue(ref bounds.Min);
+
+    // 5. Non-aborting conditional guarded update via 'may'
+    may age =^ age - 10
+    {
+        Console.WriteLine("Updated age: \(age)");
+    }
 }
 
 MutateGuardedCollections(
     ref positiveScores: [Int^Positive],
     ref nonEmptyList: [Int]^NonEmpty,
     ref player: User^HasScores
-) 
+)
 {
     // Guarded element type ('Int^Positive'): 's' requires guarded assignment ('-=^')
-    ref s in positiveScores 
+    ref s in positiveScores
     {
-        s -=^ 1 strict;
+        s -=^ 1;
     }
 
     // Guarded collection ('[Int]^NonEmpty'): standard mutation inside; checked once on exit
-    ref n in nonEmptyList 
+    ref n in nonEmptyList
     {
         n += 10;
-    } strict;
+    }
 
     // Guarded container ('User^HasScores'): 'player.Scores' checked against '^HasScores' once on exit
-    ref sc in player.Scores 
+    ref sc in player.Scores
     {
         sc *= 2;
-    } strict;
+    }
 }
 ```

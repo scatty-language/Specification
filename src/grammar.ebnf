@@ -105,7 +105,7 @@ const_decl
     ::= identifier ":" type "::" expression ";"
 
 var_decl
-    ::= local_id ( ":=" | ":" type [ static_modifier ] ( "=" | "=^" ) ) ( expression | cascade_chain | stage_expr ) [ "strict" ] ";"
+    ::= local_id ( ":=" | ":" type [ static_modifier ] ( "=" | "=^" ) ) ( expression | cascade_chain | stage_expr ) ";"
 
 static_modifier
     ::= "static" | "astatic" | "gstatic"
@@ -270,10 +270,10 @@ continue_stmt
     ::= "continue" ";"
 
 return_stmt
-    ::= "return" [ expression | cascade_chain | stage_expr [ "strict" ] ] ";"
+    ::= "return" [ expression | cascade_chain | stage_expr ] ";"
 
 cascade_stmt
-    ::= [ assignable_path assignment_operator ] cascade_chain [ "strict" ] ";"
+    ::= [ assignable_path assignment_operator ] cascade_chain ";"
 
 cascade_chain
     ::= postfix_expr ".." type_identifier [ "<" type_args ">" ] method_invocation
@@ -289,7 +289,7 @@ fall_stmt
     ::= "fall" ";"
 
 destructure_stmt
-    ::= destructure_pattern ( "=" | ":=" ) ( expression | stage_expr ) [ "strict" ] ";"
+    ::= destructure_pattern ( "=" | ":=" ) ( expression | stage_expr ) ";"
 
 destructure_pattern
     ::= "(" destructure_target "," destructure_target { "," destructure_target } ")"
@@ -298,7 +298,7 @@ destructure_target
     ::= local_id | "_"
 
 expression_stmt
-    ::= expression [ "strict" ] ";"
+    ::= expression ";"
 
 where_stmt
     ::= "where" ( condition ";" | condition_block )
@@ -355,7 +355,7 @@ assignable_path
     ::= ( "@" | path_expr ) { "." type_identifier | index_access | force_unwrap }
 
 stage_stmt
-    ::= stage_clause [ "->" stage_output_list ] ( block [ "strict" ";" ] | "=>" statement )
+    ::= stage_clause [ "->" stage_output_list ] ( block | "=>" statement )
 
 stage_expr
     ::= stage_clause "->" stage_output_list block
@@ -479,6 +479,7 @@ coalescing_expr
 
 assignment_operator
     ::= "=" | "+=" | "-=" | "*=" | "/=" | "%="
+      | "+&=" | "-&=" | "*&="
       | "=^" | "+=^" | "-=^" | "*=^" | "/=^" | "%=^"
 
 logical_or_expr
@@ -515,13 +516,13 @@ additive_expr
     ::= multiplicative_expr { additive_operator multiplicative_expr }
 
 additive_operator
-    ::= "+" | "-"
+    ::= "+" | "+&" | "-" | "-&"
 
 multiplicative_expr
     ::= type_op_expr { multiplicative_operator type_op_expr }
 
 multiplicative_operator
-    ::= "*" | "/" | "%"
+    ::= "*" | "*&" | "/" | "%"
 
 type_op_expr
     ::= unary_expr { type_operator }
@@ -534,7 +535,7 @@ unary_expr
     ::= { unary_operator } ( introspection_expr | postfix_expr )
 
 unary_operator
-    ::= "bitnot" | "-" | "+"
+    ::= "bitnot" | "-" | "-&" | "+"
 
 introspection_expr
     ::= sizeof_expr
@@ -607,7 +608,7 @@ primary_expr
       | struct_init_expr
       | type_qualifier_expr
       | path_expr
-      | "(" ( expression | stage_expr [ "strict" ] ) ")"
+      | "(" ( expression | stage_expr ) ")"
 
 path_expr
     ::= identifier
@@ -836,7 +837,7 @@ keyword
       | "return" | "use" | "with" | "ref" | "weak" | "soa"
       | "embed" | "static" | "astatic" | "gstatic"
       | "equality" | "math" | "tag" | "bitwidth"
-      | "zeroed" | "noinit" | "strict" | "true" | "false" | "none" | "fn" | "fnptr"
+      | "zeroed" | "noinit" | "true" | "false" | "none" | "fn" | "fnptr"
       | "sizeof" | "alignof" | "offsetof" | "nameof" | "tagof"
       | "as" | "assume" | "is" | "and" | "or" | "not"
       | "bitand" | "bitor" | "bitxor" | "bitnot" | "bitshl" | "bitshr"

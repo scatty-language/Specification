@@ -261,7 +261,9 @@ in
   * On custom `~CursorIndexable<TCursor, TValue>` types with `SetAt` and custom `~Indexable<Int, TValue>` types with `Count` and `Set`, reads of `item` invoke `GetAt` / `Get`, and mutations of `item` unpack into the read-modify-write sequences defined in the Indexing Operator specification, propagating `throws` according to the concrete `Get` / `Set` / `GetAt` / `SetAt` signatures.
 * MUST NOT bind a mutating instance method (`item.MutatingMethod`) directly as a stack closure (`fn`) when `item` aliases a whole `soa` element or an element of a custom `~Indexable` or `~CursorIndexable` type.
 * MUST enforce standard `TypeGuards` rules on `item` when the element type of `collection` is guarded (`[T^Guard]`), requiring guarded assignment operators (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`) and element-level post-`ref` / post-`ref @` invariant checks.
-* MUST evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref` stage (on normal completion, `break`, `return`, or error propagation) when `collection` itself or an enclosing container along its path is governed by a type guard, obeying active build-mode validation rules or checking in both Debug and Release modes when postfix `strict;` is applied to the block-bodied `in` statement.
+* MUST evaluate all enclosing `^Guard` invariants along `collection`'s path (from innermost to outermost) once upon exiting a `ref` stage (on normal completion, `break`, `return`, or error propagation) in both Debug and Release modes whenever `collection` itself or an enclosing container along its path is governed by a type guard and the invariant is not statically proven at compile time:
+  * If any enclosing `^Guard` invariant evaluates to `false`, execution MUST immediately trigger runtime Abort or Fatal Panic mechanics (bypassing all `catch` handlers).
+  * On an error propagation path, the active propagating error MUST be preserved in a frame-local cleanup save slot while evaluating the `^Guard` invariants and restored into the TLS error slot if all invariants evaluate to `true`.
 
 ```scatty
 // Range iteration (0 through 9); 'i' is immutable
@@ -341,7 +343,7 @@ ref dept in company.Departments
 * MUST NOT declare duplicate `local_id` identifiers within the same `->` output binding list.
 * MAY read, mutate, and reassign output bindings within the body of the `in` pipeline using standard statements and operators.
 * MAY annotate an output binding with a guarded type (`local_id: Type^Guard = Expression` or `local_id: Type^Guard =^ Expression`).
-* MUST treat a guarded output binding as its unguarded base type `Type` during initialization and throughout the execution of the `in` body, and evaluate the governing `^Guard` invariant once upon completion of the `in` pipeline according to the active build-mode validation rules (or in both Debug and Release modes if the `strict` modifier is applied to the `in` statement).
+* MUST treat a guarded output binding as its unguarded base type `Type` during initialization and throughout the execution of the `in` body, and evaluate the governing `^Guard` invariant once upon completion of the `in` pipeline in both Debug and Release modes (unless statically proven at compile time), immediately triggering runtime Abort or Fatal Panic mechanics if the invariant evaluates to `false`.
 
 #### Statement-Level Evaluation
 
@@ -356,7 +358,6 @@ ref dept in company.Departments
 * MUST evaluate an expression-level `in` pipeline declaring a single output binding (`-> result := init`) directly to the final value and static type of that binding upon termination of the pipeline.
 * MUST evaluate an expression-level `in` pipeline declaring two or more output bindings (`-> out1 := init1, out2 := init2`) to a tuple containing the final values of the output bindings in their declaration order upon termination of the pipeline.
 * MUST declare a `{ ... }` block body on an expression-level `in` pipeline; an expression-level `in` pipeline MUST NOT use the `=> Statement;` body form.
-* MUST declare a `{ ... }` block body when applying the `strict` modifier to an `in` pipeline (`... { ... } strict;`), and MUST reject `strict;` on an `in` pipeline that has neither guarded output bindings nor a `ref` stage over a guarded collection or guarded container path.
 
 ```scatty
 // 1. Statement-level pipeline hoisting multiple output bindings into the enclosing scope

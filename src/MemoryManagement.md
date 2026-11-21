@@ -313,7 +313,7 @@ ProcessFile() throws
 ### Variant Payload Cleanup and Switching
 
 * MUST inspect the active discriminant tag when a tagged `Data` instance exits its lexical scope or its `strongCount` reaches `0`, and decrement the strong reference count (invoking `Dispose` where applicable) for the Owning Type payload fields belonging to the currently active variant prior to releasing shared Owning Type fields.
-* MUST execute an in-place variant switch on a tagged `Data` instance in the following strict three-step order to prevent use-after-free when the new variant's payload references data from the outgoing variant:
+* MUST execute an in-place variant switch on a tagged `Data` instance in the following three-step order to prevent use-after-free when the new variant's payload references data from the outgoing variant:
   1. Evaluate all payload argument expressions for the new variant into temporary bindings prior to mutating the target instance.
   2. Inspect the target instance's outgoing discriminant tag and release or dispose all Owning Type payload fields belonging to the outgoing active variant.
   3. Update the discriminant tag to the new variant and move the evaluated payload values from Step 1 into the variant payload storage.

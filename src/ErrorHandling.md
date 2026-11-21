@@ -17,11 +17,9 @@
   * Invocations of methods, stack closures (`fn`), or raw function pointers (`fnptr`) declared with the `throws` modifier.
   * Fallible `as` conversions (`~Castable<T>` implementations declaring `throws`, runtime type guard casts `as Type^Guard`, and runtime variant subtype casts `as Data::Variant`), which raise `CastError` or the `Cast` method's error upon failure.
   * Fallible indexing (`[]`) and slice range indexing (`[start..end]`) operations.
-  * Runtime integer division (`/`) and remainder (`%`) operations with a non-constant divisor (raising `DivisionByZeroError` on a zero divisor, or `OverflowError` on signed `MinValue / -1` when overflow checks are active).
-  * Runtime integer arithmetic operations (`+`, `-`, `*`, and unary `-`) on non-constant operands (raising `OverflowError` when overflow checks are active).
   * Runtime heap allocation operations—including constructing an Owning Type (`~Disposable`), Copy-Update (`with`) on an Owning Type, Copy-on-Write buffer detachment, runtime `String` interpolation, `String` / `RuneString` conversions, and dynamic heap collection allocations or resizes (raising `OutOfMemoryError` upon allocator failure).
-  * Guarded mutations (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, guarded field mutations, post-`ref` / post-`ref @` invariant re-evaluations, and post-`ref`-stage loop exit checks) on non-constant targets (raising `InvariantError` when invariant checks are active).
 * MUST NOT classify compile-time constant expressions proven not to fail at compile time as potentially throwing operations.
+* MUST NOT classify standard or wrapping integer arithmetic operations (`+`, `-`, `*`, `/`, `%`, unary `-`, `+&`, `-&`, `*&`, unary `-&`, and compound assignments) or guarded mutations (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`, guarded field mutations, post-`ref` / post-`ref @` invariant checks, post-`ref`-stage exit checks, and guarded `in` output bindings) as potentially throwing operations.
 
 ## The `throws` Modifier
 
@@ -65,6 +63,8 @@ Propagate() throws
 * MUST terminate the process immediately via Abort or Fatal Panic mechanics when:
   * An uncaught error escapes a non-throwing method, a `where` type guard predicate, a `Dispose(ref @)` method, a `rollback` block, a non-throwing `concurrent` block, or `Program.Run`.
   * An explicit fail-fast operator (`try!`, `must!`, `match!`, `as!`, postfix `!`, or weak interface force-call `Member!`) fails.
+  * A runtime integer arithmetic operation overflows (`+`, `-`, `*`, unary `-`, `+=`, `-=`, `*=`, or signed `MinValue / -1`) or divides/modulos by `0` (`/` or `%`).
+  * A runtime `where` invariant check fails on a guarded variable declaration (`=^`), guarded assignment (`=^`, `+=^`, `-=^`, `*=^`, `/=^`, `%=^`), guarded field mutation, post-`ref` / post-`ref @` check (including on an error-return path), post-`ref`-stage loop exit check, or guarded `in` pipeline output binding.
   * A thread attempts reentrant acquisition of a spinlock-backed `astatic` variable or field.
 * MUST trigger an immediate process abort without stack unwinding when executing in Release mode.
 * MUST transition an abort condition into a Fatal Panic when executing in Debug mode.
@@ -82,7 +82,7 @@ Propagate() throws
 * MUST transfer ownership of the Owning Type (if `~Disposable`) or any nested Owning Type and `T weak` fields (respecting the active discriminant tag for tagged `Data` types) into the TLS error slot without modifying `strongCount` or `weakCount` when the thrown expression is an rvalue.
 * MUST atomically increment `strongCount` (for an Owning Type error or nested Owning Type fields) and `weakCount` (for nested `T weak` fields, respecting the active discriminant tag for tagged `Data` types) when the thrown expression is an lvalue.
 * MUST propagate thrown errors via deterministic frame-return propagation without table-driven stack unwinding:
-  1. Upon executing `throw` (or raising a built-in runtime error such as `DivisionByZeroError`, `OverflowError`, `OutOfMemoryError`, `CastError`, or `InvariantError`), the active frame MUST populate the 128-byte TLS error slot, set the active error slot indicator (register or pointer to the TLS slot), execute error-path cleanup for the exited scopes, and either transfer control to an enclosing `try` / `catch` construct or return to the caller with an uninitialized (`noinit`) return value payload.
+  1. Upon executing `throw` (or raising a built-in runtime error such as `OutOfMemoryError` or `CastError`), the active frame MUST populate the 128-byte TLS error slot, set the active error slot indicator (register or pointer to the TLS slot), execute error-path cleanup for the exited scopes, and either transfer control to an enclosing `try` / `catch` construct or return to the caller with an uninitialized (`noinit`) return value payload.
   2. Immediately following any potentially throwing invocation or operation, the caller MUST inspect the active error slot indicator: if clear (null), normal execution continues; if set, the caller MUST ignore the `noinit` return payload and either intercept the error (`catch` or `try?`), trigger Abort or Fatal Panic mechanics (in a non-throwing context or `try!`), or execute its own error-path cleanup and return `noinit` to its caller.
 * MUST protect the active propagating error during error-path cleanup whenever exiting a scope executes any activated `undo` statement, evaluates an error-return `where` invariant check, releases a `catch` construct's frame-local error slot, or destroys a local value whose cleanup executes user-defined `Dispose` code:
   1. Allocate a dedicated 128-byte frame-local cleanup save slot per lexical cleanup nesting level, isolated from all `try` / `catch` frame-local error slots.
@@ -217,6 +217,8 @@ InvalidCatches() throws
 * Within `catch_expr_body`, a `"throw"` or `"return"` token immediately followed by `"catch"`, `";"`, `","`, `")"`, `"]"`, or `"}"` MUST be parsed without an operand expression.
 
 ```scatty
+^NonZero = Int where @ != 0;
+
 ParseInt(val: String) throws -> Int
 {
     may val == "" => throw Error.New("Empty");
@@ -231,8 +233,8 @@ ReadConfigValue(raw: String, fallback: Int) throws -> Int
         catch e: ~Error => fallback;
 
     // Diverging block arm ('return' exits 'ReadConfigValue')
-    ratio := try 100 / parsed
-        catch e: DivisionByZeroError
+    divisor := try parsed as Int^NonZero
+        catch e: CastError
         {
             Console.WriteLine("Zero divisor");
             return 0;
@@ -241,7 +243,7 @@ ReadConfigValue(raw: String, fallback: Int) throws -> Int
     // Nested 'try ... catch' expression requires parentheses
     recovered := try ParseInt(raw) catch => (try ParseInt("1") catch => 0);
 
-    return ratio + recovered;
+    return (100 / divisor) + recovered;
 }
 ```
 
@@ -268,14 +270,19 @@ Ping() throws
     throw Error.New("Timeout");
 }
 
+items := [Int] { 10, 20, 30 };
+
 // 'user' is 'User?' (Option<User>)
 user := try? FetchUser(10);
 
-// 'quotient' is 'Int?' (Option::None if divisor is 0)
-quotient := try? (total / count);
+// 'element' is 'Int?' (Option::None if index is out of bounds)
+element := try? items[idx];
 
 // 'isAlive' is 'Bool' (true if succeeded, false if threw)
 isAlive := try? Ping();
+
+// Invalid: integer arithmetic is non-throwing — MUST be rejected
+bad := try? (a + b);
 ```
 
 ## `try!` Operator and Block
